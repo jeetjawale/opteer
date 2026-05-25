@@ -103,3 +103,25 @@ export async function deleteApplication(id: string) {
   }
   return response.status === 204 ? null : response.json();
 }
+
+export async function parseResume(formData: FormData) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  
+  const response = await fetch(`${API_BASE_URL}/jobs/parse-resume`, {
+    method: "POST",
+    headers,
+    body: formData
+  });
+  
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({ detail: "Request failed" }));
+    throw new Error(errData.detail || `HTTP error ${response.status}`);
+  }
+  return response.json();
+}

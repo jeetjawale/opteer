@@ -14,6 +14,7 @@ class ApplicationStatus(str, Enum):
     INTERVIEW = "interview"
     OFFER = "offer"
     CLOSED = "closed"
+    REJECTED = "rejected"
 
 class ReminderType(str, Enum):
     FOLLOW_UP = "follow-up"

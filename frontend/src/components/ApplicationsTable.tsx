@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2, ArrowRight } from "lucide-react";
-import { analyzeApplication } from "@/lib/api";
+import { analyzeApplication, updateApplication } from "@/lib/api";
 
 interface Application {
   id: string;
@@ -27,7 +27,21 @@ interface ApplicationsTableProps {
 export default function ApplicationsTable({ applications, onRefresh }: ApplicationsTableProps) {
   const router = useRouter();
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const handleMarkApplied = async (id: string) => {
+    setUpdatingId(id);
+    setError(null);
+    try {
+      await updateApplication(id, { status: "applied" });
+      onRefresh();
+    } catch (err: any) {
+      setError(`Failed to update application: ${err.message || err}`);
+    } finally {
+      setUpdatingId(null);
+    }
+  };
 
   // Determinisic avatar background color based on company name
   const getAvatarBg = (companyName: string) => {
@@ -171,8 +185,13 @@ export default function ApplicationsTable({ applications, onRefresh }: Applicati
                     </span>
                   )}
                   {app.status === "closed" && (
-                    <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-red-950 text-red-300 border border-red-900/40 uppercase tracking-wider">
+                    <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-zinc-800 text-zinc-500 border border-zinc-700/35 uppercase tracking-wider">
                       closed
+                    </span>
+                  )}
+                  {app.status === "rejected" && (
+                    <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-red-950 text-red-300 border border-red-900/40 uppercase tracking-wider">
+                      rejected
                     </span>
                   )}
                 </td>
@@ -211,6 +230,13 @@ export default function ApplicationsTable({ applications, onRefresh }: Applicati
                       
                       {app.status === "saved" && (
                         <>
+                          <button
+                            onClick={() => handleMarkApplied(app.id)}
+                            className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition-colors disabled:opacity-50"
+                            disabled={updatingId === app.id || analyzingId === app.id}
+                          >
+                            {updatingId === app.id ? "Updating..." : "Mark Applied"}
+                          </button>
                           {app.fit_score !== null && (
                             <Link
                               href={`/applications/${app.id}`}
@@ -226,6 +252,7 @@ export default function ApplicationsTable({ applications, onRefresh }: Applicati
                                 ? "bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
                                 : "border border-blue-500/50 hover:bg-blue-900/20 text-blue-400 hover:text-blue-300"
                             }`}
+                            disabled={updatingId === app.id || analyzingId === app.id}
                           >
                             {app.fit_score !== null ? "Re-analyze" : "Analyze now"}
                           </button>
@@ -267,6 +294,15 @@ export default function ApplicationsTable({ applications, onRefresh }: Applicati
                       )}
 
                       {app.status === "closed" && (
+                        <Link
+                          href={`/applications/${app.id}`}
+                          className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold text-xs transition-colors flex items-center"
+                        >
+                          View
+                        </Link>
+                      )}
+
+                      {app.status === "rejected" && (
                         <Link
                           href={`/applications/${app.id}`}
                           className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold text-xs transition-colors flex items-center"

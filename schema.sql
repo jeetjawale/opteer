@@ -37,7 +37,7 @@ create table applications (
 
   -- kanban/pipeline state
   status          text default 'saved'
-                  check (status in ('saved','applied','interview','offer','closed')),
+                  check (status in ('saved','applied','interview','offer','closed','rejected')),
   applied_at      date,
 
   -- ai analysis results (populated by /analyze)
