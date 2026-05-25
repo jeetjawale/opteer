@@ -1,0 +1,166 @@
+from pydantic import BaseModel, Field, ConfigDict
+from uuid import UUID
+from datetime import datetime, date
+from typing import List, Optional, Any
+from enum import Enum
+
+# ============================================
+# ENUMS
+# ============================================
+
+class ApplicationStatus(str, Enum):
+    SAVED = "saved"
+    APPLIED = "applied"
+    INTERVIEW = "interview"
+    OFFER = "offer"
+    CLOSED = "closed"
+
+class ReminderType(str, Enum):
+    FOLLOW_UP = "follow-up"
+    INTERVIEW = "interview"
+    DEADLINE = "deadline"
+
+# ============================================
+# AI OUTPUT PARSING SCHEMAS
+# ============================================
+
+class FitScoreResult(BaseModel):
+    fit_score: int = Field(..., description="Fit score from 0 to 100", ge=0, le=100)
+    matched_skills: List[str] = Field(..., description="List of user skills matching the job description")
+    missing_skills: List[str] = Field(..., description="List of critical skills/requirements missing from user profile")
+    key_requirements: List[str] = Field(..., description="List of primary job requirements identified")
+    summary: str = Field(..., description="Brief 2-3 sentence overview highlighting user suitability and fit reasons")
+
+class InterviewQuestion(BaseModel):
+    question: str = Field(..., description="Potential interview question based on the role and resume gaps")
+    suggested_answer: str = Field(..., description="Tailored guide/points on how the user should answer this question")
+
+class InterviewPrepResult(BaseModel):
+    questions: List[InterviewQuestion] = Field(..., description="List of custom-generated interview prep questions")
+
+# ============================================
+# JOB SCHEMAS
+# ============================================
+
+class JobBase(BaseModel):
+    url: str = Field(..., description="Job posting URL")
+    company: Optional[str] = Field(None, description="Company name")
+    role: Optional[str] = Field(None, description="Job title/role name")
+    scraped_jd: Optional[str] = Field(None, description="Scraped raw job description text")
+    company_research: Optional[str] = Field(None, description="AI research notes on the company")
+
+class JobCreate(JobBase):
+    pass
+
+class JobResponse(JobBase):
+    id: UUID
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+class ImportJobRequest(BaseModel):
+    url: str = Field(..., description="The URL of the job posting to import")
+    resume_text: str = Field(..., description="The candidate's resume text to associate with this application")
+
+class JobImportResponse(BaseModel):
+    application_id: UUID = Field(..., description="ID of the newly created application")
+    job_id: UUID = Field(..., description="ID of the newly created job posting")
+    company: Optional[str] = Field(None, description="The company name extracted from the job posting")
+    status: str = Field(..., description="Status of the application (e.g. 'saved')")
+
+# ============================================
+# APPLICATION SCHEMAS
+# ============================================
+
+class ApplicationBase(BaseModel):
+    status: ApplicationStatus = ApplicationStatus.SAVED
+    applied_at: Optional[date] = None
+
+class ApplicationCreate(BaseModel):
+    job_id: UUID
+    resume_text: Optional[str] = None
+    resume_file_url: Optional[str] = None
+    resume_file_name: Optional[str] = None
+
+class ApplicationUpdate(BaseModel):
+    status: Optional[ApplicationStatus] = None
+    applied_at: Optional[date] = None
+    resume_text: Optional[str] = None
+    resume_file_url: Optional[str] = None
+    resume_file_name: Optional[str] = None
+    
+    # Allow updating AI fields during analysis workflow
+    fit_score: Optional[int] = Field(None, ge=0, le=100)
+    matched_skills: Optional[List[str]] = None
+    missing_skills: Optional[List[str]] = None
+    key_requirements: Optional[List[str]] = None
+    summary: Optional[str] = None
+    cover_letter: Optional[str] = None
+    interview_prep: Optional[InterviewPrepResult] = None
+    notes: Optional[str] = None
+
+class ApplicationResponse(ApplicationBase):
+    id: UUID
+    user_id: UUID
+    job_id: UUID
+    resume_text: Optional[str] = None
+    resume_file_url: Optional[str] = None
+    resume_file_name: Optional[str] = None
+    
+    # AI analysis fields
+    fit_score: Optional[int] = None
+    matched_skills: Optional[List[str]] = None
+    missing_skills: Optional[List[str]] = None
+    key_requirements: Optional[List[str]] = None
+    summary: Optional[str] = None
+    cover_letter: Optional[str] = None
+    interview_prep: Optional[Any] = None  # Stored as jsonb in DB (matches InterviewPrepResult structure)
+    notes: Optional[str] = None
+    
+    # Flat-mapped job fields from join
+    company: Optional[str] = None
+    role: Optional[str] = None
+    url: Optional[str] = None
+    
+    analyzed_at: Optional[datetime] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+# ============================================
+# REMINDER SCHEMAS
+# ============================================
+
+class ReminderBase(BaseModel):
+    application_id: UUID
+    type: ReminderType
+    due_at: datetime
+    note: Optional[str] = None
+
+class ReminderCreate(ReminderBase):
+    pass
+
+class ReminderResponse(ReminderBase):
+    id: UUID
+    user_id: UUID
+    is_sent: bool
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+# ============================================
+# ANALYSIS OPERATION SCHEMAS
+# ============================================
+
+class JobAnalysisRequest(BaseModel):
+    url: str = Field(..., description="The URL of the job description to parse")
+    resume_text: Optional[str] = Field(None, description="The plain text of the user's resume")
+    resume_file_url: Optional[str] = Field(None, description="Optional pre-uploaded resume file URL")
+    resume_file_name: Optional[str] = Field(None, description="Optional resume file name")
+
+class JobAnalysisResponse(BaseModel):
+    job: JobResponse
+    application: ApplicationResponse
+    fit_score_result: FitScoreResult
+    cover_letter: str
+    interview_prep_result: InterviewPrepResult
