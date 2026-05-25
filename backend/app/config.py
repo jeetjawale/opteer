@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     @field_validator("AI_PROVIDER")
     @classmethod
     def validate_ai_provider(cls, v: str) -> str:
-        allowed = {"gemini", "anthropic", "openai", "groq"}
+        allowed = {"gemini", "anthropic", "openai", "groq", "mock"}
         provider = v.lower()
         if provider not in allowed:
             raise ValueError(f"AI_PROVIDER must be one of {allowed}")
