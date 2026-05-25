@@ -48,6 +48,38 @@ export default function ApplicationsPage() {
     return () => clearInterval(timer);
   }, []);
 
+  // Export applications as CSV
+  const handleExport = () => {
+    if (applications.length === 0) return;
+    
+    const headers = ["Company", "Role", "URL", "Status", "Fit Score", "Matched Skills", "Missing Skills", "Summary"];
+    
+    const rows = applications.map((app: any) => [
+      app.company || "",
+      app.role || "",
+      app.url || "",
+      app.status || "",
+      app.fit_score ?? "",
+      (app.matched_skills || []).join("; "),
+      (app.missing_skills || []).join("; "),
+      (app.summary || "").replace(/"/g, '""').replace(/\n/g, ' ')
+    ]);
+    
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(row => row.map(val => `"${val}"`).join(","))
+    ].join("\n");
+    
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `jobpilot_applications_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // Filter application items dynamically in memory for fast UI search
   const filteredApplications = applications.filter((app: any) => {
     // 1. Status Filter
@@ -85,7 +117,11 @@ export default function ApplicationsPage() {
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           </button>
           
-          <button className="px-4 py-2.5 rounded-xl border border-zinc-800 hover:bg-zinc-900 text-zinc-400 hover:text-white font-semibold text-sm transition-colors flex items-center space-x-2">
+          <button 
+            onClick={handleExport}
+            className="px-4 py-2.5 rounded-xl border border-zinc-800 hover:bg-zinc-900 text-zinc-400 hover:text-white font-semibold text-sm transition-colors flex items-center space-x-2"
+            title="Export CSV"
+          >
             <Download className="w-4 h-4" />
             <span>Export</span>
           </button>
