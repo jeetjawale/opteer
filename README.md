@@ -29,7 +29,7 @@ It combines a **Next.js App Router** frontend with a **FastAPI** backend, orches
 ### Backend
 * **API Framework**: FastAPI, Pydantic v2 (Settings validation)
 * **Orchestration**: LangGraph (StateGraph workflows), LangChain (LCEL chains)
-* **AI Provider**: Google Gemini API (`gemini-2.5-flash`)
+* **AI Provider**: Google Gemini API (`gemini-2.5-flash`) or local **mock** provider for sandbox/visual testing
 * **Integrations**: Firecrawl (Markdown scraping), Tavily API (Company research search queries)
 * **Database**: Supabase Python Client (anon key validation + bypass RLS service role transactions)
 
@@ -159,13 +159,48 @@ Open `http://localhost:3000` in your browser.
 
 ## 🧪 Running Verification Tests
 
-To verify that the LangGraph workflow and Gemini connections work correctly, run the integration validation script from the `backend` directory:
+JobPilot supports automated unit/integration tests and visual end-to-end flow checks:
+
+### 1. Pytest Test Suite
+To run the automated unit and integration tests (which mock external dependencies like LLMs, databases, and scrapers):
 ```bash
-# Set up a TEST_APPLICATION_ID in .env to run real end-to-end validations
+cd backend
+source .venv/bin/activate
+python -m pytest
+```
+
+### 2. Sandbox Integration Test (Real API Calls)
+To test the LangGraph workflow with real LLM and database connections:
+```bash
+# Set up a TEST_APPLICATION_ID in your root .env first
 cd backend
 source .venv/bin/activate
 python scratch/test_graph.py
 ```
+
+### 3. Playwright Visual E2E Tests (Mock Mode)
+To run a complete end-to-end user browser flow, verify UI stability, and capture high-resolution screenshots without hitting LLM API rate limits:
+
+1. **Start the Backend Server in Mock Mode**:
+   ```bash
+   cd backend
+   source .venv/bin/activate
+   AI_PROVIDER=mock uvicorn app.main:app --port 8085
+   ```
+
+2. **Start the Frontend Server**:
+   ```bash
+   cd frontend
+   npm run dev
+   ```
+
+3. **Run the Playwright Screenshot Script**:
+   ```bash
+   cd backend
+   source .venv/bin/activate
+   python scratch/capture_visual_screenshots.py
+   ```
+This will run Chromium headlessly, perform signup/login/import/analysis stages, and save screenshot artifacts to the application directory.
 
 ---
 
