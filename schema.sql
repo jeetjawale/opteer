@@ -48,6 +48,7 @@ create table applications (
   summary         text,
   cover_letter    text,
   interview_prep  jsonb,
+  notes           text,
 
   analyzed_at     timestamptz,
   created_at      timestamptz default now()
