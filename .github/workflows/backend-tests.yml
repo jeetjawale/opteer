@@ -20,8 +20,9 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-python-version: '3.11'
+        python-version: '3.11'
         cache: 'pip'
+        cache-dependency-path: backend/requirements.txt
 
     - name: Install dependencies
       run: |
@@ -39,4 +40,4 @@ jobs:
     - name: Run unit tests
       run: |
         # Run pytest on the tests directory
-        pytest
+        python -m pytest
