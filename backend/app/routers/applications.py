@@ -202,6 +202,11 @@ async def update_application(
     update_data.pop("user_id", None)
     update_data.pop("job_id", None)
     
+    # Automatically set applied_at to today's date when status is changed to 'applied'
+    if update_data.get("status") == "applied" and "applied_at" not in update_data:
+        from datetime import date
+        update_data["applied_at"] = date.today().isoformat()
+        
     try:
         if update_data:
             # Pydantic automatic conversion from InterviewPrepResult to dict is handled

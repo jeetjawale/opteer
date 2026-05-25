@@ -1,6 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from firecrawl import FirecrawlApp
 from tavily import TavilyClient
+import pypdf
+import docx
+import io
 
 from app.config import settings
 from app.database import supabase_service, get_current_user
@@ -8,6 +11,57 @@ from app.schemas import ImportJobRequest, JobImportResponse
 from app.llm import get_llm
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
+
+@router.post("/parse-resume", status_code=status.HTTP_200_OK)
+async def parse_resume(
+    file: UploadFile = File(...),
+    current_user = Depends(get_current_user)
+):
+    """
+    Parses an uploaded resume file (PDF, DOCX, TXT, LaTeX) and returns the extracted text.
+    """
+    filename = file.filename.lower()
+    content = await file.read()
+    extracted_text = ""
+    
+    try:
+        if filename.endswith(".pdf"):
+            pdf_reader = pypdf.PdfReader(io.BytesIO(content))
+            text_parts = []
+            for page in pdf_reader.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    text_parts.append(page_text)
+            extracted_text = "\n".join(text_parts)
+            
+        elif filename.endswith((".docx", ".doc")):
+            # docx library supports reading docx streams. doc format is not directly docx, 
+            # but users often name docx as doc, so we attempt to read it.
+            doc = docx.Document(io.BytesIO(content))
+            text_parts = [para.text for para in doc.paragraphs]
+            extracted_text = "\n".join(text_parts)
+            
+        elif filename.endswith((".txt", ".tex", ".latex")):
+            extracted_text = content.decode("utf-8", errors="ignore")
+            
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Unsupported file format. Please upload a PDF, DOCX, TXT, or LaTeX file."
+            )
+            
+        if not extracted_text.strip():
+            raise ValueError("Extracted text is empty. The file may be scanned or empty.")
+            
+        return {"text": extracted_text}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Failed to parse resume file: {str(e)}"
+        )
 
 @router.post("/import", response_model=JobImportResponse, status_code=status.HTTP_201_CREATED)
 async def import_job(payload: ImportJobRequest, current_user = Depends(get_current_user)):

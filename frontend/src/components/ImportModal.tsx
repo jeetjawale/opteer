@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { X, CheckCircle2, Loader2, Import } from "lucide-react";
-import { importJob } from "@/lib/api";
+import { X, CheckCircle2, Loader2, Import, Upload } from "lucide-react";
+import { importJob, parseResume } from "@/lib/api";
 
 interface ImportModalProps {
   isOpen: boolean;
@@ -14,10 +14,32 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
   const [url, setUrl] = useState("");
   const [resumeText, setResumeText] = useState("");
   const [loading, setLoading] = useState(false);
+  const [parsingFile, setParsingFile] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
   // Progress Steps: 0 = Idle, 1 = Scraping, 2 = Researching, 3 = Saving, 4 = Success
   const [step, setStep] = useState(0);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setParsingFile(true);
+    setError(null);
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const response = await parseResume(formData);
+      setResumeText(response.text);
+    } catch (err: any) {
+      setError(err.message || "Failed to parse resume file.");
+    } finally {
+      setParsingFile(false);
+      e.target.value = ""; // Clear file input
+    }
+  };
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -121,17 +143,35 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
             </div>
 
             <div>
-              <label className="block text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-2" htmlFor="resume">
-                Resume Text
-              </label>
+              <div className="flex justify-between items-center mb-2">
+                <label className="block text-zinc-400 text-xs font-semibold uppercase tracking-wider" htmlFor="resume">
+                  Resume Text
+                </label>
+                <div className="flex items-center space-x-2">
+                  <span className="text-[10px] text-zinc-500 font-medium">Or upload (PDF, DOCX, TXT, LaTeX):</span>
+                  <label className="cursor-pointer text-[11px] bg-zinc-800 hover:bg-zinc-700 text-white px-2.5 py-1 rounded-lg border border-zinc-700 hover:border-zinc-600 transition-all font-semibold flex items-center space-x-1.5">
+                    <Upload className="w-3 h-3 text-zinc-400" />
+                    <span>Upload File</span>
+                    <input 
+                      type="file" 
+                      accept=".pdf,.docx,.doc,.txt,.tex,.latex" 
+                      className="hidden" 
+                      onChange={handleFileUpload}
+                      disabled={parsingFile || loading}
+                    />
+                  </label>
+                  {parsingFile && <Loader2 className="w-3.5 h-3.5 text-blue-400 animate-spin" />}
+                </div>
+              </div>
               <textarea
                 id="resume"
                 required
                 rows={6}
                 className="w-full px-4 py-3 rounded-xl bg-zinc-950 border border-zinc-800 text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-700 transition-colors text-sm resize-none"
-                placeholder="Paste your professional resume text here..."
+                placeholder={parsingFile ? "Extracting text from your resume file..." : "Paste your professional resume text here or upload a file..."}
                 value={resumeText}
                 onChange={(e) => setResumeText(e.target.value)}
+                disabled={parsingFile}
               />
             </div>
 

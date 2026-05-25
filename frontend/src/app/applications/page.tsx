@@ -222,8 +222,21 @@ export default function ApplicationsPage() {
                 : "border-zinc-800/80 text-zinc-500 hover:text-zinc-300"
             }`}
           >
-            <span className="w-2 h-2 rounded-full bg-red-500"></span>
+            <span className="w-2 h-2 rounded-full bg-zinc-600"></span>
             <span>Closed</span>
+          </button>
+
+          {/* Pill: Rejected */}
+          <button
+            onClick={() => setSelectedStatus("rejected")}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 border uppercase tracking-wider ${
+              selectedStatus === "rejected"
+                ? "bg-zinc-800 text-white border-zinc-700"
+                : "border-zinc-800/80 text-zinc-500 hover:text-zinc-300"
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-red-500"></span>
+            <span>Rejected</span>
           </button>
 
         </div>
