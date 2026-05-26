@@ -17,6 +17,7 @@ It combines a **Next.js App Router** frontend with a **FastAPI** backend, orches
 * **Dynamic Tab Detail Views**: Inspect fit analytics, copy cover letters to the clipboard, study prep materials with interactive accordion lists, and manage application reminders.
 * **Secure Session Auth**: End-to-end user authentication powered by **Supabase Auth** and Next.js SSR middleware.
 * **Dynamic API Key Settings & Security**: Configure personal LLM API keys securely in the Settings panel. Stored locally in the browser (`localStorage`), the key is loaded in memory and sent via headers for analysis runs. It is never stored in the database, preventing leaks and preserving user privacy.
+* **Resume Management**: A dedicated page for listing, uploading, parsing, updating, and deleting multiple saved resumes. Users select from their saved resume profiles directly inside the job import modal, streamlining job tracking.
 
 ---
 
@@ -76,10 +77,11 @@ jobpilot/
 │   │   │   └── interview_prep.py
 │   │   ├── graphs/           # LangGraph StateGraph implementation
 │   │   │   └── analysis_graph.py
-│   │   ├── routers/          # API resource routes (jobs, applications, reminders)
+│   │   ├── routers/          # API resource routes (jobs, applications, reminders, resumes)
 │   │   │   ├── applications.py
 │   │   │   ├── jobs.py
-│   │   │   └── reminders.py
+│   │   │   ├── reminders.py
+│   │   │   └── resumes.py
 │   │   ├── config.py         # App environment variables & settings validation
 │   │   ├── database.py       # Supabase client setup & auth dependencies
 │   │   ├── llm.py            # LLM provider factory, key validator & sanitizer
@@ -94,7 +96,7 @@ jobpilot/
 │
 ├── frontend/                 # Next.js Frontend App
 │   ├── src/
-│   │   ├── app/              # Router paths (login, signup, settings, applications)
+│   │   ├── app/              # Router paths (login, signup, settings, applications, resumes)
 │   │   ├── components/       # UI elements (Sidebar, stats, tables, tabs, modals)
 │   │   └── lib/              # Client utilities (supabase, api client, analysisTracker)
 │   ├── next.config.js        # Root env mapping configuration

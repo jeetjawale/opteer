@@ -175,3 +175,36 @@ class JobAnalysisResponse(BaseModel):
     fit_score_result: FitScoreResult
     cover_letter: str
     interview_prep_result: InterviewPrepResult
+
+# ============================================
+# RESUME SCHEMAS
+# ============================================
+
+class ResumeBase(BaseModel):
+    name: str = Field(..., min_length=1, description="User-visible label for the resume")
+    content: str = Field(..., min_length=50, description="Full parsed resume text content")
+
+class ResumeCreate(ResumeBase):
+    pass
+
+class ResumeUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1)
+    content: Optional[str] = Field(None, min_length=50)
+
+class ResumeListResponse(BaseModel):
+    id: UUID
+    name: str
+    preview: str
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+class ResumeResponse(ResumeBase):
+    id: UUID
+    user_id: UUID
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+

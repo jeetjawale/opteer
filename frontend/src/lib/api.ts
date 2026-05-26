@@ -217,3 +217,64 @@ export async function deleteReminder(id: string) {
   }
   return response.status === 204 ? null : response.json();
 }
+
+// ============================================
+// RESUME CRUD API WRAPPERS
+// ============================================
+
+export async function getResumes() {
+  const response = await fetchWithAuth(`${API_BASE_URL}/resumes`, { cache: "no-store" });
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({ detail: "Request failed" }));
+    throw new Error(errData.detail || `HTTP error ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function createResume(data: { name: string; content: string }) {
+  const response = await fetchWithAuth(`${API_BASE_URL}/resumes`, {
+    method: "POST",
+    body: JSON.stringify(data)
+  });
+  
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({ detail: "Request failed" }));
+    throw new Error(errData.detail || `HTTP error ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function getResume(id: string) {
+  const response = await fetchWithAuth(`${API_BASE_URL}/resumes/${id}`, { cache: "no-store" });
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({ detail: "Request failed" }));
+    throw new Error(errData.detail || `HTTP error ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function updateResume(id: string, data: { name?: string; content?: string }) {
+  const response = await fetchWithAuth(`${API_BASE_URL}/resumes/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data)
+  });
+  
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({ detail: "Request failed" }));
+    throw new Error(errData.detail || `HTTP error ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function deleteResume(id: string) {
+  const response = await fetchWithAuth(`${API_BASE_URL}/resumes/${id}`, {
+    method: "DELETE"
+  });
+  
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({ detail: "Request failed" }));
+    throw new Error(errData.detail || `HTTP error ${response.status}`);
+  }
+  return response.status === 204 ? null : response.json();
+}
+
