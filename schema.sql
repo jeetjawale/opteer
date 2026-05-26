@@ -66,6 +66,7 @@ create table reminders (
   due_at          timestamptz not null,
   note            text,
   is_sent         boolean default false,
+  is_completed    boolean default false,
   created_at      timestamptz default now()
 );
 

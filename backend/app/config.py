@@ -9,6 +9,11 @@ class Settings(BaseSettings):
     AI_PROVIDER: str = "gemini"
     AI_MODEL: str = "gemini-2.0-flash"
     
+    # Modular Model Routing Overrides (fallback to AI_MODEL if None)
+    AI_MODEL_FIT: str | None = None
+    AI_MODEL_LETTER: str | None = None
+    AI_MODEL_PREP: str | None = None
+    
     # API Keys
     GOOGLE_API_KEY: str | None = None
     OPENAI_API_KEY: str | None = None

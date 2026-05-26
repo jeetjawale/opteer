@@ -62,6 +62,7 @@ class JobResponse(JobBase):
 class ImportJobRequest(BaseModel):
     url: str = Field(..., description="The URL of the job posting to import")
     resume_text: str = Field(..., description="The candidate's resume text to associate with this application")
+    scraped_jd: Optional[str] = Field(None, description="Optional manually pasted job description text to bypass scraping")
 
 class JobImportResponse(BaseModel):
     application_id: UUID = Field(..., description="ID of the newly created application")
@@ -141,10 +142,18 @@ class ReminderBase(BaseModel):
 class ReminderCreate(ReminderBase):
     pass
 
+class ReminderUpdate(BaseModel):
+    type: Optional[ReminderType] = None
+    due_at: Optional[datetime] = None
+    note: Optional[str] = None
+    is_sent: Optional[bool] = None
+    is_completed: Optional[bool] = None
+
 class ReminderResponse(ReminderBase):
     id: UUID
     user_id: UUID
     is_sent: bool
+    is_completed: bool
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

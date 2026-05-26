@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.routers.jobs import router as jobs_router
 from app.routers.applications import router as applications_router
+from app.routers.reminders import router as reminders_router
 
 # Initialize the FastAPI app
 app = FastAPI(
@@ -24,6 +25,7 @@ app.add_middleware(
 # Include resource routers
 app.include_router(jobs_router)
 app.include_router(applications_router)
+app.include_router(reminders_router)
 
 @app.get("/health", tags=["health"])
 async def health_check():
