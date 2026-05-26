@@ -60,8 +60,12 @@ export default function Sidebar() {
             </Link>
 
             <Link 
-              href="#"
-              className="flex items-center space-x-2.5 px-3 py-2 rounded-lg text-sm hover:bg-zinc-800/40 hover:text-zinc-200 transition-colors"
+              href="/resumes"
+              className={`flex items-center space-x-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
+                pathname.startsWith("/resumes")
+                  ? "bg-zinc-800 text-white font-medium"
+                  : "hover:bg-zinc-800/40 hover:text-zinc-200"
+              }`}
             >
               <FileText className="w-4 h-4" />
               <span>My Resume</span>

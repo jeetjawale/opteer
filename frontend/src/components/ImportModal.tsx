@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { X, CheckCircle2, Loader2, Import, Upload } from "lucide-react";
-import { importJob, parseResume } from "@/lib/api";
+import { importJob, parseResume, getResumes, getResume, createResume } from "@/lib/api";
 
 interface ImportModalProps {
   isOpen: boolean;
@@ -16,6 +16,20 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
   const [showManualJd, setShowManualJd] = useState(false);
   const [userApiKey, setUserApiKey] = useState("");
   
+  interface SavedResume {
+    id: string;
+    name: string;
+    preview: string;
+    created_at: string;
+    updated_at: string;
+  }
+  const [savedResumes, setSavedResumes] = useState<SavedResume[]>([]);
+  const [loadingResumes, setLoadingResumes] = useState(false);
+  const [selectedResumeId, setSelectedResumeId] = useState("");
+  const [useOneOffResume, setUseOneOffResume] = useState(false);
+  const [saveNewResume, setSaveNewResume] = useState(false);
+  const [newResumeName, setNewResumeName] = useState("");
+
   const [loading, setLoading] = useState(false);
   const [parsingFile, setParsingFile] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +58,25 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
     }
   };
 
+  const loadResumes = async () => {
+    setLoadingResumes(true);
+    try {
+      const list = await getResumes();
+      setSavedResumes(list || []);
+      if (list && list.length > 0) {
+        setSelectedResumeId(list[0].id);
+        setUseOneOffResume(false);
+      } else {
+        setUseOneOffResume(true);
+      }
+    } catch (err) {
+      console.error("Failed to load saved resumes:", err);
+      setUseOneOffResume(true);
+    } finally {
+      setLoadingResumes(false);
+    }
+  };
+
   // Reset state when modal opens/closes
   useEffect(() => {
     if (!isOpen) {
@@ -54,9 +87,15 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
       setError(null);
       setLoading(false);
       setStep(0);
+      setSavedResumes([]);
+      setSelectedResumeId("");
+      setUseOneOffResume(false);
+      setSaveNewResume(false);
+      setNewResumeName("");
     } else {
       const savedKey = localStorage.getItem("jobpilot_api_key") || "";
       setUserApiKey(savedKey);
+      loadResumes();
     }
   }, [isOpen]);
 
@@ -83,7 +122,9 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!url || !resumeText) return;
+    if (!url) return;
+    if (useOneOffResume && !resumeText) return;
+    if (!useOneOffResume && !selectedResumeId) return;
     if (showManualJd && !manualJd) return;
 
     setLoading(true);
@@ -91,7 +132,20 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
     setStep(1); // Begin scraping step
 
     try {
-      await importJob(url, resumeText, showManualJd ? manualJd : undefined, userApiKey || undefined);
+      let finalResumeText = resumeText;
+      if (!useOneOffResume && selectedResumeId) {
+        // Fetch full content of selected resume before submitting
+        const fullResume = await getResume(selectedResumeId);
+        finalResumeText = fullResume.content;
+      } else if (useOneOffResume && saveNewResume) {
+        const nameToSave = newResumeName.trim() || `Resume - ${new Date().toLocaleDateString()}`;
+        await createResume({
+          name: nameToSave,
+          content: resumeText
+        });
+      }
+
+      await importJob(url, finalResumeText, showManualJd ? manualJd : undefined, userApiKey || undefined);
       setStep(4); // Success step
       
       // Delay closing slightly to show the completed step checkmarks
@@ -178,35 +232,103 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
 
             <div>
               <div className="flex justify-between items-center mb-2">
-                <label className="block text-zinc-400 text-xs font-semibold uppercase tracking-wider" htmlFor="resume">
-                  Resume Text
+                <label className="block text-zinc-400 text-xs font-semibold uppercase tracking-wider">
+                  Resume Selection
                 </label>
-                <div className="flex items-center space-x-2">
-                  <span className="text-[10px] text-zinc-500 font-medium">Or upload (PDF, DOCX, TXT, LaTeX):</span>
-                  <label className="cursor-pointer text-[11px] bg-zinc-800 hover:bg-zinc-700 text-white px-2.5 py-1 rounded-lg border border-zinc-700 hover:border-zinc-600 transition-all font-semibold flex items-center space-x-1.5">
-                    <Upload className="w-3 h-3 text-zinc-400" />
-                    <span>Upload File</span>
-                    <input 
-                      type="file" 
-                      accept=".pdf,.docx,.doc,.txt,.tex,.latex" 
-                      className="hidden" 
-                      onChange={handleFileUpload}
-                      disabled={parsingFile || loading}
-                    />
-                  </label>
-                  {parsingFile && <Loader2 className="w-3.5 h-3.5 text-blue-400 animate-spin" />}
-                </div>
+                {savedResumes.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUseOneOffResume(!useOneOffResume);
+                      setError(null);
+                    }}
+                    className="text-xs font-bold text-[#8B5CF6] hover:text-[#6C3CE1] transition-colors"
+                  >
+                    {useOneOffResume ? "Use a saved resume" : "Use a different resume"}
+                  </button>
+                )}
               </div>
-              <textarea
-                id="resume"
-                required
-                rows={5}
-                className="w-full px-4 py-3 rounded-xl bg-zinc-950 border border-zinc-800 text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-700 transition-colors text-sm resize-none"
-                placeholder={parsingFile ? "Extracting text from your resume file..." : "Paste your professional resume text here or upload a file..."}
-                value={resumeText}
-                onChange={(e) => setResumeText(e.target.value)}
-                disabled={parsingFile}
-              />
+
+              {loadingResumes ? (
+                <div className="flex items-center space-x-2 py-3 px-4 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-500 text-sm">
+                  <Loader2 className="w-4 h-4 animate-spin text-[#6C3CE1]" />
+                  <span>Loading saved resumes...</span>
+                </div>
+              ) : !useOneOffResume && savedResumes.length > 0 ? (
+                <div className="relative">
+                  <select
+                    value={selectedResumeId}
+                    onChange={(e) => setSelectedResumeId(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:border-zinc-700 transition-colors text-sm appearance-none cursor-pointer"
+                  >
+                    {savedResumes.map((resume) => (
+                      <option key={resume.id} value={resume.id}>
+                        {resume.name} ({resume.preview.substring(0, 40)}...)
+                      </option>
+                    ))}
+                  </select>
+                  <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-[8px] text-zinc-500">
+                    ▼
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] text-zinc-500 font-medium">
+                      Upload (PDF, DOCX, TXT, LaTeX) or paste text:
+                    </span>
+                    <label className="cursor-pointer text-[11px] bg-zinc-800 hover:bg-zinc-700 text-white px-2.5 py-1 rounded-lg border border-zinc-700 hover:border-zinc-600 transition-all font-semibold flex items-center space-x-1.5">
+                      <Upload className="w-3 h-3 text-zinc-400" />
+                      <span>Upload File</span>
+                      <input 
+                        type="file" 
+                        accept=".pdf,.docx,.doc,.txt,.tex,.latex" 
+                        className="hidden" 
+                        onChange={handleFileUpload}
+                        disabled={parsingFile || loading}
+                      />
+                    </label>
+                    {parsingFile && <Loader2 className="w-3.5 h-3.5 text-[#8B5CF6] animate-spin" />}
+                  </div>
+                  
+                  <textarea
+                    id="resume"
+                    required={useOneOffResume}
+                    rows={5}
+                    className="w-full px-4 py-3 rounded-xl bg-zinc-950 border border-zinc-800 text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-700 transition-colors text-sm resize-none"
+                    placeholder={parsingFile ? "Extracting text from your resume file..." : "Paste your professional resume text here or upload a file..."}
+                    value={resumeText}
+                    onChange={(e) => setResumeText(e.target.value)}
+                    disabled={parsingFile}
+                  />
+
+                  {/* Save Checkbox option */}
+                  <div className="space-y-2 pt-1">
+                    <label className="flex items-center space-x-2.5 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={saveNewResume}
+                        onChange={(e) => setSaveNewResume(e.target.checked)}
+                        className="w-4 h-4 rounded border-zinc-800 bg-zinc-950 text-[#6C3CE1] focus:ring-0 focus:ring-offset-0 focus:outline-none accent-[#6C3CE1]"
+                      />
+                      <span className="text-zinc-400 text-xs font-semibold">Save this resume for future imports</span>
+                    </label>
+
+                    {saveNewResume && (
+                      <div className="pl-6.5 animate-fadeIn">
+                        <input
+                          type="text"
+                          required={saveNewResume}
+                          placeholder="Resume Profile Name (e.g. SWE - 2025)"
+                          value={newResumeName}
+                          onChange={(e) => setNewResumeName(e.target.value)}
+                          className="w-full max-w-sm px-3.5 py-2 rounded-lg bg-zinc-950 border border-zinc-800 text-white placeholder-zinc-750 focus:outline-none focus:border-zinc-700 transition-colors text-xs"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end space-x-3 pt-2">

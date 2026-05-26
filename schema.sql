@@ -4,6 +4,7 @@
 drop table if exists reminders cascade;
 drop table if exists applications cascade;
 drop table if exists jobs cascade;
+drop table if exists resumes cascade;
 
 -- ============================================
 -- EXTENSIONS
@@ -79,6 +80,19 @@ create table reminders (
 );
 
 -- ============================================
+-- TABLE 4: resumes
+-- Stores saved resumes for candidate reuse.
+-- ============================================
+create table resumes (
+  id              uuid primary key default uuid_generate_v4(),
+  user_id         uuid references auth.users(id) on delete cascade not null,
+  name            text not null,
+  content         text not null,
+  created_at      timestamptz default now(),
+  updated_at      timestamptz default now()
+);
+
+-- ============================================
 -- INDEXES
 -- Speed up the most common queries
 -- ============================================
@@ -89,6 +103,7 @@ create index on applications(job_id);
 create index on reminders(user_id);
 create index on reminders(application_id);
 create index on reminders(due_at);
+create index on resumes(user_id);
 
 -- ============================================
 -- ROW LEVEL SECURITY
@@ -97,6 +112,7 @@ create index on reminders(due_at);
 alter table jobs enable row level security;
 alter table applications enable row level security;
 alter table reminders enable row level security;
+alter table resumes enable row level security;
 
 -- jobs: anyone authenticated can read + insert
 -- (jobs are shared, not user-specific)
@@ -126,6 +142,7 @@ create policy "users can update own applications"
   to authenticated
   using (auth.uid() = user_id);
 
+-- user deletion also deletes applications (handled by database cascade)
 create policy "users can delete own applications"
   on applications for delete
   to authenticated
@@ -134,6 +151,13 @@ create policy "users can delete own applications"
 -- reminders: users only see their own
 create policy "users can manage own reminders"
   on reminders for all
+  to authenticated
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+-- resumes: users only see their own
+create policy "users can manage own resumes"
+  on resumes for all
   to authenticated
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
