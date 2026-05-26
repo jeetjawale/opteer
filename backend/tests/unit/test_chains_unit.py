@@ -1,6 +1,8 @@
 import pytest
 from unittest.mock import patch
+from app.llm import detect_provider
 from langchain_core.language_models.chat_models import SimpleChatModel
+
 
 from app.chains.fit_scoring import get_fit_scoring_chain
 from app.chains.cover_letter import get_cover_letter_chain
@@ -72,3 +74,30 @@ async def test_interview_prep_chain():
         assert "asynchronous operations" in result["questions"][0]["question"]
         assert "asyncio" in result["questions"][0]["suggested_answer"]
         mock_get_llm.assert_called_once()
+
+def test_detect_provider():
+    assert detect_provider("sk-ant-abc123") == "anthropic"
+    assert detect_provider("sk-abc123") == "openai"
+    assert detect_provider("gsk_abc123") == "groq"
+    assert detect_provider("AIzaSyabc") == "gemini"
+    assert detect_provider("") == "gemini"
+    assert detect_provider("xyz") == "gemini"
+    assert detect_provider(None) == "gemini"
+
+def test_get_llm_local(monkeypatch):
+    from app.llm import get_llm
+    from app.config import settings
+    
+    monkeypatch.setattr(settings, "AI_PROVIDER", "local")
+    monkeypatch.setattr(settings, "LOCAL_LLM_BASE_URL", "http://localhost:8000/v1")
+    monkeypatch.setattr(settings, "AI_MODEL", "qwen-coder")
+    
+    with patch("langchain_openai.ChatOpenAI") as mock_chat_openai:
+        get_llm()
+        mock_chat_openai.assert_called_once_with(
+            model="qwen-coder",
+            temperature=0.0,
+            api_key="local-no-key-required",
+            base_url="http://localhost:8000/v1"
+        )
+

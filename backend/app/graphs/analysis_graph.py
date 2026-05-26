@@ -19,6 +19,7 @@ class AnalysisState(TypedDict):
     fit_result: dict
     cover_letter: str
     interview_prep: dict
+    user_api_key: Optional[str]
     error: Optional[str]
 
 # ============================================
@@ -49,9 +50,10 @@ async def fetch_context(state: AnalysisState) -> dict:
         else:
             job_data = jobs_rel or {}
             
-        resume_text = record.get("resume_text") or ""
-        scraped_jd = job_data.get("scraped_jd") or ""
-        company_research = job_data.get("company_research") or ""
+        from app.llm import sanitize_llm_input
+        resume_text = sanitize_llm_input(record.get("resume_text") or "", max_chars=15000)
+        scraped_jd = sanitize_llm_input(job_data.get("scraped_jd") or "", max_chars=20000)
+        company_research = sanitize_llm_input(job_data.get("company_research") or "", max_chars=20000)
         
         # Guard rails: validate that we have enough context to run the chains
         if not resume_text:
@@ -74,7 +76,7 @@ async def run_fit_scoring(state: AnalysisState) -> dict:
     Falls back to a clean default schema on parse failures or transient rate limits.
     """
     try:
-        fit_chain = get_fit_scoring_chain()
+        fit_chain = get_fit_scoring_chain(user_api_key=state.get("user_api_key"))
         result = await fit_chain.ainvoke({
             "resume_text": state["resume_text"],
             "scraped_jd": state["scraped_jd"]
@@ -83,11 +85,11 @@ async def run_fit_scoring(state: AnalysisState) -> dict:
     except Exception as e:
         # Graceful fallback schema
         fallback_result = {
-            "fit_score": 50,
+            "fit_score": None,
             "matched_skills": [],
             "missing_skills": [],
             "key_requirements": [],
-            "summary": "AI fit assessment format recovery. Analysis completed using standard candidate fit defaults."
+            "summary": "Analysis could not be completed. Please retry."
         }
         return {"fit_result": fallback_result}
 
@@ -97,7 +99,7 @@ async def run_cover_letter(state: AnalysisState) -> dict:
     Invokes the Cover Letter Chain using resume, job description, and company research.
     """
     try:
-        cl_chain = get_cover_letter_chain()
+        cl_chain = get_cover_letter_chain(user_api_key=state.get("user_api_key"))
         result = await cl_chain.ainvoke({
             "resume_text": state["resume_text"],
             "scraped_jd": state["scraped_jd"],
@@ -105,7 +107,11 @@ async def run_cover_letter(state: AnalysisState) -> dict:
         })
         return {"cover_letter": result}
     except Exception as e:
-        return {"error": f"run_cover_letter failed: {str(e)}"}
+        fallback_letter = (
+            "Cover letter generation encountered an issue. "
+            "Please retry the analysis or write your cover letter manually."
+        )
+        return {"cover_letter": fallback_letter}
 
 
 async def run_interview_prep(state: AnalysisState) -> dict:
@@ -114,7 +120,7 @@ async def run_interview_prep(state: AnalysisState) -> dict:
     Falls back to a clean default schema on parse failures or transient rate limits.
     """
     try:
-        prep_chain = get_interview_prep_chain()
+        prep_chain = get_interview_prep_chain(user_api_key=state.get("user_api_key"))
         result = await prep_chain.ainvoke({
             "resume_text": state["resume_text"],
             "scraped_jd": state["scraped_jd"]
@@ -217,7 +223,7 @@ graph = workflow.compile()
 # PUBLIC INTERFACE
 # ============================================
 
-async def run_analysis(application_id: str) -> dict:
+async def run_analysis(application_id: str, user_api_key: str | None = None) -> dict:
     """
     Compiles and invokes the state graph asynchronously to run the full AI analysis 
     on the specified application, storing findings back to the database.
@@ -232,8 +238,13 @@ async def run_analysis(application_id: str) -> dict:
         "fit_result": {},
         "cover_letter": "",
         "interview_prep": {},
+        "user_api_key": user_api_key,
         "error": None
     }
     
-    final_state = await graph.ainvoke(initial_state)
-    return final_state
+    try:
+        final_state = await graph.ainvoke(initial_state)
+        return final_state
+    except Exception as e:
+        print("Error invoking analysis graph:", str(e))
+        return {**initial_state, "error": str(e)}

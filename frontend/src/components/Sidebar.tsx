@@ -104,8 +104,12 @@ export default function Sidebar() {
       {/* Settings / Sign Out Pinned to Bottom */}
       <div className="p-4 border-t border-zinc-800/50 space-y-1">
         <Link 
-          href="#"
-          className="flex items-center space-x-2.5 px-3 py-2 rounded-lg text-sm hover:bg-zinc-800/40 hover:text-zinc-200 transition-colors w-full text-left"
+          href="/settings"
+          className={`flex items-center space-x-2.5 px-3 py-2 rounded-lg text-sm transition-colors w-full text-left ${
+            pathname === "/settings"
+              ? "bg-zinc-800 text-white font-medium"
+              : "hover:bg-zinc-800/40 hover:text-zinc-200"
+          }`}
         >
           <Settings className="w-4 h-4" />
           <span>Settings</span>

@@ -8,6 +8,53 @@ import { ArrowLeft, RefreshCw, Trash2, Loader2, ExternalLink } from "lucide-reac
 import { getApplication, deleteApplication } from "@/lib/api";
 import ApplicationDetail from "@/components/ApplicationDetail";
 
+const formatImportedDate = (isoString: string) => {
+  try {
+    const date = new Date(isoString);
+    return `Imported ${date.toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit"
+    })}`;
+  } catch {
+    return "Imported unknown date";
+  }
+};
+
+const formatRelativeTime = (isoString: string | null | undefined, referenceDate: Date) => {
+  if (!isoString) return "Not analyzed yet";
+  try {
+    const date = new Date(isoString);
+    const diffMs = referenceDate.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / (60 * 1000));
+    const diffHours = Math.floor(diffMs / (60 * 60 * 1000));
+    const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+
+    if (diffMins < 1) {
+      return "Analyzed just now";
+    }
+    if (diffMins < 60) {
+      return `Analyzed ${diffMins} min${diffMins > 1 ? "s" : ""} ago`;
+    }
+    if (diffHours < 24) {
+      return `Analyzed ${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
+    }
+    if (diffDays < 7) {
+      return `Analyzed ${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
+    }
+    return `Analyzed on ${date.toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit"
+    })}`;
+  } catch {
+    return "Not analyzed yet";
+  }
+};
+
 function ApplicationDetailContent() {
   const router = useRouter();
   const params = useParams();
@@ -19,6 +66,16 @@ function ApplicationDetailContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    setMounted(true);
+    const timer = setInterval(() => {
+      setNow(new Date());
+    }, 30000);
+    return () => clearInterval(timer);
+  }, []);
 
   const fetchApp = useCallback(async () => {
     setLoading(true);
@@ -90,7 +147,19 @@ function ApplicationDetailContent() {
           <h1 className="text-white text-2xl md:text-3xl font-extrabold tracking-tight">
             {application.role || "Job Opportunity"}
           </h1>
-          <p className="text-zinc-400 text-sm font-medium">{application.company}</p>
+          <div className="flex flex-col md:flex-row md:items-center gap-1.5 md:gap-3 text-zinc-400 text-sm font-medium">
+            <span>{application.company}</span>
+            <span className="hidden md:inline text-zinc-600">•</span>
+            {mounted ? (
+              <span className="text-zinc-500">
+                {formatImportedDate(application.created_at)}
+                {" · "}
+                {formatRelativeTime(application.analyzed_at, now)}
+              </span>
+            ) : (
+              <span className="text-zinc-500 opacity-0">Loading times...</span>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center space-x-3">

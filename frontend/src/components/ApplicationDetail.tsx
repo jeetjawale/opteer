@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { AlertCircle } from "lucide-react";
-import { updateApplication, analyzeApplication } from "@/lib/api";
+import { updateApplication } from "@/lib/api";
+import { analysisTracker } from "@/lib/analysisTracker";
 import OverviewTab from "./OverviewTab";
 import CoverLetterTab from "./CoverLetterTab";
 import InterviewPrepTab from "./InterviewPrepTab";
@@ -43,6 +44,29 @@ export default function ApplicationDetail({ application, onRefresh, defaultTab =
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
 
+  // Sync initial state and subscribe to changes
+  useEffect(() => {
+    setAnalyzing(analysisTracker.isAnalyzing(application.id));
+
+    const unsubscribe = analysisTracker.subscribe((update) => {
+      if (update.id === application.id) {
+        if (update.status === "analyzing") {
+          setAnalyzing(true);
+          setAnalysisError(null);
+        } else if (update.status === "completed") {
+          setAnalyzing(false);
+          setAnalysisError(null);
+          onRefresh();
+        } else if (update.status === "failed") {
+          setAnalyzing(false);
+          setAnalysisError(update.error || "Analysis failed.");
+        }
+      }
+    });
+
+    return unsubscribe;
+  }, [application.id, onRefresh]);
+
   // Status Change Handler
   const handleStatusChange = async (newStatus: string) => {
     setUpdatingStatus(true);
@@ -71,15 +95,12 @@ export default function ApplicationDetail({ application, onRefresh, defaultTab =
 
   // Triggers AI Analysis inline if not yet run
   const handleTriggerAnalysis = async () => {
-    setAnalyzing(true);
     setAnalysisError(null);
     try {
-      await analyzeApplication(application.id);
-      onRefresh();
+      await analysisTracker.performAnalysis(application.id);
     } catch (err: any) {
-      setAnalysisError(err.message || "AI Analysis execution failed.");
-    } finally {
-      setAnalyzing(false);
+      // Error is caught here to prevent uncaught promise rejection errors in console.
+      // The user-facing error message will be set and displayed via the subscription listener.
     }
   };
 

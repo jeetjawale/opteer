@@ -4,7 +4,7 @@ import app.llm
 from app.schemas import FitScoreResult
 from app.config import settings
 
-def get_fit_scoring_chain():
+def get_fit_scoring_chain(user_api_key: str | None = None):
     """
     Creates and returns a LangChain chain for scoring candidate fit against a job description.
     Uses temperature=0.0 for consistent, objective, and analytical outputs.
@@ -12,7 +12,7 @@ def get_fit_scoring_chain():
     """
     # 1. Initialize parser and LLM (temperature=0 for analytical tasks)
     parser = JsonOutputParser(pydantic_object=FitScoreResult)
-    llm = app.llm.get_llm(temperature=0.0, model_override=settings.AI_MODEL_FIT)
+    llm = app.llm.get_llm(temperature=0.0, max_tokens=1200, model_override=settings.AI_MODEL_FIT, user_api_key=user_api_key)
 
     # 2. Build Prompt Template with formatting instructions
     prompt = PromptTemplate(

@@ -1,54 +1,176 @@
 from app.config import settings
 from langchain_core.language_models.chat_models import BaseChatModel
+import re
 
-def get_llm(temperature: float = 0.0, model_override: str | None = None) -> BaseChatModel:
+KEY_PATTERNS = {
+    "anthropic": re.compile(r"^sk-ant-[a-zA-Z0-9\-_]{20,}$"),
+    "openai":    re.compile(r"^sk-[a-zA-Z0-9]{20,}$"),
+    "groq":      re.compile(r"^gsk_[a-zA-Z0-9]{20,}$"),
+    "gemini":    re.compile(r"^[A-Za-z0-9\-_]{30,}$"),
+}
+
+def detect_provider(api_key: str | None) -> str:
     """
-    Factory function that returns an initialized LangChain chat model based on the configured AI_PROVIDER.
-    Supports 'gemini', 'anthropic', 'openai', and 'groq'.
+    Detects the AI provider based on the format/prefix of the API key.
+    Handles edge cases safely and defaults to "gemini".
+    """
+    if not api_key or not isinstance(api_key, str) or len(api_key) < 4:
+        return "gemini"
     
-    Default temperature is set to 0.0 for consistent and analytical outputs.
+    if api_key.startswith("sk-ant-"):
+        return "anthropic"
+    elif api_key.startswith("sk-"):
+        return "openai"
+    elif api_key.startswith("gsk_"):
+        return "groq"
+    else:
+        return "gemini"
+
+def validate_api_key_format(key: str | None) -> bool:
     """
-    provider = settings.AI_PROVIDER.lower()
-    model_name = model_override or settings.AI_MODEL
+    Validates API key formats based on standard provider prefixes and length constraints.
+    Returns True if valid, False otherwise.
+    """
+    if not key:
+        return False
+    provider = detect_provider(key)
+    pattern = KEY_PATTERNS.get(provider)
+    return bool(pattern and pattern.match(key))
+
+def sanitize_llm_input(text: str | None, max_chars: int = 15000) -> str:
+    """
+    Sanitizes LLM prompt inputs by truncating, stripping null bytes, and normalizing spaces.
+    """
+    if not text:
+        return ""
+    # Truncate to prevent token stuffing/exceeding contexts
+    text = text[:max_chars]
+    # Strip null bytes
+    text = text.replace("\x00", "")
+    # Normalize horizontal whitespace but preserve newlines for structure
+    text = re.sub(r'[ \t]+', ' ', text)
+    # Collapse excessive blank lines (3+ newlines → 2)
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    return text.strip()
+
+def get_llm(
+    temperature: float = 0.0,
+    max_tokens: int | None = None,
+    frequency_penalty: float = 0.0,
+    model_override: str | None = None,
+    user_api_key: str | None = None
+) -> BaseChatModel:
+    """
+    Factory function that returns an initialized LangChain chat model.
+    If user_api_key is provided, it detects the provider and maps to its default model.
+    Otherwise, it defaults to the global settings AI provider and model.
+    
+    Default models when user_api_key is provided:
+      - anthropic -> claude-sonnet-4-5
+      - openai    -> gpt-4o-mini
+      - groq      -> llama-3.3-70b-versatile
+      - gemini    -> gemini-2.5-flash
+    """
+    if user_api_key:
+        provider = detect_provider(user_api_key)
+        if provider != "local" and not validate_api_key_format(user_api_key):
+            raise ValueError(f"Invalid API key format for provider: {provider}")
+            
+        # Choose exactly the required default model names per provider
+        if provider == "anthropic":
+            model_name = "claude-sonnet-4-5"
+        elif provider == "openai":
+            model_name = "gpt-4o-mini"
+        elif provider == "groq":
+            model_name = "llama-3.3-70b-versatile"
+        else:
+            model_name = "gemini-2.5-flash"
+            
+        api_key = user_api_key
+    else:
+        provider = settings.AI_PROVIDER.lower()
+        model_name = model_override or settings.AI_MODEL
+        api_key = None
 
     if provider == "gemini":
         from langchain_google_genai import ChatGoogleGenerativeAI
-        if not settings.GOOGLE_API_KEY:
+        key = api_key or settings.GOOGLE_API_KEY
+        if not key:
             raise ValueError("GOOGLE_API_KEY is not configured in the environment.")
+        kwargs = {}
+        if max_tokens is not None:
+            kwargs["max_output_tokens"] = max_tokens
         model = ChatGoogleGenerativeAI(
             model=model_name,
             temperature=temperature,
-            google_api_key=settings.GOOGLE_API_KEY
+            google_api_key=key,
+            **kwargs
         )
 
     elif provider == "anthropic":
         from langchain_anthropic import ChatAnthropic
-        if not settings.ANTHROPIC_API_KEY:
+        key = api_key or settings.ANTHROPIC_API_KEY
+        if not key:
             raise ValueError("ANTHROPIC_API_KEY is not configured in the environment.")
+        kwargs = {}
+        if max_tokens is not None:
+            kwargs["max_tokens"] = max_tokens
         model = ChatAnthropic(
             model=model_name,
             temperature=temperature,
-            api_key=settings.ANTHROPIC_API_KEY
+            api_key=key,
+            **kwargs
         )
 
     elif provider == "openai":
         from langchain_openai import ChatOpenAI
-        if not settings.OPENAI_API_KEY:
+        key = api_key or settings.OPENAI_API_KEY
+        if not key:
             raise ValueError("OPENAI_API_KEY is not configured in the environment.")
+        kwargs = {}
+        if max_tokens is not None:
+            kwargs["max_tokens"] = max_tokens
+        if frequency_penalty > 0.0:
+            kwargs["frequency_penalty"] = frequency_penalty
         model = ChatOpenAI(
             model=model_name,
             temperature=temperature,
-            api_key=settings.OPENAI_API_KEY
+            api_key=key,
+            **kwargs
         )
 
     elif provider == "groq":
         from langchain_groq import ChatGroq
-        if not settings.GROQ_API_KEY:
+        key = api_key or settings.GROQ_API_KEY
+        if not key:
             raise ValueError("GROQ_API_KEY is not configured in the environment.")
+        kwargs = {}
+        if max_tokens is not None:
+            kwargs["max_tokens"] = max_tokens
         model = ChatGroq(
             model=model_name,
             temperature=temperature,
-            api_key=settings.GROQ_API_KEY
+            api_key=key,
+            **kwargs
+        )
+
+    elif provider == "local":
+        from langchain_openai import ChatOpenAI
+        base_url = settings.LOCAL_LLM_BASE_URL
+        if not base_url:
+            raise ValueError("LOCAL_LLM_BASE_URL is not configured in the environment.")
+        key = api_key or settings.OPENAI_API_KEY or "local-no-key-required"
+        kwargs = {}
+        if max_tokens is not None:
+            kwargs["max_tokens"] = max_tokens
+        if frequency_penalty > 0.0:
+            kwargs["frequency_penalty"] = frequency_penalty
+        model = ChatOpenAI(
+            model=model_name,
+            temperature=temperature,
+            api_key=key,
+            base_url=base_url,
+            **kwargs
         )
 
     elif provider == "mock":
@@ -73,7 +195,7 @@ def get_llm(temperature: float = 0.0, model_override: str | None = None) -> Base
                     elif isinstance(m.content, list):
                         for part in m.content:
                             if isinstance(part, dict) and "text" in part:
-                                prompt_text += " " + part["text"]
+                                  prompt_text += " " + part["text"]
 
                 prompt_lower = prompt_text.lower()
                 if "fit" in prompt_lower or "score" in prompt_lower or "skills" in prompt_lower:

@@ -26,7 +26,7 @@ class ReminderType(str, Enum):
 # ============================================
 
 class FitScoreResult(BaseModel):
-    fit_score: int = Field(..., description="Fit score from 0 to 100", ge=0, le=100)
+    fit_score: Optional[int] = Field(None, description="Fit score from 0 to 100")
     matched_skills: List[str] = Field(..., description="List of user skills matching the job description")
     missing_skills: List[str] = Field(..., description="List of critical skills/requirements missing from user profile")
     key_requirements: List[str] = Field(..., description="List of primary job requirements identified")
@@ -63,6 +63,7 @@ class ImportJobRequest(BaseModel):
     url: str = Field(..., description="The URL of the job posting to import")
     resume_text: str = Field(..., description="The candidate's resume text to associate with this application")
     scraped_jd: Optional[str] = Field(None, description="Optional manually pasted job description text to bypass scraping")
+
 
 class JobImportResponse(BaseModel):
     application_id: UUID = Field(..., description="ID of the newly created application")

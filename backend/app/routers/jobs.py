@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Header
+from typing import Optional
 from firecrawl import FirecrawlApp
 from tavily import TavilyClient
 import pypdf
@@ -63,14 +64,45 @@ async def parse_resume(
             detail=f"Failed to parse resume file: {str(e)}"
         )
 
-@router.post("/import", response_model=JobImportResponse, status_code=status.HTTP_201_CREATED)
-async def import_job(payload: ImportJobRequest, current_user = Depends(get_current_user)):
+def extract_text_content(content) -> str:
+    if isinstance(content, str):
+        return content.strip()
+    elif isinstance(content, list):
+        text_parts = []
+        for part in content:
+            if isinstance(part, dict) and "text" in part:
+                text_parts.append(part["text"])
+            elif isinstance(part, str):
+                text_parts.append(part)
+        return "".join(text_parts).strip()
+    return str(content).strip()
+
+def clean_html(html: str) -> str:
+    import re
+    # Remove script and style elements
+    html = re.sub(r'<(script|style)\b[^>]*>([\s\S]*?)<\/\1>', ' ', html, flags=re.IGNORECASE)
+    # Strip remaining HTML tags
+    html = re.sub(r'<[^>]+>', ' ', html)
+    # Collapse whitespace
+    html = re.sub(r'\s+', ' ', html)
+    return html.strip()
+
+from app.rate_limiter import rate_limiter
+
+@router.post("/import", response_model=JobImportResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(rate_limiter(limit=10, window_seconds=60))])
+async def import_job(
+    payload: ImportJobRequest,
+    current_user = Depends(get_current_user),
+    x_user_api_key: Optional[str] = Header(None, alias="X-User-Api-Key")
+):
     """
     Scrapes a job posting URL, extracts the company name via LLM, performs Tavily 
     background research, and registers the job and application records in Supabase.
     """
+    from app.llm import sanitize_llm_input
     url = payload.url
-    resume_text = payload.resume_text
+    resume_text = sanitize_llm_input(payload.resume_text, max_chars=15000)
+    scraped_jd = sanitize_llm_input(payload.scraped_jd or "", max_chars=20000) if payload.scraped_jd else None
     
     # 1. Scrape URL using Firecrawl (or use manual fallback text if provided)
     scraped_jd = payload.scraped_jd
@@ -86,37 +118,95 @@ async def import_job(payload: ImportJobRequest, current_user = Depends(get_curre
             if not scraped_jd:
                 raise ValueError("Firecrawl returned empty markdown content.")
         except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Firecrawl scraping failed: {str(e)}"
-            )
+            # Fallback direct HTTP scraper
+            try:
+                import httpx
+                headers = {
+                    "User-Agent": (
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                        "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                    )
+                }
+                with httpx.Client(follow_redirects=True, headers=headers, timeout=10.0) as client:
+                    resp = client.get(url)
+                    if resp.status_code == 200:
+                        scraped_jd = clean_html(resp.text)
+                        if not scraped_jd:
+                            raise ValueError("Scraped content resulted in empty text.")
+                    else:
+                        raise ValueError(f"HTTP response status code: {resp.status_code}")
+            except Exception as direct_err:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Scraping failed. Firecrawl: {str(e)} | Direct HTTP: {str(direct_err)}"
+                )
+    
+    # Ensure scraped content is sanitized and truncated
+    scraped_jd = sanitize_llm_input(scraped_jd, max_chars=20000)
         
-    # 2. Extract company name and job title using a simple LLM call (one-shot, temperature=0.0)
-    llm = get_llm(temperature=0.0)
+    # 2. Extract company name and job title using a single JSON LLM call (one-shot, temperature=0.0, max_tokens=100)
+    llm = get_llm(temperature=0.0, max_tokens=200, user_api_key=x_user_api_key)
+    company_name = None
+    role_name = None
     try:
         prompt = (
-            "Extract just the company name from this job description. "
-            "Return only the company name, nothing else.\n\n"
+            "Analyze this job description and extract the company name and the job title/role.\n"
+            "Return ONLY a JSON object with the keys 'company_name' and 'role_name', and nothing else. "
+            "Do not include markdown code block formatting (like ```json).\n\n"
             f"Job Description:\n{scraped_jd}"
         )
         llm_response = llm.invoke(prompt)
-        company_name = llm_response.content.strip()
+        raw_text = extract_text_content(llm_response.content)
+        
+        # Clean potential markdown wrapping if present
+        if raw_text.startswith("```"):
+            lines = raw_text.splitlines()
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].startswith("```"):
+                lines = lines[:-1]
+            raw_text = "\n".join(lines).strip()
+            
+        import json
+        extracted_data = json.loads(raw_text)
+        company_name = extracted_data.get("company_name", "").strip()
+        role_name = extracted_data.get("role_name", "").strip()
+        
+        if company_name.lower() in {"n/a", "unknown", "none", "null", "not found"}:
+            company_name = None
+        if role_name.lower() in {"n/a", "unknown", "none", "null", "not found", "job description"}:
+            role_name = None
     except Exception as e:
+        print("Failed to extract company and role via single LLM JSON call:", str(e))
+        
+    if not company_name:
         # Fallback to domain netloc if LLM fails, ensuring resilience
         from urllib.parse import urlparse
         parsed = urlparse(url)
-        company_name = parsed.netloc.replace("www.", "").split(".")[0].capitalize()
+        # Strip common job-board subdomain prefixes (jobs., careers., apply.)
+        # e.g. jobs.revvity.com → revvity, careers.google.com → google
+        parts = parsed.netloc.replace("www.", "").split(".")
+        skip_prefixes = {"jobs", "careers", "apply", "work", "hire", "talent"}
+        company_part = parts[0] if parts[0].lower() not in skip_prefixes else (parts[1] if len(parts) > 1 else parts[0])
+        company_name = company_part.capitalize()
         
-    try:
-        role_prompt = (
-            "Extract just the job title/role from this job description. "
-            "Return only the job title, nothing else.\n\n"
-            f"Job Description:\n{scraped_jd}"
-        )
-        role_response = llm.invoke(role_prompt)
-        role_name = role_response.content.strip()
-    except Exception as e:
-        role_name = "Job Description"
+    if not role_name:
+        # Try to extract role from URL path segments (e.g. Workday, Greenhouse, Lever ATS)
+        # e.g. /job/thane/ai-applications-devops-intern/20539 → "Ai Applications Devops Intern"
+        from urllib.parse import urlparse
+        _parsed = urlparse(url)
+        path_parts = [p for p in _parsed.path.split("/") if p]
+        # Find the longest hyphenated segment that looks like a job title (not a pure number or city)
+        role_from_path = None
+        for part in path_parts:
+            # Skip numeric IDs and very short segments
+            if part.isdigit() or len(part) < 5:
+                continue
+            # Prefer segments with multiple hyphens (likely a slugified role title)
+            if part.count("-") >= 2:
+                role_from_path = part.replace("-", " ").title()
+                break
+        role_name = role_from_path or "Job Description"
         
     # 3. Research company using Tavily
     try:
@@ -128,19 +218,31 @@ async def import_job(payload: ImportJobRequest, current_user = Depends(get_curre
     except Exception as e:
         company_research = f"No additional research available. Search failed: {str(e)}"
         
-    # 4. Insert into jobs table using supabase_service
+    # 4. Insert into jobs table using supabase_service or reuse existing
     try:
-        job_payload = {
-            "url": url,
-            "company": company_name,
-            "role": role_name,
-            "scraped_jd": scraped_jd,
-            "company_research": company_research
-        }
-        job_response = supabase_service.table("jobs").insert(job_payload).execute()
-        if not job_response.data or len(job_response.data) == 0:
-            raise ValueError("Failed to create job record in database.")
-        job_id = job_response.data[0]["id"]
+        # Check if the job already exists by URL
+        existing_job = supabase_service.table("jobs").select("id").eq("url", url).execute()
+        if existing_job.data and len(existing_job.data) > 0:
+            job_id = existing_job.data[0]["id"]
+            # Update the existing job details with the latest scraped/manual data
+            supabase_service.table("jobs").update({
+                "company": company_name,
+                "role": role_name,
+                "scraped_jd": scraped_jd,
+                "company_research": company_research
+            }).eq("id", job_id).execute()
+        else:
+            job_payload = {
+                "url": url,
+                "company": company_name,
+                "role": role_name,
+                "scraped_jd": scraped_jd,
+                "company_research": company_research
+            }
+            job_response = supabase_service.table("jobs").insert(job_payload).execute()
+            if not job_response.data or len(job_response.data) == 0:
+                raise ValueError("Failed to create job record in database.")
+            job_id = job_response.data[0]["id"]
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

@@ -40,13 +40,21 @@ export default function ApplicationsPage() {
     fetchApps();
   }, [fetchApps]);
 
-  // Increment last updated minutes timer
+  // Increment last updated minutes timer and auto-refresh every 5 minutes
   useEffect(() => {
-    const timer = setInterval(() => {
+    const minuteTimer = setInterval(() => {
       setLastUpdated((prev) => prev + 1);
     }, 60000); // update every minute
-    return () => clearInterval(timer);
-  }, []);
+
+    const refreshTimer = setInterval(() => {
+      fetchApps();
+    }, 300000); // auto-refresh every 5 minutes
+
+    return () => {
+      clearInterval(minuteTimer);
+      clearInterval(refreshTimer);
+    };
+  }, [fetchApps]);
 
   // Export applications as CSV
   const handleExport = () => {

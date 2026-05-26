@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState, useEffect } from "react";
 import { X, CheckCircle2, Loader2, Import, Upload } from "lucide-react";
 import { importJob, parseResume } from "@/lib/api";
@@ -15,6 +14,8 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
   const [resumeText, setResumeText] = useState("");
   const [manualJd, setManualJd] = useState("");
   const [showManualJd, setShowManualJd] = useState(false);
+  const [userApiKey, setUserApiKey] = useState("");
+  
   const [loading, setLoading] = useState(false);
   const [parsingFile, setParsingFile] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +54,9 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
       setError(null);
       setLoading(false);
       setStep(0);
+    } else {
+      const savedKey = localStorage.getItem("jobpilot_api_key") || "";
+      setUserApiKey(savedKey);
     }
   }, [isOpen]);
 
@@ -87,7 +91,7 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
     setStep(1); // Begin scraping step
 
     try {
-      await importJob(url, resumeText, showManualJd ? manualJd : undefined);
+      await importJob(url, resumeText, showManualJd ? manualJd : undefined, userApiKey || undefined);
       setStep(4); // Success step
       
       // Delay closing slightly to show the completed step checkmarks
@@ -152,7 +156,7 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
 
             {showManualJd && (
               <div className="p-4 rounded-xl bg-blue-950/20 border border-blue-900/30 space-y-3">
-                <p className="text-xs text-blue-300 font-medium font-semibold">
+                <p className="text-xs text-blue-300 font-semibold mb-2">
                   URL scraping failed. Please paste the job description text manually below:
                 </p>
                 <div>
@@ -196,7 +200,7 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
               <textarea
                 id="resume"
                 required
-                rows={6}
+                rows={5}
                 className="w-full px-4 py-3 rounded-xl bg-zinc-950 border border-zinc-800 text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-700 transition-colors text-sm resize-none"
                 placeholder={parsingFile ? "Extracting text from your resume file..." : "Paste your professional resume text here or upload a file..."}
                 value={resumeText}
