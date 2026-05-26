@@ -1,7 +1,15 @@
 -- ============================================
+-- CLEANUP (Run these to reset database)
+-- ============================================
+drop table if exists reminders cascade;
+drop table if exists applications cascade;
+drop table if exists jobs cascade;
+
+-- ============================================
 -- EXTENSIONS
 -- ============================================
 create extension if not exists "uuid-ossp";
+
 
 -- ============================================
 -- TABLE 1: jobs
@@ -81,6 +89,20 @@ create index on applications(job_id);
 create index on reminders(user_id);
 create index on reminders(due_at);
 
+-- Deduplicate existing duplicate URLs (keeping only the most recently created one per URL)
+DELETE FROM jobs
+WHERE id NOT IN (
+  SELECT DISTINCT ON (url) id
+  FROM jobs
+  ORDER BY url, created_at DESC
+);
+
+-- Add unique constraint on jobs(url)
+alter table jobs add constraint jobs_url_key unique (url);
+
+-- Remove user_api_key column from applications
+alter table applications drop column if exists user_api_key;
+
 -- ============================================
 -- ROW LEVEL SECURITY
 -- Every user only sees their own data
@@ -128,3 +150,15 @@ create policy "users can manage own reminders"
   to authenticated
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
+
+-- ============================================
+-- PRIVILEGES & SCHEMA CACHE RELOAD
+-- Ensures Supabase api roles can access tables
+-- ============================================
+grant usage on schema public to postgres, service_role, authenticated, anon;
+grant all privileges on all tables in schema public to postgres, service_role, authenticated, anon;
+grant all privileges on all sequences in schema public to postgres, service_role, authenticated, anon;
+grant all privileges on all functions in schema public to postgres, service_role, authenticated, anon;
+
+-- Force PostgREST to reload the schema cache
+notify pgrst, 'reload schema';

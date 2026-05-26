@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     # LLM Settings
     AI_PROVIDER: str = "gemini"
     AI_MODEL: str = "gemini-2.0-flash"
+    LOCAL_LLM_BASE_URL: str | None = None
     
     # Modular Model Routing Overrides (fallback to AI_MODEL if None)
     AI_MODEL_FIT: str | None = None
@@ -45,7 +46,7 @@ class Settings(BaseSettings):
     @field_validator("AI_PROVIDER")
     @classmethod
     def validate_ai_provider(cls, v: str) -> str:
-        allowed = {"gemini", "anthropic", "openai", "groq", "mock"}
+        allowed = {"gemini", "anthropic", "openai", "groq", "local", "mock"}
         provider = v.lower()
         if provider not in allowed:
             raise ValueError(f"AI_PROVIDER must be one of {allowed}")

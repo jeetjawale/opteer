@@ -1,5 +1,5 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Response
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Header
 from uuid import UUID
 
 from app.database import supabase_service, get_current_user
@@ -7,6 +7,14 @@ from app.schemas import ApplicationResponse, ApplicationUpdate, ApplicationStatu
 from app.graphs.analysis_graph import run_analysis
 
 router = APIRouter(prefix="/applications", tags=["applications"])
+
+def sanitize_error(error: str, api_key: str | None) -> str:
+    """
+    Strips the API key pattern from error messages to prevent credential leaks.
+    """
+    if api_key and len(api_key) > 8:
+        return error.replace(api_key, "[REDACTED]")
+    return error
 
 @router.get("", response_model=List[ApplicationResponse])
 async def list_applications(
@@ -27,9 +35,10 @@ async def list_applications(
             
         response = query.execute()
         
-        # Flatten the nested jobs relationship directly using pop and update
+        # Flatten the nested jobs relationship and redact user_api_key
         records = response.data or []
         for row in records:
+            row.pop("user_api_key", None)  # Security rule
             job_data = row.pop("jobs", {}) or {}
             if isinstance(job_data, list):
                 job_data = job_data[0] if len(job_data) > 0 else {}
@@ -72,6 +81,7 @@ async def get_application(
                 detail="Application not found"
             )
             
+        row.pop("user_api_key", None)  # Security rule
         job_data = row.pop("jobs", {}) or {}
         if isinstance(job_data, list):
             job_data = job_data[0] if len(job_data) > 0 else {}
@@ -87,16 +97,19 @@ async def get_application(
         )
 
 
-@router.post("/{application_id}/analyze", response_model=ApplicationResponse)
+from app.rate_limiter import rate_limiter
+
+@router.post("/{application_id}/analyze", dependencies=[Depends(rate_limiter(limit=5, window_seconds=60))])
 async def analyze_application(
     application_id: UUID,
-    current_user = Depends(get_current_user)
+    current_user = Depends(get_current_user),
+    x_user_api_key: Optional[str] = Header(None, alias="X-User-Api-Key")
 ):
     """
     Runs the stateful LangGraph AI analysis for the application (fit score, cover letter, prep).
     Updates the database with the results.
     """
-    # 1. Verify existence and ownership
+    # 1. Verify existence and ownership of application
     try:
         check_response = supabase_service.table("applications") \
             .select("user_id") \
@@ -109,7 +122,8 @@ async def analyze_application(
                 detail="Application not found"
             )
             
-        if str(check_response.data[0].get("user_id")) != str(current_user.id):
+        row = check_response.data[0]
+        if str(row.get("user_id")) != str(current_user.id):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Application not found"
@@ -119,15 +133,16 @@ async def analyze_application(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Database verification check failed: {str(e)}"
+            detail=f"Database verification check failed: {sanitize_error(str(e), x_user_api_key)}"
         )
         
-    # 2. Run the async graph analysis
-    final_state = await run_analysis(str(application_id))
+    # 2. Run the async graph analysis using the key passed via header
+    final_state = await run_analysis(str(application_id), user_api_key=x_user_api_key)
     if final_state.get("error") is not None:
+        error_msg = sanitize_error(final_state["error"], x_user_api_key)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"AI analysis pipeline failed: {final_state['error']}"
+            detail=f"AI analysis pipeline failed: {error_msg}"
         )
         
     # 3. Retrieve the updated application payload
@@ -144,6 +159,7 @@ async def analyze_application(
             )
             
         row = response.data[0]
+        row.pop("user_api_key", None)  # Security rule
         job_data = row.pop("jobs", {}) or {}
         if isinstance(job_data, list):
             job_data = job_data[0] if len(job_data) > 0 else {}
@@ -155,7 +171,7 @@ async def analyze_application(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch updated application details: {str(e)}"
+            detail=f"Failed to fetch updated application details: {sanitize_error(str(e), user_api_key)}"
         )
 
 
@@ -209,7 +225,6 @@ async def update_application(
         
     try:
         if update_data:
-            # Pydantic automatic conversion from InterviewPrepResult to dict is handled
             supabase_service.table("applications") \
                 .update(update_data) \
                 .eq("id", str(application_id)) \
@@ -222,6 +237,7 @@ async def update_application(
             .execute()
             
         row = response.data[0]
+        row.pop("user_api_key", None)  # Security rule
         job_data = row.pop("jobs", {}) or {}
         if isinstance(job_data, list):
             job_data = job_data[0] if len(job_data) > 0 else {}
@@ -247,7 +263,7 @@ async def delete_application(
     # 1. Verify existence and ownership
     try:
         check_response = supabase_service.table("applications") \
-            .select("user_id") \
+            .select("user_id, job_id") \
             .eq("id", str(application_id)) \
             .execute()
             
@@ -257,11 +273,13 @@ async def delete_application(
                 detail="Application not found"
             )
             
-        if str(check_response.data[0].get("user_id")) != str(current_user.id):
+        app_data = check_response.data[0]
+        if str(app_data.get("user_id")) != str(current_user.id):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Application not found"
             )
+        job_id = app_data.get("job_id")
     except HTTPException:
         raise
     except Exception as e:
@@ -276,6 +294,18 @@ async def delete_application(
             .delete() \
             .eq("id", str(application_id)) \
             .execute()
+            
+        # Clean up the corresponding job if it is now orphaned
+        if job_id:
+            count_response = supabase_service.table("applications") \
+                .select("id") \
+                .eq("job_id", str(job_id)) \
+                .execute()
+            if not count_response.data or len(count_response.data) == 0:
+                supabase_service.table("jobs") \
+                    .delete() \
+                    .eq("id", str(job_id)) \
+                    .execute()
             
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     except Exception as e:

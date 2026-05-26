@@ -64,10 +64,24 @@ export async function getApplication(id: string) {
   return response.json();
 }
 
-export async function importJob(url: string, resumeText: string, scrapedJd?: string) {
+export async function importJob(url: string, resumeText: string, scrapedJd?: string, userApiKey?: string) {
+  // Fallback to localStorage saved key if not provided dynamically
+  const savedKey = typeof window !== "undefined" ? window.localStorage.getItem("jobpilot_api_key") : null;
+  const activeKey = userApiKey !== undefined ? userApiKey : (savedKey || undefined);
+
+  const headers: Record<string, string> = {};
+  if (activeKey) {
+    headers["X-User-Api-Key"] = activeKey;
+  }
+
   const response = await fetchWithAuth(`${API_BASE_URL}/jobs/import`, {
     method: "POST",
-    body: JSON.stringify({ url, resume_text: resumeText, scraped_jd: scrapedJd })
+    headers,
+    body: JSON.stringify({ 
+      url, 
+      resume_text: resumeText, 
+      scraped_jd: scrapedJd
+    })
   });
   
   if (!response.ok) {
@@ -77,9 +91,35 @@ export async function importJob(url: string, resumeText: string, scrapedJd?: str
   return response.json();
 }
 
-export async function analyzeApplication(id: string) {
+export async function testLlmConnection(key: string) {
+  const response = await fetch(`${API_BASE_URL}/health/llm`, {
+    method: "POST",
+    headers: {
+      "X-User-Api-Key": key
+    }
+  });
+  
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({ detail: "Connection test failed" }));
+    throw new Error(errData.detail || `HTTP error ${response.status}`);
+  }
+  return response.json();
+}
+
+
+export async function analyzeApplication(id: string, userApiKey?: string) {
+  // Fallback to localStorage saved key if not provided dynamically
+  const savedKey = typeof window !== "undefined" ? window.localStorage.getItem("jobpilot_api_key") : null;
+  const activeKey = userApiKey !== undefined ? userApiKey : (savedKey || undefined);
+
+  const headers: Record<string, string> = {};
+  if (activeKey) {
+    headers["X-User-Api-Key"] = activeKey;
+  }
+
   const response = await fetchWithAuth(`${API_BASE_URL}/applications/${id}/analyze`, {
-    method: "POST"
+    method: "POST",
+    headers
   });
   
   if (!response.ok) {

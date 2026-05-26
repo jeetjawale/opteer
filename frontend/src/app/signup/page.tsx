@@ -14,14 +14,7 @@ export default function SignupPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Check if session is already active on load
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        router.replace("/applications");
-      }
-    });
-  }, [router]);
+
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();

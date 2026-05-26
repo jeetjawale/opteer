@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2, ArrowRight, ExternalLink } from "lucide-react";
-import { analyzeApplication, updateApplication } from "@/lib/api";
+import { updateApplication } from "@/lib/api";
+import { analysisTracker } from "@/lib/analysisTracker";
 
 interface Application {
   id: string;
@@ -26,9 +27,39 @@ interface ApplicationsTableProps {
 
 export default function ApplicationsTable({ applications, onRefresh }: ApplicationsTableProps) {
   const router = useRouter();
-  const [analyzingId, setAnalyzingId] = useState<string | null>(null);
+  const [localAnalyzingIds, setLocalAnalyzingIds] = useState<Set<string>>(new Set());
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Initial sync of active analysis states
+    const active = new Set<string>();
+    applications.forEach((app) => {
+      if (analysisTracker.isAnalyzing(app.id)) {
+        active.add(app.id);
+      }
+    });
+    setLocalAnalyzingIds(active);
+
+    const unsubscribe = analysisTracker.subscribe((update) => {
+      setLocalAnalyzingIds((prev) => {
+        const next = new Set(prev);
+        if (update.status === "analyzing") {
+          next.add(update.id);
+        } else {
+          next.delete(update.id);
+          // Refresh list to pull latest details from database
+          onRefresh();
+          if (update.status === "failed") {
+            setError(`Analysis failed: ${update.error}`);
+          }
+        }
+        return next;
+      });
+    });
+
+    return unsubscribe;
+  }, [applications, onRefresh]);
 
   const handleStatusChange = async (id: string, newStatus: string) => {
     setUpdatingId(id);
@@ -92,15 +123,12 @@ export default function ApplicationsTable({ applications, onRefresh }: Applicati
 
   // Triggers API call for LangGraph analysis
   const handleAnalyze = async (id: string) => {
-    setAnalyzingId(id);
     setError(null);
     try {
-      await analyzeApplication(id);
-      onRefresh();
+      await analysisTracker.performAnalysis(id);
     } catch (err: any) {
-      setError(`Analysis failed: ${err.message || err}`);
-    } finally {
-      setAnalyzingId(null);
+      // Error is caught here to prevent uncaught promise rejection errors in console.
+      // The user-facing error message will be set and displayed via the subscription listener.
     }
   };
 
@@ -232,7 +260,7 @@ export default function ApplicationsTable({ applications, onRefresh }: Applicati
 
                 {/* Context-aware Actions */}
                 <td className="px-6 py-4 text-right">
-                  {analyzingId === app.id ? (
+                  {localAnalyzingIds.has(app.id) ? (
                     <div className="inline-flex items-center text-xs font-medium text-zinc-400 space-x-1.5 pr-2">
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       <span>Analyzing...</span>
@@ -245,7 +273,7 @@ export default function ApplicationsTable({ applications, onRefresh }: Applicati
                           <button
                             onClick={() => handleStatusChange(app.id, "applied")}
                             className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition-colors disabled:opacity-50"
-                            disabled={updatingId === app.id || analyzingId === app.id}
+                            disabled={updatingId === app.id || localAnalyzingIds.has(app.id)}
                           >
                             {updatingId === app.id ? "Updating..." : "Mark Applied"}
                           </button>
@@ -264,7 +292,7 @@ export default function ApplicationsTable({ applications, onRefresh }: Applicati
                                 ? "bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
                                 : "border border-blue-500/50 hover:bg-blue-900/20 text-blue-400 hover:text-blue-300"
                             }`}
-                            disabled={updatingId === app.id || analyzingId === app.id}
+                            disabled={updatingId === app.id || localAnalyzingIds.has(app.id)}
                           >
                             {app.fit_score !== null ? "Re-analyze" : "Analyze now"}
                           </button>

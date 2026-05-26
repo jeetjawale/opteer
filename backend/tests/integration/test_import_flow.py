@@ -27,9 +27,9 @@ def test_import_job_endpoint():
     mock_firecrawl_inst = MagicMock()
     mock_firecrawl_inst.scrape_url.return_value = mock_scrape_res
     
-    # 2. Setup mock LLM for extracting company name
+    # 2. Setup mock LLM for extracting company name and job title/role (JSON mode)
     mock_llm_res = MagicMock()
-    mock_llm_res.content = "Work at a Startup"
+    mock_llm_res.content = '{"company_name": "Work at a Startup", "role_name": "Software Engineer"}'
     
     mock_llm = MagicMock()
     mock_llm.invoke.return_value = mock_llm_res
@@ -47,10 +47,19 @@ def test_import_job_endpoint():
     mock_app_response = MagicMock()
     mock_app_response.data = [{"id": "33333333-3333-3333-3333-333333333333", "status": "saved"}]
     
-    # Create database chain mock
-    mock_table = MagicMock()
+    mock_select_res = MagicMock()
+    mock_select_res.data = []  # No existing job found
+    
+    # Setup mock query chain
+    mock_select = MagicMock()
+    mock_select.eq.return_value.execute.return_value = mock_select_res
+    
     mock_insert = MagicMock()
     mock_insert.execute.side_effect = [mock_job_response, mock_app_response]
+    
+    # Create database chain mock
+    mock_table = MagicMock()
+    mock_table.select.return_value = mock_select
     mock_table.insert.return_value = mock_insert
     
     # 5. Patch integrations inside routers.jobs module
