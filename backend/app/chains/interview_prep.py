@@ -1,7 +1,8 @@
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
-from app.llm import get_llm
+import app.llm
 from app.schemas import InterviewPrepResult
+from app.config import settings
 
 def get_interview_prep_chain():
     """
@@ -11,7 +12,7 @@ def get_interview_prep_chain():
     """
     # 1. Initialize parser and LLM (temperature=0.3 for structured, balanced questions)
     parser = JsonOutputParser(pydantic_object=InterviewPrepResult)
-    llm = get_llm(temperature=0.3)
+    llm = app.llm.get_llm(temperature=0.3, model_override=settings.AI_MODEL_PREP)
 
     # 2. Build Prompt Template with formatting instructions
     prompt = PromptTemplate(

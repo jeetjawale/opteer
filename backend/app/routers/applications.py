@@ -10,7 +10,7 @@ router = APIRouter(prefix="/applications", tags=["applications"])
 
 @router.get("", response_model=List[ApplicationResponse])
 async def list_applications(
-    status: Optional[ApplicationStatus] = None,
+    status_filter: Optional[ApplicationStatus] = None,
     current_user = Depends(get_current_user)
 ):
     """
@@ -22,8 +22,8 @@ async def list_applications(
             .select("*, jobs(company, role, url)") \
             .eq("user_id", current_user.id)
             
-        if status:
-            query = query.eq("status", status)
+        if status_filter:
+            query = query.eq("status", status_filter)
             
         response = query.execute()
         

@@ -1,7 +1,8 @@
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
-from app.llm import get_llm
+import app.llm
 from app.schemas import FitScoreResult
+from app.config import settings
 
 def get_fit_scoring_chain():
     """
@@ -11,7 +12,7 @@ def get_fit_scoring_chain():
     """
     # 1. Initialize parser and LLM (temperature=0 for analytical tasks)
     parser = JsonOutputParser(pydantic_object=FitScoreResult)
-    llm = get_llm(temperature=0.0)
+    llm = app.llm.get_llm(temperature=0.0, model_override=settings.AI_MODEL_FIT)
 
     # 2. Build Prompt Template with formatting instructions
     prompt = PromptTemplate(

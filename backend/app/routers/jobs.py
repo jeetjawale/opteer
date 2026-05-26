@@ -72,26 +72,28 @@ async def import_job(payload: ImportJobRequest, current_user = Depends(get_curre
     url = payload.url
     resume_text = payload.resume_text
     
-    # 1. Scrape URL using Firecrawl
-    try:
-        firecrawl_app = FirecrawlApp(api_key=settings.FIRECRAWL_API_KEY)
-        scrape_result = firecrawl_app.scrape_url(url, formats=["markdown"])
-        scraped_jd = (
-            scrape_result.markdown 
-            if hasattr(scrape_result, "markdown") 
-            else scrape_result.get("markdown", "")
-        )
-        if not scraped_jd:
-            raise ValueError("Firecrawl returned empty markdown content.")
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Firecrawl scraping failed: {str(e)}"
-        )
+    # 1. Scrape URL using Firecrawl (or use manual fallback text if provided)
+    scraped_jd = payload.scraped_jd
+    if not scraped_jd:
+        try:
+            firecrawl_app = FirecrawlApp(api_key=settings.FIRECRAWL_API_KEY)
+            scrape_result = firecrawl_app.scrape_url(url, formats=["markdown"])
+            scraped_jd = (
+                scrape_result.markdown 
+                if hasattr(scrape_result, "markdown") 
+                else scrape_result.get("markdown", "")
+            )
+            if not scraped_jd:
+                raise ValueError("Firecrawl returned empty markdown content.")
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Firecrawl scraping failed: {str(e)}"
+            )
         
-    # 2. Extract company name using a simple LLM call (one-shot, temperature=0.0)
+    # 2. Extract company name and job title using a simple LLM call (one-shot, temperature=0.0)
+    llm = get_llm(temperature=0.0)
     try:
-        llm = get_llm(temperature=0.0)
         prompt = (
             "Extract just the company name from this job description. "
             "Return only the company name, nothing else.\n\n"
@@ -104,6 +106,17 @@ async def import_job(payload: ImportJobRequest, current_user = Depends(get_curre
         from urllib.parse import urlparse
         parsed = urlparse(url)
         company_name = parsed.netloc.replace("www.", "").split(".")[0].capitalize()
+        
+    try:
+        role_prompt = (
+            "Extract just the job title/role from this job description. "
+            "Return only the job title, nothing else.\n\n"
+            f"Job Description:\n{scraped_jd}"
+        )
+        role_response = llm.invoke(role_prompt)
+        role_name = role_response.content.strip()
+    except Exception as e:
+        role_name = "Job Description"
         
     # 3. Research company using Tavily
     try:
@@ -120,6 +133,7 @@ async def import_job(payload: ImportJobRequest, current_user = Depends(get_curre
         job_payload = {
             "url": url,
             "company": company_name,
+            "role": role_name,
             "scraped_jd": scraped_jd,
             "company_research": company_research
         }

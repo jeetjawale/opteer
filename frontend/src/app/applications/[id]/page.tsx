@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
-import { ArrowLeft, RefreshCw, Trash2, Loader2 } from "lucide-react";
+import { ArrowLeft, RefreshCw, Trash2, Loader2, ExternalLink } from "lucide-react";
 
 import { getApplication, deleteApplication } from "@/lib/api";
 import ApplicationDetail from "@/components/ApplicationDetail";
@@ -94,6 +94,18 @@ function ApplicationDetailContent() {
         </div>
 
         <div className="flex items-center space-x-3">
+          {application.url && (
+            <a
+              href={application.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2.5 rounded-xl border border-zinc-800 hover:bg-zinc-900 text-zinc-400 hover:text-white font-semibold text-sm transition-colors flex items-center space-x-2"
+            >
+              <ExternalLink className="w-4 h-4 text-zinc-500" />
+              <span>View Posting</span>
+            </a>
+          )}
+          
           <button
             onClick={fetchApp}
             className="p-2.5 rounded-xl border border-zinc-800 hover:bg-zinc-900 text-zinc-400 hover:text-white transition-colors"

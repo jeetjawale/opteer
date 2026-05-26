@@ -1,6 +1,7 @@
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-from app.llm import get_llm
+import app.llm
+from app.config import settings
 
 def get_cover_letter_chain():
     """
@@ -9,7 +10,7 @@ def get_cover_letter_chain():
     Pipes the prompt, LLM, and string parser into a single execution unit.
     """
     # 1. Initialize LLM (temperature=0.7 for creative/persuasive writing) and parser
-    llm = get_llm(temperature=0.7)
+    llm = app.llm.get_llm(temperature=0.7, model_override=settings.AI_MODEL_LETTER)
     parser = StrOutputParser()
 
     # 2. Build Prompt Template

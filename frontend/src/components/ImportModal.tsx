@@ -13,6 +13,8 @@ interface ImportModalProps {
 export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalProps) {
   const [url, setUrl] = useState("");
   const [resumeText, setResumeText] = useState("");
+  const [manualJd, setManualJd] = useState("");
+  const [showManualJd, setShowManualJd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [parsingFile, setParsingFile] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +48,8 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
     if (!isOpen) {
       setUrl("");
       setResumeText("");
+      setManualJd("");
+      setShowManualJd(false);
       setError(null);
       setLoading(false);
       setStep(0);
@@ -76,13 +80,14 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!url || !resumeText) return;
+    if (showManualJd && !manualJd) return;
 
     setLoading(true);
     setError(null);
     setStep(1); // Begin scraping step
 
     try {
-      await importJob(url, resumeText);
+      await importJob(url, resumeText, showManualJd ? manualJd : undefined);
       setStep(4); // Success step
       
       // Delay closing slightly to show the completed step checkmarks
@@ -94,6 +99,9 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
       setError(err.message || "Failed to import job description.");
       setLoading(false);
       setStep(0);
+      if (err.message && err.message.toLowerCase().includes("scraping")) {
+        setShowManualJd(true);
+      }
     }
   };
 
@@ -141,6 +149,28 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
                 onChange={(e) => setUrl(e.target.value)}
               />
             </div>
+
+            {showManualJd && (
+              <div className="p-4 rounded-xl bg-blue-950/20 border border-blue-900/30 space-y-3">
+                <p className="text-xs text-blue-300 font-medium font-semibold">
+                  URL scraping failed. Please paste the job description text manually below:
+                </p>
+                <div>
+                  <label className="block text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-2" htmlFor="manual-jd">
+                    Job Description Text
+                  </label>
+                  <textarea
+                    id="manual-jd"
+                    required
+                    rows={5}
+                    className="w-full px-4 py-3 rounded-xl bg-zinc-950 border border-zinc-800 text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-700 transition-colors text-sm resize-none"
+                    placeholder="Paste the job description text here..."
+                    value={manualJd}
+                    onChange={(e) => setManualJd(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
 
             <div>
               <div className="flex justify-between items-center mb-2">

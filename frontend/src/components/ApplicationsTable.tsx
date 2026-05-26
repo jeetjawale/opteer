@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2, ArrowRight } from "lucide-react";
+import { Loader2, ArrowRight, ExternalLink } from "lucide-react";
 import { analyzeApplication, updateApplication } from "@/lib/api";
 
 interface Application {
@@ -30,11 +30,11 @@ export default function ApplicationsTable({ applications, onRefresh }: Applicati
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const handleMarkApplied = async (id: string) => {
+  const handleStatusChange = async (id: string, newStatus: string) => {
     setUpdatingId(id);
     setError(null);
     try {
-      await updateApplication(id, { status: "applied" });
+      await updateApplication(id, { status: newStatus });
       onRefresh();
     } catch (err: any) {
       setError(`Failed to update application: ${err.message || err}`);
@@ -151,49 +151,61 @@ export default function ApplicationsTable({ applications, onRefresh }: Applicati
                 
                 {/* Company / Role */}
                 <td className="px-6 py-4">
-                  <Link href={`/applications/${app.id}`} className="flex items-center space-x-3 group">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm group-hover:opacity-90 transition-opacity ${avatarBg}`}>
-                      {initials}
-                    </div>
-                    <div>
-                      <p className="text-white font-semibold text-sm leading-tight mb-0.5 group-hover:underline">{company}</p>
-                      <p className="text-zinc-400 text-xs leading-none">{role}</p>
-                    </div>
-                  </Link>
+                  <div className="flex items-center justify-between group">
+                    <Link href={`/applications/${app.id}`} className="flex items-center space-x-3 flex-1">
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm group-hover:opacity-90 transition-opacity ${avatarBg}`}>
+                        {initials}
+                      </div>
+                      <div>
+                        <p className="text-white font-semibold text-sm leading-tight mb-0.5 group-hover:underline">{company}</p>
+                        <p className="text-zinc-400 text-xs leading-none">{role}</p>
+                      </div>
+                    </Link>
+                    {app.url && (
+                      <a
+                        href={app.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-1.5 rounded-lg border border-zinc-800/80 hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300 transition-colors ml-2 flex-shrink-0"
+                        title="View original job posting"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    )}
+                  </div>
                 </td>
 
-                {/* Status Badges */}
+                {/* Status Dropdown */}
                 <td className="px-6 py-4">
-                  {app.status === "saved" && (
-                    <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700/35 uppercase tracking-wider">
-                      saved
-                    </span>
-                  )}
-                  {app.status === "applied" && (
-                    <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-blue-950 text-blue-300 border border-blue-900/40 uppercase tracking-wider">
-                      applied
-                    </span>
-                  )}
-                  {app.status === "interview" && (
-                    <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-amber-950 text-amber-300 border border-amber-900/40 uppercase tracking-wider">
-                      interview
-                    </span>
-                  )}
-                  {app.status === "offer" && (
-                    <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-green-950 text-green-300 border border-green-900/40 uppercase tracking-wider">
-                      offer
-                    </span>
-                  )}
-                  {app.status === "closed" && (
-                    <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-zinc-800 text-zinc-500 border border-zinc-700/35 uppercase tracking-wider">
-                      closed
-                    </span>
-                  )}
-                  {app.status === "rejected" && (
-                    <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-red-950 text-red-300 border border-red-900/40 uppercase tracking-wider">
-                      rejected
-                    </span>
-                  )}
+                  <div className="relative inline-block">
+                    <select
+                      value={app.status}
+                      disabled={updatingId === app.id}
+                      onChange={(e) => handleStatusChange(app.id, e.target.value)}
+                      className={`px-2.5 py-1 text-xs font-semibold rounded-full border focus:outline-none appearance-none cursor-pointer uppercase tracking-wider pr-6 ${
+                        app.status === "saved" ? "bg-zinc-800 text-zinc-400 border-zinc-700/35" :
+                        app.status === "applied" ? "bg-blue-950 text-blue-300 border-blue-900/40" :
+                        app.status === "interview" ? "bg-amber-950 text-amber-300 border-amber-900/40" :
+                        app.status === "offer" ? "bg-green-950 text-green-300 border-green-900/40" :
+                        app.status === "closed" ? "bg-zinc-800 text-zinc-500 border-zinc-700/35" :
+                        app.status === "rejected" ? "bg-red-950 text-red-300 border-red-900/40" : ""
+                      }`}
+                    >
+                      <option value="saved" className="bg-zinc-900 text-zinc-400">Saved</option>
+                      <option value="applied" className="bg-zinc-900 text-blue-400">Applied</option>
+                      <option value="interview" className="bg-zinc-900 text-amber-400">Interview</option>
+                      <option value="offer" className="bg-zinc-900 text-green-400">Offer</option>
+                      <option value="closed" className="bg-zinc-900 text-zinc-500">Closed</option>
+                      <option value="rejected" className="bg-zinc-900 text-red-400">Rejected</option>
+                    </select>
+                    <div className="absolute inset-y-0 right-1.5 flex items-center pointer-events-none">
+                      {updatingId === app.id ? (
+                        <Loader2 className="w-3 h-3 text-zinc-400 animate-spin" />
+                      ) : (
+                        <span className="text-[8px] text-zinc-500 font-bold">▼</span>
+                      )}
+                    </div>
+                  </div>
                 </td>
 
                 {/* Fit Score Progress Bar */}
@@ -231,7 +243,7 @@ export default function ApplicationsTable({ applications, onRefresh }: Applicati
                       {app.status === "saved" && (
                         <>
                           <button
-                            onClick={() => handleMarkApplied(app.id)}
+                            onClick={() => handleStatusChange(app.id, "applied")}
                             className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition-colors disabled:opacity-50"
                             disabled={updatingId === app.id || analyzingId === app.id}
                           >
