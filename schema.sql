@@ -18,7 +18,7 @@ create extension if not exists "uuid-ossp";
 -- ============================================
 create table jobs (
   id            uuid primary key default uuid_generate_v4(),
-  url           text not null,
+  url           text not null unique,
   company       text,
   role          text,
   scraped_jd    text,
@@ -64,7 +64,7 @@ create table applications (
 
 -- ============================================
 -- TABLE 3: reminders
--- Optional — build last, after June 1
+-- Stores task and interview reminders for applications.
 -- ============================================
 create table reminders (
   id              uuid primary key default uuid_generate_v4(),
@@ -87,21 +87,8 @@ create index on applications(status);
 create index on applications(fit_score desc);
 create index on applications(job_id);
 create index on reminders(user_id);
+create index on reminders(application_id);
 create index on reminders(due_at);
-
--- Deduplicate existing duplicate URLs (keeping only the most recently created one per URL)
-DELETE FROM jobs
-WHERE id NOT IN (
-  SELECT DISTINCT ON (url) id
-  FROM jobs
-  ORDER BY url, created_at DESC
-);
-
--- Add unique constraint on jobs(url)
-alter table jobs add constraint jobs_url_key unique (url);
-
--- Remove user_api_key column from applications
-alter table applications drop column if exists user_api_key;
 
 -- ============================================
 -- ROW LEVEL SECURITY
