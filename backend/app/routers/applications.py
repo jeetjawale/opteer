@@ -171,7 +171,7 @@ async def analyze_application(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch updated application details: {sanitize_error(str(e), user_api_key)}"
+            detail=f"Failed to fetch updated application details: {sanitize_error(str(e), x_user_api_key)}"
         )
 
 
