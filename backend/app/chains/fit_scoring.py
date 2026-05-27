@@ -28,7 +28,7 @@ Instructions:
 1. Review the JD to identify primary requirements, core technical skills, and responsibilities.
 2. Review the Candidate's Resume to find matching experiences, tools, and skills.
 3. Determine a realistic fit score between 0 and 100 based on how closely the candidate's resume matches the JD requirements.
-4. Extract matched skills (skills explicitly mentioned or strongly demonstrated in both).
+4. Extract matched skills (ONLY extract technical skills or keywords that are EXPLICITLY mentioned by name in the Job Description AND are also present in the candidate's resume. Do not infer underlying tools).
 5. Identify missing critical skills or key requirements mentioned in the JD that are not present in the resume.
 6. Provide a concise, honest, and professional 2-3 sentence summary explaining the assessment.
 

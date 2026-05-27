@@ -11,6 +11,7 @@ export default function SettingsPage() {
   const [isSavedKey, setIsSavedKey] = useState(false);
   
   // Model configuration states
+  const [modelDefault, setModelDefault] = useState("");
   const [modelFit, setModelFit] = useState("");
   const [modelLetter, setModelLetter] = useState("");
   const [modelPrep, setModelPrep] = useState("");
@@ -41,6 +42,7 @@ export default function SettingsPage() {
     
     getUserSettings().then(data => {
       if (data) {
+        setModelDefault(data.model_default || "");
         setModelFit(data.model_fit || "");
         setModelLetter(data.model_letter || "");
         setModelPrep(data.model_prep || "");
@@ -62,6 +64,7 @@ export default function SettingsPage() {
     
     if (newProvider !== oldProvider && PROVIDER_MODELS[newProvider]) {
       const models = PROVIDER_MODELS[newProvider];
+      setModelDefault(models[0].value);
       setModelFit(models[0].value);
       setModelLetter(models[0].value);
       setModelPrep(models[0].value);
@@ -81,6 +84,7 @@ export default function SettingsPage() {
     // Switch to Gemini defaults on clear
     if (PROVIDER_MODELS["gemini"]) {
       const models = PROVIDER_MODELS["gemini"];
+      setModelDefault(models[0].value);
       setModelFit(models[0].value);
       setModelLetter(models[0].value);
       setModelPrep(models[0].value);
@@ -99,6 +103,7 @@ export default function SettingsPage() {
     
     try {
       await updateUserSettings({
+        model_default: modelDefault || null,
         model_fit: modelFit || null,
         model_letter: modelLetter || null,
         model_prep: modelPrep || null
@@ -148,6 +153,13 @@ export default function SettingsPage() {
   const detected = getDetectedProvider(userApiKey);
   const detectedLower = detected.toLowerCase();
   const availableModels = PROVIDER_MODELS[detectedLower] || PROVIDER_MODELS["gemini"];
+
+  const handleDefaultModelChange = (val: string) => {
+    setModelDefault(val);
+    setModelFit(val);
+    setModelLetter(val);
+    setModelPrep(val);
+  };
 
   return (
     <div className="p-8 max-w-7xl mx-auto min-h-screen">
@@ -235,6 +247,29 @@ export default function SettingsPage() {
               <div className="space-y-4 pt-2">
                 <h3 className="text-zinc-300 text-sm font-semibold border-b border-zinc-800/40 pb-2">Task Model Preferences</h3>
                 
+                {/* Default Model */}
+                <div className="bg-zinc-900/50 p-4 rounded-xl border border-zinc-800/60 mb-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start md:items-center">
+                    <div>
+                      <label className="text-emerald-400 text-xs font-bold uppercase tracking-wider block mb-1">
+                        Default Model (Global)
+                      </label>
+                      <p className="text-[10px] text-zinc-500 leading-tight pr-4">
+                        Used as the primary fallback for all background tasks, imports, and analysis tasks unless individually overridden below.
+                      </p>
+                    </div>
+                    <select 
+                      value={modelDefault} 
+                      onChange={(e) => handleDefaultModelChange(e.target.value)}
+                      className="w-full p-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-white text-sm focus:outline-none focus:border-zinc-700"
+                    >
+                      {availableModels.map(m => (
+                        <option key={m.value} value={m.value}>{m.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
                   <label className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">Fit Scoring Model</label>
                   <select 
@@ -312,9 +347,10 @@ export default function SettingsPage() {
                 )}
                 <button
                   type="submit"
-                  className="px-5 py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 font-bold text-xs transition-colors flex items-center space-x-1.5"
+                  disabled={!userApiKey.trim()}
+                  className="px-5 py-2.5 rounded-xl bg-white hover:bg-zinc-200 disabled:bg-zinc-700 disabled:text-zinc-500 disabled:hover:bg-zinc-700 disabled:cursor-not-allowed text-zinc-950 font-bold text-xs transition-colors flex items-center space-x-1.5"
                 >
-                  <Save className="w-3.5 h-3.5 text-zinc-950" />
+                  <Save className={`w-3.5 h-3.5 ${!userApiKey.trim() ? "text-zinc-500" : "text-zinc-950"}`} />
                   <span>Save Settings</span>
                 </button>
               </div>

@@ -1,6 +1,6 @@
 "use client";
-import React, { useState, useEffect } from "react";
-import { X, CheckCircle2, Loader2, Import, Upload } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { X, CheckCircle2, Loader2, Import, Upload, XCircle } from "lucide-react";
 import { importJob, parseResume, getResumes, getResume, createResume } from "@/lib/api";
 
 interface ImportModalProps {
@@ -33,6 +33,8 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
   const [loading, setLoading] = useState(false);
   const [parsingFile, setParsingFile] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cancelled, setCancelled] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
   
   // Progress Steps: 0 = Idle, 1 = Scraping, 2 = Researching, 3 = Saving, 4 = Success
   const [step, setStep] = useState(0);
@@ -87,6 +89,7 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
       setError(null);
       setLoading(false);
       setStep(0);
+      setCancelled(false);
       setSavedResumes([]);
       setSelectedResumeId("");
       setUseOneOffResume(false);
@@ -120,6 +123,17 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
     };
   }, [loading, step]);
 
+  const handleCancel = () => {
+    if (abortRef.current) {
+      abortRef.current.abort();
+    }
+    setCancelled(true);
+    setLoading(false);
+    setStep(0);
+    setError(null);
+    onClose();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!url) return;
@@ -127,7 +141,11 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
     if (!useOneOffResume && !selectedResumeId) return;
     if (showManualJd && !manualJd) return;
 
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setLoading(true);
+    setCancelled(false);
     setError(null);
     setStep(1); // Begin scraping step
 
@@ -146,6 +164,9 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
       }
 
       await importJob(url, finalResumeText, showManualJd ? manualJd : undefined, userApiKey || undefined);
+
+      if (controller.signal.aborted) return; // User cancelled — don't navigate
+
       setStep(4); // Success step
       
       // Delay closing slightly to show the completed step checkmarks
@@ -154,6 +175,7 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
         onClose();
       }, 800);
     } catch (err: any) {
+      if (controller.signal.aborted) return; // Silently swallow abort errors
       setError(err.message || "Failed to import job description.");
       setLoading(false);
       setStep(0);
@@ -169,11 +191,11 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
       <div className="w-full max-w-2xl bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-2xl relative">
         
-        {/* Close Button */}
+        {/* Close / Cancel Button — always functional */}
         <button 
-          onClick={onClose} 
-          disabled={loading}
-          className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors disabled:opacity-50"
+          onClick={handleCancel} 
+          className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors"
+          title={loading ? "Cancel import" : "Close"}
         >
           <X className="w-5 h-5" />
         </button>
@@ -334,7 +356,7 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
             <div className="flex justify-end space-x-3 pt-2">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleCancel}
                 className="px-5 py-2.5 rounded-xl border border-zinc-800 hover:bg-zinc-800 text-zinc-300 font-semibold text-sm transition-colors"
               >
                 Cancel
@@ -348,7 +370,6 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
             </div>
           </form>
         ) : (
-          /* Stepped Loader Sequence */
           <div className="py-8 flex flex-col items-center justify-center">
             <div className="w-full max-w-sm space-y-4">
               
@@ -385,6 +406,18 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
                   Import completed successfully!
                 </div>
               )}
+
+              {/* Cancel button during loading */}
+              <div className="pt-2 flex justify-center">
+                <button
+                  type="button"
+                  onClick={handleCancel}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl border border-zinc-700 hover:border-rose-700 hover:bg-rose-950/30 text-zinc-400 hover:text-rose-300 font-semibold text-sm transition-all"
+                >
+                  <XCircle className="w-4 h-4" />
+                  Cancel Import
+                </button>
+              </div>
 
             </div>
           </div>

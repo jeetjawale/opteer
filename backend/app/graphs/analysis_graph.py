@@ -20,6 +20,7 @@ class AnalysisState(TypedDict):
     cover_letter: str
     interview_prep: dict
     user_api_key: Optional[str]
+    model_default: Optional[str]
     model_fit: Optional[str]
     model_letter: Optional[str]
     model_prep: Optional[str]
@@ -79,9 +80,10 @@ async def run_fit_scoring(state: AnalysisState) -> dict:
     Falls back to a clean default schema on parse failures or transient rate limits.
     """
     try:
+        model_override = state.get("model_fit") or state.get("model_default") or None
         fit_chain = get_fit_scoring_chain(
             user_api_key=state.get("user_api_key"),
-            model_override=state.get("model_fit")
+            model_override=model_override
         )
         result = await fit_chain.ainvoke({
             "resume_text": state["resume_text"],
@@ -105,11 +107,12 @@ async def run_cover_letter(state: AnalysisState) -> dict:
     Invokes the Cover Letter Chain using resume, job description, and company research.
     """
     try:
-        cl_chain = get_cover_letter_chain(
+        model_override = state.get("model_letter") or state.get("model_default") or None
+        cover_letter_chain = get_cover_letter_chain(
             user_api_key=state.get("user_api_key"),
-            model_override=state.get("model_letter")
+            model_override=model_override
         )
-        result = await cl_chain.ainvoke({
+        result = await cover_letter_chain.ainvoke({
             "resume_text": state["resume_text"],
             "scraped_jd": state["scraped_jd"],
             "company_research": state["company_research"]
@@ -129,9 +132,10 @@ async def run_interview_prep(state: AnalysisState) -> dict:
     Falls back to a clean default schema on parse failures or transient rate limits.
     """
     try:
+        model_override = state.get("model_prep") or state.get("model_default") or None
         prep_chain = get_interview_prep_chain(
             user_api_key=state.get("user_api_key"),
-            model_override=state.get("model_prep")
+            model_override=model_override
         )
         result = await prep_chain.ainvoke({
             "resume_text": state["resume_text"],
@@ -250,11 +254,12 @@ graph = workflow.compile()
 # ============================================
 
 async def run_analysis(
-    application_id: str, 
-    user_api_key: str | None = None,
-    model_fit: str | None = None,
-    model_letter: str | None = None,
-    model_prep: str | None = None
+    application_id: str,
+    user_api_key: Optional[str] = None,
+    model_default: Optional[str] = None,
+    model_fit: Optional[str] = None,
+    model_letter: Optional[str] = None,
+    model_prep: Optional[str] = None
 ) -> dict:
     """
     Compiles and invokes the state graph asynchronously to run the full AI analysis 
@@ -271,6 +276,7 @@ async def run_analysis(
         "cover_letter": "",
         "interview_prep": {},
         "user_api_key": user_api_key,
+        "model_default": model_default,
         "model_fit": model_fit,
         "model_letter": model_letter,
         "model_prep": model_prep,

@@ -2,16 +2,22 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.database import supabase_service, get_current_user
 from app.schemas import UserSettingsUpdate, UserSettingsResponse
+from app.config import settings
 from datetime import datetime, timezone
 import uuid
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
+def _resolve(user_val: str | None, env_val: str | None, user_default: str | None = None) -> str | None:
+    """Return user's saved preference, falling back to user's saved default, then .env, then global AI_MODEL."""
+    return user_val or user_default or env_val or settings.AI_MODEL
+
 @router.get("", response_model=UserSettingsResponse)
 async def get_settings(current_user = Depends(get_current_user)):
     """
     Fetches the current user's AI model settings.
-    If no settings exist, returns a default empty configuration.
+    Returns *resolved* effective values — i.e. what the backend will actually use —
+    so the frontend always shows the true active model.
     """
     try:
         response = supabase_service.table("user_settings") \
@@ -20,16 +26,27 @@ async def get_settings(current_user = Depends(get_current_user)):
             .execute()
             
         if not response.data or len(response.data) == 0:
+            # No user row yet — return the .env defaults so the UI reflects reality
+            saved_default = settings.AI_MODEL
             return {
                 "id": str(uuid.uuid4()),
                 "user_id": str(current_user.id),
                 "updated_at": datetime.now(timezone.utc).isoformat(),
-                "model_fit": None,
-                "model_letter": None,
-                "model_prep": None
+                "model_default": saved_default,
+                "model_fit":    _resolve(None, settings.AI_MODEL_FIT, saved_default),
+                "model_letter": _resolve(None, settings.AI_MODEL_LETTER, saved_default),
+                "model_prep":   _resolve(None, settings.AI_MODEL_PREP, saved_default),
             }
+        
+        row = response.data[0]
+        # Resolve: user saved value → user default → .env override → global AI_MODEL
+        saved_default = row.get("model_default") or settings.AI_MODEL
+        row["model_default"] = saved_default
+        row["model_fit"]    = _resolve(row.get("model_fit"),    settings.AI_MODEL_FIT,    saved_default)
+        row["model_letter"] = _resolve(row.get("model_letter"), settings.AI_MODEL_LETTER, saved_default)
+        row["model_prep"]   = _resolve(row.get("model_prep"),   settings.AI_MODEL_PREP,   saved_default)
+        return row
             
-        return response.data[0]
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

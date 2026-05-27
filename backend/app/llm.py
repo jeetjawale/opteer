@@ -76,16 +76,22 @@ def get_llm(
         if provider != "local" and not validate_api_key_format(user_api_key):
             raise ValueError(f"Invalid API key format for provider: {provider}")
             
-        # Use model_override if provided, else choose exactly the required default model names per provider
-        if provider == "anthropic":
-            model_name = model_override or "claude-sonnet-4-5"
-        elif provider == "openai":
-            model_name = model_override or "gpt-4o-mini"
-        elif provider == "xai":
-            model_name = model_override or "grok-3"
+        # Use model_override if provided
+        if model_override:
+            model_name = model_override
+        # If the custom key's provider matches the global .env provider, respect the .env default model
+        elif provider == settings.AI_PROVIDER.lower():
+            model_name = settings.AI_MODEL
+        # Otherwise fall back to sensible defaults per provider
         else:
-            model_name = model_override or "gemini-2.5-flash"
-            
+            if provider == "anthropic":
+                model_name = "claude-sonnet-4-5"
+            elif provider == "openai":
+                model_name = "gpt-4o-mini"
+            elif provider == "xai":
+                model_name = "grok-3-beta"
+            else:
+                model_name = "gemini-2.5-flash"
         api_key = user_api_key
     else:
         provider = settings.AI_PROVIDER.lower()

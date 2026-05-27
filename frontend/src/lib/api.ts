@@ -278,7 +278,17 @@ export async function deleteResume(id: string) {
   return response.status === 204 ? null : response.json();
 }
 
-export async function getUserSettings() {
+export interface UserSettingsResponse {
+  id: string;
+  user_id: string;
+  updated_at: string;
+  model_default?: string;
+  model_fit?: string;
+  model_letter?: string;
+  model_prep?: string;
+}
+
+export async function getUserSettings(): Promise<UserSettingsResponse> {
   const response = await fetchWithAuth(`${API_BASE_URL}/settings`, { cache: "no-store" });
   if (!response.ok) {
     throw new Error(`Failed to fetch settings: ${response.statusText}`);

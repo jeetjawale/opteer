@@ -1,7 +1,33 @@
 "use client";
 
 import React from "react";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2, Sparkles, Globe, Building2, Calendar } from "lucide-react";
+
+// Parses the structured company_research text from the DB into an object.
+// Expected format produced by the scraper LLM:
+//   Overview: ...
+//   Website: ...
+//   Industry: ...
+//   Founded: ...
+function parseCompanyResearch(raw: string | null | undefined) {
+  if (!raw) return null;
+  const get = (key: string) => {
+    const match = raw.match(new RegExp(`${key}:\\s*(.+)`, "i"));
+    return match ? match[1].trim() : null;
+  };
+  const overview  = get("Overview");
+  const website   = get("Website");
+  const industry  = get("Industry");
+  const founded   = get("Founded");
+  // Return null if nothing useful was parsed
+  if (!overview && !website && !industry && !founded) return null;
+  return {
+    overview,
+    website:  website  === "N/A" ? null : website,
+    industry: industry === "N/A" ? null : industry,
+    founded:  founded  === "N/A" ? null : founded,
+  };
+}
 
 interface Application {
   id: string;
@@ -47,16 +73,13 @@ export default function OverviewTab({
   const score = application.fit_score !== null ? application.fit_score : 0;
   const dashOffset = circumference - (score / 100) * circumference;
 
-  let scoreColor = "stroke-red-500";
-  let textColor = "text-red-500";
+  let textColor = "text-rose-500";
   let labelText = "Low Fit";
   if (application.fit_score !== null) {
     if (score >= 80) {
-      scoreColor = "stroke-green-500";
-      textColor = "text-green-500";
+      textColor = "text-emerald-500";
       labelText = "Excellent Fit";
     } else if (score >= 50) {
-      scoreColor = "stroke-amber-500";
       textColor = "text-amber-500";
       labelText = "Good Fit";
     }
@@ -70,33 +93,12 @@ export default function OverviewTab({
           {/* Left Column: Donut Circle fit score */}
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 flex flex-col items-center justify-center text-center">
             <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-4">Fit Score</p>
-            <div className="relative w-36 h-36 flex items-center justify-center">
-              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 120 120">
-                {/* Background Ring */}
-                <circle
-                  cx="60"
-                  cy="60"
-                  r={radius}
-                  className="stroke-zinc-800"
-                  strokeWidth={strokeWidth}
-                  fill="transparent"
-                />
-                {/* Score Ring */}
-                <circle
-                  cx="60"
-                  cy="60"
-                  r={radius}
-                  className={`${scoreColor} transition-all duration-500`}
-                  strokeWidth={strokeWidth}
-                  fill="transparent"
-                  strokeDasharray={circumference}
-                  strokeDashoffset={dashOffset}
-                  strokeLinecap="round"
-                />
-              </svg>
-              <div className="absolute text-center">
-                <span className="text-white font-extrabold text-3xl">{application.fit_score}%</span>
-              </div>
+            <div 
+              className={`text-8xl font-black tabular-nums animate-score ${textColor} py-4`}
+              style={{ '--target': score } as React.CSSProperties}
+            >
+              <span className="font-mono"></span>
+              <span className="text-2xl text-zinc-500 font-normal">/100</span>
             </div>
             <h4 className={`text-base font-bold mt-4 ${textColor}`}>{labelText}</h4>
           </div>
@@ -111,7 +113,7 @@ export default function OverviewTab({
               <div className="flex flex-wrap gap-2">
                 {application.matched_skills && application.matched_skills.length > 0 ? (
                   application.matched_skills.map((skill, idx) => (
-                    <span key={idx} className="px-3 py-1 rounded-full text-xs font-medium bg-green-950 text-green-300 border border-green-800/40">
+                    <span key={idx} className="px-3 py-1 rounded-full text-xs font-medium bg-emerald-950 text-emerald-300 border border-emerald-800/40">
                       {skill}
                     </span>
                   ))
@@ -127,12 +129,12 @@ export default function OverviewTab({
               <div className="flex flex-wrap gap-2">
                 {application.missing_skills && application.missing_skills.length > 0 ? (
                   application.missing_skills.map((skill, idx) => (
-                    <span key={idx} className="px-3 py-1 rounded-full text-xs font-medium bg-red-950 text-red-300 border border-red-800/40">
+                    <span key={idx} className="px-3 py-1 rounded-full text-xs font-medium bg-rose-950 text-rose-300 border border-rose-800/40">
                       {skill}
                     </span>
                   ))
                 ) : (
-                  <span className="text-green-500 text-xs font-medium">None! Perfect skill alignment.</span>
+                  <span className="text-emerald-500 text-xs font-medium">None! Perfect skill alignment.</span>
                 )}
               </div>
             </div>
@@ -181,14 +183,62 @@ export default function OverviewTab({
       )}
 
       {/* About Company */}
-      {application.company_research && application.company_research.trim() !== "" && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mb-6">
-          <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-3">About {application.company || "Company"}</p>
-          <p className="text-zinc-300 text-sm leading-relaxed whitespace-pre-line">
-            {application.company_research}
-          </p>
-        </div>
-      )}
+      {(() => {
+        const rawText = application.company_research;
+        if (!rawText) return null;
+        
+        const co = parseCompanyResearch(rawText);
+        
+        return (
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mb-6 ring-1 ring-white/5">
+            <p className="text-zinc-400 text-xs font-bold uppercase tracking-wider mb-4">
+              About {application.company || "Company"}
+            </p>
+
+            {/* If it parsed successfully, show structured metadata */}
+            {co ? (
+              <>
+                {co.overview && (
+                  <p className="text-zinc-300 text-sm leading-relaxed mb-5">{co.overview}</p>
+                )}
+
+                {(co.website || co.industry || co.founded) && (
+                  <div className="flex flex-wrap gap-3">
+                    {co.website && (
+                      <a
+                        href={co.website.startsWith("http") ? co.website : `https://${co.website}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs font-medium hover:bg-zinc-700 hover:text-white hover:border-zinc-500 transition-all group"
+                      >
+                        <Globe className="w-3.5 h-3.5 text-zinc-500 group-hover:text-emerald-400 transition-colors" />
+                        {co.website.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}
+                      </a>
+                    )}
+                    {co.industry && (
+                      <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs font-medium">
+                        <Building2 className="w-3.5 h-3.5 text-zinc-500" />
+                        {co.industry}
+                      </span>
+                    )}
+                    {co.founded && (
+                      <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs font-medium">
+                        <Calendar className="w-3.5 h-3.5 text-zinc-500" />
+                        Founded {co.founded}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </>
+            ) : (
+              /* If parsing failed (e.g. rate limit error message or unformatted text), just show raw text */
+              <p className="text-zinc-300 text-sm leading-relaxed whitespace-pre-wrap text-rose-300/80">
+                {rawText}
+              </p>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Status & Notes configuration */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
