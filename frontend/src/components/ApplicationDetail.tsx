@@ -26,6 +26,7 @@ interface Application {
   role?: string | null;
   url?: string | null;
   company_research?: string | null;
+  scraped_jd?: string | null;
 }
 
 interface ApplicationDetailProps {
@@ -110,7 +111,7 @@ export default function ApplicationDetail({ application, onRefresh, defaultTab =
     <div className="space-y-6">
       
       {/* Dynamic Tab Switcher */}
-      <div className="flex border-b border-zinc-800">
+      <div className="flex border-b border-zinc-800 reveal reveal-2">
         <button
           onClick={() => setActiveTab("overview")}
           className={`px-5 py-3 font-semibold text-sm transition-all -mb-px border-b-2 ${
@@ -173,45 +174,55 @@ export default function ApplicationDetail({ application, onRefresh, defaultTab =
 
       {/* TAB 1: OVERVIEW */}
       {activeTab === "overview" && (
-        <OverviewTab
-          application={application}
-          updatingStatus={updatingStatus}
-          handleStatusChange={handleStatusChange}
-          notes={notes}
-          setNotes={setNotes}
-          savingNotes={savingNotes}
-          handleSaveNotes={handleSaveNotes}
-          analyzing={analyzing}
-          handleTriggerAnalysis={handleTriggerAnalysis}
-        />
+        <div className="reveal reveal-3">
+          <OverviewTab
+            application={application}
+            updatingStatus={updatingStatus}
+            handleStatusChange={handleStatusChange}
+            notes={notes}
+            setNotes={setNotes}
+            savingNotes={savingNotes}
+            handleSaveNotes={handleSaveNotes}
+            analyzing={analyzing}
+            handleTriggerAnalysis={handleTriggerAnalysis}
+          />
+        </div>
       )}
 
       {/* TAB 2: JOB DESCRIPTION */}
       {activeTab === "job-description" && (
-        <JobDescriptionTab scrapedJd={application.scraped_jd || null} />
+        <div className="reveal reveal-3">
+          <JobDescriptionTab scrapedJd={application.scraped_jd || null} />
+        </div>
       )}
 
       {/* TAB 3: COVER LETTER */}
       {activeTab === "cover-letter" && (
-        <CoverLetterTab
-          coverLetter={application.cover_letter}
-          analyzing={analyzing}
-          handleTriggerAnalysis={handleTriggerAnalysis}
-        />
+        <div className="reveal reveal-3">
+          <CoverLetterTab
+            coverLetter={application.cover_letter}
+            analyzing={analyzing}
+            handleTriggerAnalysis={handleTriggerAnalysis}
+          />
+        </div>
       )}
 
       {/* TAB 3: INTERVIEW PREP */}
       {activeTab === "interview-prep" && (
-        <InterviewPrepTab
-          interviewPrep={application.interview_prep}
-          analyzing={analyzing}
-          handleTriggerAnalysis={handleTriggerAnalysis}
-        />
+        <div className="reveal reveal-3">
+          <InterviewPrepTab
+            interviewPrep={application.interview_prep}
+            analyzing={analyzing}
+            handleTriggerAnalysis={handleTriggerAnalysis}
+          />
+        </div>
       )}
 
       {/* TAB 4: REMINDERS */}
       {activeTab === "reminders" && (
-        <RemindersTab applicationId={application.id} />
+        <div className="reveal reveal-3">
+          <RemindersTab applicationId={application.id} />
+        </div>
       )}
 
     </div>

@@ -108,7 +108,7 @@ export default function ApplicationsPage() {
     <div className="p-8 max-w-7xl mx-auto min-h-screen">
       
       {/* Top Header Bar */}
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 reveal reveal-1">
         <div>
           <h1 className="text-white text-3xl font-extrabold tracking-tight mb-1">Applications</h1>
           <p className="text-zinc-500 text-xs">
@@ -149,10 +149,12 @@ export default function ApplicationsPage() {
       </header>
 
       {/* Render KPI Stats */}
-      <StatsRow applications={applications} />
+      <div className="reveal reveal-2">
+        <StatsRow applications={applications} />
+      </div>
 
       {/* Filter and Search Bar */}
-      <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between mb-6">
+      <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between mb-6 reveal reveal-3">
         
         {/* Status Pills */}
         <div className="flex flex-wrap gap-2">
@@ -264,21 +266,23 @@ export default function ApplicationsPage() {
       </div>
 
       {/* Main CRM Table list */}
-      {loading ? (
-        <div className="flex flex-col items-center justify-center py-20 text-zinc-400 space-y-3">
-          <RefreshCw className="w-8 h-8 animate-spin text-zinc-500" />
-          <span className="text-sm font-medium">Loading applications...</span>
-        </div>
-      ) : error ? (
-        <div className="p-5 rounded-2xl bg-red-950/40 border border-red-800/50 text-red-300 text-sm">
-          {error}
-        </div>
-      ) : (
-        <ApplicationsTable 
-          applications={filteredApplications} 
-          onRefresh={fetchApps} 
-        />
-      )}
+      <div className="reveal reveal-4">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 text-zinc-400 space-y-3">
+            <RefreshCw className="w-8 h-8 animate-spin text-zinc-500" />
+            <span className="text-sm font-medium">Loading applications...</span>
+          </div>
+        ) : error ? (
+          <div className="p-5 rounded-2xl bg-red-950/40 border border-red-800/50 text-red-300 text-sm">
+            {error}
+          </div>
+        ) : (
+          <ApplicationsTable 
+            applications={filteredApplications} 
+            onRefresh={fetchApps} 
+          />
+        )}
+      </div>
 
       {/* Import Overlay Modal */}
       <ImportModal

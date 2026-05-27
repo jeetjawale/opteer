@@ -45,33 +45,33 @@ export default function StatsRow({ applications }: StatsRowProps) {
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
       
       {/* Card 1: Total Applied */}
-      <div className="bg-zinc-900 border border-zinc-800/80 rounded-xl p-5">
-        <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-2">Total Applied</p>
-        <h3 className="text-white text-3xl font-bold mb-1">{total}</h3>
-        <p className="text-green-400 text-xs font-medium">+{addedThisWeek} this week</p>
+      <div className="bg-surface border border-border-default border-t-[2px] border-t-accent-border rounded-xl p-5 card-hover transition-shadow">
+        <p className="text-secondary text-xs font-semibold uppercase tracking-wider mb-2">Total Applied</p>
+        <h3 className="text-primary text-3xl font-bold mb-1 font-mono tabular-nums">{total}</h3>
+        <p className="bg-green-950/40 text-green-400 text-xs px-2 py-0.5 rounded-full font-mono inline-block">+{addedThisWeek} this week</p>
       </div>
 
       {/* Card 2: Avg Fit Score */}
-      <div className="bg-zinc-900 border border-zinc-800/80 rounded-xl p-5">
-        <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-2">Avg Fit Score</p>
-        <h3 className="text-white text-3xl font-bold mb-1">
+      <div className="bg-surface border border-border-default border-t-[2px] border-t-accent-border rounded-xl p-5 card-hover transition-shadow">
+        <p className="text-secondary text-xs font-semibold uppercase tracking-wider mb-2">Avg Fit Score</p>
+        <h3 className="text-primary text-3xl font-bold mb-1 font-mono tabular-nums">
           {avgFitScore !== null ? `${avgFitScore}%` : "—"}
         </h3>
-        <p className="text-zinc-500 text-xs">across all jobs</p>
+        <p className="text-muted text-xs">across all jobs</p>
       </div>
 
       {/* Card 3: Interviews */}
-      <div className="bg-zinc-900 border border-zinc-800/80 rounded-xl p-5">
-        <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-2">Interviews</p>
-        <h3 className="text-white text-3xl font-bold mb-1">{interviews}</h3>
+      <div className="bg-surface border border-border-default border-t-[2px] border-t-accent-border rounded-xl p-5 card-hover transition-shadow">
+        <p className="text-secondary text-xs font-semibold uppercase tracking-wider mb-2">Interviews</p>
+        <h3 className="text-primary text-3xl font-bold mb-1 font-mono tabular-nums">{interviews}</h3>
         <p className="text-green-400 text-xs font-medium">{responseRate}% response rate</p>
       </div>
 
       {/* Card 4: Offers */}
-      <div className="bg-zinc-900 border border-zinc-800/80 rounded-xl p-5">
-        <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-2">Offers</p>
-        <h3 className="text-white text-3xl font-bold mb-1">{offers}</h3>
-        <p className="text-zinc-500 text-xs">pending reply</p>
+      <div className="bg-surface border border-border-default border-t-[2px] border-t-accent-border rounded-xl p-5 card-hover transition-shadow">
+        <p className="text-secondary text-xs font-semibold uppercase tracking-wider mb-2">Offers</p>
+        <h3 className="text-primary text-3xl font-bold mb-1 font-mono tabular-nums">{offers}</h3>
+        <p className="text-muted text-xs">pending reply</p>
       </div>
 
     </div>

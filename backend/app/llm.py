@@ -4,6 +4,7 @@ import re
 
 KEY_PATTERNS = {
     "anthropic": re.compile(r"^sk-ant-[a-zA-Z0-9\-_]{20,}$"),
+    "minimax":   re.compile(r"^eyJ[a-zA-Z0-9._-]{20,}$"),
     "openai":    re.compile(r"^sk-[a-zA-Z0-9]{20,}$"),
     "xai":       re.compile(r"^xai-[a-zA-Z0-9\-_]{20,}$"),
     "gemini":    re.compile(r"^[A-Za-z0-9\-_]{30,}$"),
@@ -19,10 +20,12 @@ def detect_provider(api_key: str | None) -> str:
     
     if api_key.startswith("sk-ant-"):
         return "anthropic"
-    elif api_key.startswith("sk-"):
-        return "openai"
+    elif api_key.startswith("eyJ"):
+        return "minimax"
     elif api_key.startswith("xai-"):
         return "xai"
+    elif api_key.startswith("sk-"):
+        return "openai"
     else:
         return "gemini"
 
@@ -90,6 +93,10 @@ def get_llm(
                 model_name = "gpt-4o-mini"
             elif provider == "xai":
                 model_name = "grok-3-beta"
+            elif provider == "minimax":
+                model_name = "minimax/m2-7-highspeed"
+            elif provider == "moonshot":
+                model_name = "moonshot/kimi-k2-6"
             else:
                 model_name = "gemini-2.5-flash"
         api_key = user_api_key
@@ -158,6 +165,38 @@ def get_llm(
             temperature=temperature,
             api_key=key,
             base_url="https://api.x.ai/v1",
+            **kwargs
+        )
+
+    elif provider == "minimax":
+        from langchain_openai import ChatOpenAI
+        key = api_key or settings.MINIMAX_API_KEY or ""
+        if not key:
+            raise ValueError("MINIMAX_API_KEY is not configured.")
+        kwargs = {}
+        if max_tokens is not None:
+            kwargs["max_tokens"] = max_tokens
+        model = ChatOpenAI(
+            model=model_name,
+            temperature=temperature,
+            api_key=key,
+            base_url="https://api.minimax.chat/v1",
+            **kwargs
+        )
+
+    elif provider == "moonshot":
+        from langchain_openai import ChatOpenAI
+        key = api_key or settings.MOONSHOT_API_KEY or ""
+        if not key:
+            raise ValueError("MOONSHOT_API_KEY is not configured.")
+        kwargs = {}
+        if max_tokens is not None:
+            kwargs["max_tokens"] = max_tokens
+        model = ChatOpenAI(
+            model=model_name,
+            temperature=temperature,
+            api_key=key,
+            base_url="https://api.moonshot.cn/v1",
             **kwargs
         )
 

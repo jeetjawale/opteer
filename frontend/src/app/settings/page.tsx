@@ -3,7 +3,12 @@
 import React, { useState, useEffect } from "react";
 import { Settings as SettingsIcon, Save, Cpu, Eye, EyeOff, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
 import { testLlmConnection, getUserSettings, updateUserSettings } from "@/lib/api";
-import { PROVIDER_MODELS } from "@/lib/models";
+import { 
+  PROVIDER_MODELS, 
+  getProviderFromKey, 
+  getRecommendedModelForTask,
+  PROVIDER_DEFAULTS
+} from "@/lib/models";
 
 export default function SettingsPage() {
   const [userApiKey, setUserApiKey] = useState("");
@@ -27,13 +32,6 @@ export default function SettingsPage() {
   // Save notification states
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  const getDetectedProvider = (key: string): string => {
-    if (!key) return "Gemini";
-    if (key.startsWith("sk-ant-")) return "Anthropic";
-    if (key.startsWith("sk-")) return "OpenAI";
-    if (key.startsWith("gsk_")) return "Groq";
-    return "Gemini";
-  };
 
   useEffect(() => {
     const savedKey = localStorage.getItem("jobpilot_api_key") || "";
@@ -55,19 +53,19 @@ export default function SettingsPage() {
   }, []);
 
   const handleKeyChange = (val: string) => {
-    const oldProvider = getDetectedProvider(userApiKey).toLowerCase();
-    const newProvider = getDetectedProvider(val).toLowerCase();
+    const oldProvider = getProviderFromKey(userApiKey);
+    const newProvider = getProviderFromKey(val);
     
     setUserApiKey(val);
     const savedKey = localStorage.getItem("jobpilot_api_key") || "";
     setIsSavedKey(val === savedKey && !!val);
     
-    if (newProvider !== oldProvider && PROVIDER_MODELS[newProvider]) {
-      const models = PROVIDER_MODELS[newProvider];
-      setModelDefault(models[0].value);
-      setModelFit(models[0].value);
-      setModelLetter(models[0].value);
-      setModelPrep(models[0].value);
+    if (newProvider !== oldProvider) {
+      const providerDefault = PROVIDER_DEFAULTS[newProvider] || PROVIDER_DEFAULTS["gemini"];
+      setModelDefault(providerDefault);
+      setModelFit(getRecommendedModelForTask(val, "fit"));
+      setModelLetter(getRecommendedModelForTask(val, "letter"));
+      setModelPrep(getRecommendedModelForTask(val, "prep"));
     }
     
     // Reset test/save states on change
@@ -82,13 +80,10 @@ export default function SettingsPage() {
     setTestResult({ status: "idle", message: "" });
     
     // Switch to Gemini defaults on clear
-    if (PROVIDER_MODELS["gemini"]) {
-      const models = PROVIDER_MODELS["gemini"];
-      setModelDefault(models[0].value);
-      setModelFit(models[0].value);
-      setModelLetter(models[0].value);
-      setModelPrep(models[0].value);
-    }
+    setModelDefault(PROVIDER_DEFAULTS["gemini"]);
+    setModelFit(getRecommendedModelForTask(null, "fit"));
+    setModelLetter(getRecommendedModelForTask(null, "letter"));
+    setModelPrep(getRecommendedModelForTask(null, "prep"));
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -150,9 +145,14 @@ export default function SettingsPage() {
     }
   };
 
-  const detected = getDetectedProvider(userApiKey);
+  const detected = getProviderFromKey(userApiKey);
+  const detectedDisplay = detected.charAt(0).toUpperCase() + detected.slice(1);
   const detectedLower = detected.toLowerCase();
   const availableModels = PROVIDER_MODELS[detectedLower] || PROVIDER_MODELS["gemini"];
+  
+  const recommendedFit = getRecommendedModelForTask(userApiKey, "fit");
+  const recommendedLetter = getRecommendedModelForTask(userApiKey, "letter");
+  const recommendedPrep = getRecommendedModelForTask(userApiKey, "prep");
 
   const handleDefaultModelChange = (val: string) => {
     setModelDefault(val);
@@ -162,27 +162,27 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto min-h-screen">
+    <div className="p-8 max-w-7xl mx-auto min-h-screen reveal">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-zinc-800/50 pb-5 mb-8">
+      <div className="flex items-center justify-between border-b border-border-default pb-5 mb-8 reveal-1">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight flex items-center space-x-2.5">
-            <SettingsIcon className="w-6 h-6 text-white" />
+          <h1 className="text-2xl font-bold text-primary tracking-tight flex items-center space-x-2.5">
+            <SettingsIcon className="w-6 h-6 text-accent" />
             <span>Settings</span>
           </h1>
-          <p className="text-zinc-500 text-sm mt-1">Configure your personal preferences and dynamic API keys.</p>
+          <p className="text-muted text-sm mt-1">Configure your personal preferences and dynamic API keys.</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* Main Settings Card */}
-        <div className="lg:col-span-2 space-y-6">
-          <form onSubmit={handleSave} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-2xl space-y-5">
+        <div className="lg:col-span-2 space-y-6 reveal-2">
+          <form onSubmit={handleSave} className="bg-surface border border-border-default rounded-2xl p-6 shadow-xl space-y-5">
             
-            <div className="flex items-center justify-between border-b border-zinc-800/40 pb-4">
-              <h2 className="text-white text-md font-semibold flex items-center space-x-2">
-                <Cpu className="w-4 h-4 text-white" />
+            <div className="flex items-center justify-between border-b border-border-subtle pb-4">
+              <h2 className="text-primary text-md font-semibold flex items-center space-x-2">
+                <Cpu className="w-4 h-4 text-accent" />
                 <span>AI Provider Configuration</span>
               </h2>
               {isSavedKey && (
@@ -196,12 +196,12 @@ export default function SettingsPage() {
             {/* API Key Input */}
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <label className="text-zinc-400 text-xs font-semibold uppercase tracking-wider" htmlFor="settings-api-key">
+                <label className="text-secondary text-xs font-semibold uppercase tracking-wider" htmlFor="settings-api-key">
                   API Key
                 </label>
                 {userApiKey && (
                   <span className="text-[10px] bg-green-950/80 text-green-300 border border-green-800/50 px-2 py-0.5 rounded-full font-semibold transition-all">
-                    {detected} detected
+                    {detectedDisplay} detected
                   </span>
                 )}
               </div>
@@ -210,7 +210,7 @@ export default function SettingsPage() {
                 <input
                   id="settings-api-key"
                   type={showKey ? "text" : "password"}
-                  className="w-full pl-4 pr-16 py-3 rounded-xl bg-zinc-950 border border-zinc-800 text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-700 transition-colors text-sm"
+                  className="w-full pl-4 pr-16 py-3 rounded-xl bg-elevated border border-border-default text-primary placeholder-muted focus:outline-none focus:border-border-strong transition-colors text-sm"
                   placeholder="sk-ant-... or sk-... or gsk_... or AIza..."
                   value={userApiKey}
                   onChange={(e) => handleKeyChange(e.target.value)}
@@ -219,7 +219,7 @@ export default function SettingsPage() {
                   <button
                     type="button"
                     onClick={() => setShowKey(!showKey)}
-                    className="text-zinc-500 hover:text-white transition-colors focus:outline-none"
+                    className="text-secondary hover:text-primary transition-colors focus:outline-none"
                     title={showKey ? "Hide API key" : "Show API key"}
                   >
                     {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -228,7 +228,7 @@ export default function SettingsPage() {
                     <button
                       type="button"
                       onClick={handleClearKey}
-                      className="text-zinc-500 hover:text-white transition-colors focus:outline-none font-bold text-lg px-1 select-none"
+                      className="text-secondary hover:text-primary transition-colors focus:outline-none font-bold text-lg px-1 select-none"
                       title="Clear key"
                     >
                       ×
@@ -236,7 +236,7 @@ export default function SettingsPage() {
                   )}
                 </div>
               </div>
-              <p className="text-[10px] text-zinc-500">
+              <p className="text-[10px] text-muted">
                 Pasting a custom API key configures JobPilot to execute your personal analysis pipelines using the detected provider. 
                 The key is saved locally in your browser and sent only for your runs, securely clearing from database caches once finished.
               </p>
@@ -245,23 +245,23 @@ export default function SettingsPage() {
             {/* Model Selections */}
             {!loadingSettings && (
               <div className="space-y-4 pt-2">
-                <h3 className="text-zinc-300 text-sm font-semibold border-b border-zinc-800/40 pb-2">Task Model Preferences</h3>
+                <h3 className="text-primary text-sm font-semibold border-b border-border-subtle pb-2">Task Model Preferences</h3>
                 
                 {/* Default Model */}
-                <div className="bg-zinc-900/50 p-4 rounded-xl border border-zinc-800/60 mb-6">
+                <div className="bg-surface border border-border-default p-4 rounded-xl ring-1 ring-white/5 mb-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start md:items-center">
                     <div>
                       <label className="text-emerald-400 text-xs font-bold uppercase tracking-wider block mb-1">
                         Default Model (Global)
                       </label>
-                      <p className="text-[10px] text-zinc-500 leading-tight pr-4">
+                      <p className="text-[10px] text-muted leading-tight pr-4">
                         Used as the primary fallback for all background tasks, imports, and analysis tasks unless individually overridden below.
                       </p>
                     </div>
                     <select 
                       value={modelDefault} 
                       onChange={(e) => handleDefaultModelChange(e.target.value)}
-                      className="w-full p-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-white text-sm focus:outline-none focus:border-zinc-700"
+                      className="w-full p-2.5 rounded-xl bg-elevated border border-border-default text-primary text-sm focus:outline-none focus:border-border-strong"
                     >
                       {availableModels.map(m => (
                         <option key={m.value} value={m.value}>{m.label}</option>
@@ -271,40 +271,46 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-                  <label className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">Fit Scoring Model</label>
+                  <label className="text-secondary text-xs font-semibold uppercase tracking-wider">Fit Scoring Model</label>
                   <select 
                     value={modelFit} 
                     onChange={(e) => setModelFit(e.target.value)}
-                    className="w-full p-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-white text-sm focus:outline-none focus:border-zinc-700"
+                    className="w-full p-2.5 rounded-xl bg-elevated border border-border-default text-primary text-sm focus:outline-none focus:border-border-strong"
                   >
                     {availableModels.map(m => (
-                      <option key={m.value} value={m.value}>{m.label}</option>
+                      <option key={m.value} value={m.value}>
+                        {m.label}{m.value === recommendedFit ? " (Recommended)" : ""}
+                      </option>
                     ))}
                   </select>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-                  <label className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">Cover Letter Model</label>
+                  <label className="text-secondary text-xs font-semibold uppercase tracking-wider">Cover Letter Model</label>
                   <select 
                     value={modelLetter} 
                     onChange={(e) => setModelLetter(e.target.value)}
-                    className="w-full p-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-white text-sm focus:outline-none focus:border-zinc-700"
+                    className="w-full p-2.5 rounded-xl bg-elevated border border-border-default text-primary text-sm focus:outline-none focus:border-border-strong"
                   >
                     {availableModels.map(m => (
-                      <option key={m.value} value={m.value}>{m.label}</option>
+                      <option key={m.value} value={m.value}>
+                        {m.label}{m.value === recommendedLetter ? " (Recommended)" : ""}
+                      </option>
                     ))}
                   </select>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-                  <label className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">Interview Prep Model</label>
+                  <label className="text-secondary text-xs font-semibold uppercase tracking-wider">Interview Prep Model</label>
                   <select 
                     value={modelPrep} 
                     onChange={(e) => setModelPrep(e.target.value)}
-                    className="w-full p-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-white text-sm focus:outline-none focus:border-zinc-700"
+                    className="w-full p-2.5 rounded-xl bg-elevated border border-border-default text-primary text-sm focus:outline-none focus:border-border-strong"
                   >
                     {availableModels.map(m => (
-                      <option key={m.value} value={m.value}>{m.label}</option>
+                      <option key={m.value} value={m.value}>
+                        {m.label}{m.value === recommendedPrep ? " (Recommended)" : ""}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -328,14 +334,14 @@ export default function SettingsPage() {
             )}
 
             {/* Action Buttons */}
-            <div className="flex items-center justify-between border-t border-zinc-800/40 pt-4">
+            <div className="flex items-center justify-between border-t border-border-subtle pt-4">
               <button
                 type="button"
                 onClick={handleTestConnection}
                 disabled={testing || !userApiKey}
-                className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-white font-semibold text-xs transition-colors flex items-center space-x-1.5"
+                className="px-4 py-2 rounded-xl bg-elevated hover:bg-border-default border border-border-default disabled:opacity-50 text-primary font-semibold text-xs transition-colors flex items-center space-x-1.5"
               >
-                {testing && <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-400" />}
+                {testing && <Loader2 className="w-3.5 h-3.5 animate-spin text-secondary" />}
                 <span>Test Connection</span>
               </button>
 
@@ -347,10 +353,9 @@ export default function SettingsPage() {
                 )}
                 <button
                   type="submit"
-                  disabled={!userApiKey.trim()}
-                  className="px-5 py-2.5 rounded-xl bg-white hover:bg-zinc-200 disabled:bg-zinc-700 disabled:text-zinc-500 disabled:hover:bg-zinc-700 disabled:cursor-not-allowed text-zinc-950 font-bold text-xs transition-colors flex items-center space-x-1.5"
+                  className="px-5 py-2.5 rounded-xl bg-primary hover:bg-white text-zinc-900 font-bold text-xs transition-colors flex items-center space-x-1.5"
                 >
-                  <Save className={`w-3.5 h-3.5 ${!userApiKey.trim() ? "text-zinc-500" : "text-zinc-950"}`} />
+                  <Save className="w-3.5 h-3.5 text-zinc-900" />
                   <span>Save Settings</span>
                 </button>
               </div>
@@ -360,21 +365,21 @@ export default function SettingsPage() {
         </div>
 
         {/* Model Reference Card */}
-        <div className="space-y-6">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-2xl space-y-4">
-            <h3 className="text-white text-sm font-semibold uppercase tracking-wider border-b border-zinc-800/40 pb-3">
+        <div className="space-y-6 reveal-3">
+          <div className="bg-surface border border-border-default rounded-2xl p-6 shadow-xl space-y-4">
+            <h3 className="text-primary text-sm font-semibold uppercase tracking-wider border-b border-border-subtle pb-3">
               Model Overrides
             </h3>
-            <p className="text-zinc-500 text-xs leading-relaxed">
+            <p className="text-muted text-xs leading-relaxed">
               When an API key is active, you can customize which models handle each specific analysis task.
             </p>
-            <p className="text-zinc-500 text-xs leading-relaxed">
+            <p className="text-muted text-xs leading-relaxed">
               For optimal results, use the recommended model. <strong>Smarter</strong> models yield better reasoning but take longer. <strong>Faster</strong> models return results instantly but might lack nuance.
             </p>
             <div className="pt-2">
-              <div className="flex flex-col p-3 rounded-xl bg-zinc-950/40 border border-zinc-800/50 space-y-1">
-                <span className="text-zinc-400 text-xs font-bold">Detected Provider</span>
-                <span className="text-white font-mono text-[13px]">{detected}</span>
+              <div className="flex flex-col p-3 rounded-xl bg-elevated border border-border-default space-y-1">
+                <span className="text-secondary text-xs font-bold">Detected Provider</span>
+                <span className="text-primary font-mono text-[13px]">{detectedDisplay}</span>
               </div>
             </div>
           </div>

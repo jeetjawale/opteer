@@ -27,12 +27,15 @@ export default function Sidebar() {
   const isApplicationsActive = pathname.startsWith("/applications");
 
   return (
-    <aside className="w-[200px] bg-zinc-900 border-r border-zinc-800 flex flex-col justify-between h-screen sticky top-0 text-zinc-400 select-none">
+    <aside 
+      className="w-[200px] bg-surface border-r border-border-default flex flex-col justify-between h-screen sticky top-0 text-secondary select-none"
+      style={{ background: "linear-gradient(180deg, rgba(249,115,22,0.04) 0%, var(--bg-surface) 120px)" }}
+    >
       <div className="flex flex-col">
         {/* Brand Header */}
-        <div className="p-5 flex items-center space-x-2 border-b border-zinc-800/50">
-          <Sparkles className="w-5 h-5 text-white" />
-          <span className="text-white font-bold tracking-tight text-lg">JobPilot</span>
+        <div className="p-5 flex items-center space-x-2.5 border-b border-border-subtle">
+          <div className="w-1.5 h-1.5 rounded-full bg-accent shadow-[0_0_8px_var(--accent)]" />
+          <span className="text-primary font-bold tracking-tight text-lg">JobPilot</span>
         </div>
 
         {/* Navigation Section */}
@@ -41,10 +44,10 @@ export default function Sidebar() {
           <div className="space-y-1">
             <Link 
               href="/applications"
-              className={`flex items-center space-x-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
+              className={`flex items-center space-x-2.5 px-3 py-2 rounded-lg text-sm transition-colors border-l-[2px] ${
                 isApplicationsActive 
-                  ? "bg-zinc-800 text-white font-medium" 
-                  : "hover:bg-zinc-800/40 hover:text-zinc-200"
+                  ? "bg-accent-dim text-primary font-medium border-accent" 
+                  : "hover:bg-elevated hover:text-primary border-transparent"
               }`}
             >
               <List className="w-4 h-4" />
@@ -53,7 +56,7 @@ export default function Sidebar() {
 
             <Link 
               href="#"
-              className="flex items-center space-x-2.5 px-3 py-2 rounded-lg text-sm hover:bg-zinc-800/40 hover:text-zinc-200 transition-colors"
+              className="flex items-center space-x-2.5 px-3 py-2 rounded-lg text-sm hover:bg-elevated hover:text-primary transition-colors border-l-[2px] border-transparent"
             >
               <BarChart3 className="w-4 h-4" />
               <span>Analytics</span>
@@ -61,10 +64,10 @@ export default function Sidebar() {
 
             <Link 
               href="/resumes"
-              className={`flex items-center space-x-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
+              className={`flex items-center space-x-2.5 px-3 py-2 rounded-lg text-sm transition-colors border-l-[2px] ${
                 pathname.startsWith("/resumes")
-                  ? "bg-zinc-800 text-white font-medium"
-                  : "hover:bg-zinc-800/40 hover:text-zinc-200"
+                  ? "bg-accent-dim text-primary font-medium border-accent"
+                  : "hover:bg-elevated hover:text-primary border-transparent"
               }`}
             >
               <FileText className="w-4 h-4" />
@@ -80,7 +83,7 @@ export default function Sidebar() {
             
             <Link 
               href="/applications" 
-              className="flex items-center space-x-2.5 px-3 py-2 rounded-lg text-sm hover:bg-zinc-800/40 hover:text-zinc-200 transition-colors"
+              className="flex items-center space-x-2.5 px-3 py-2 rounded-lg text-sm hover:bg-elevated hover:text-primary transition-colors border-l-[2px] border-transparent"
             >
               <Cpu className="w-4 h-4" />
               <span>Analyze Fit</span>
@@ -88,7 +91,7 @@ export default function Sidebar() {
 
             <Link 
               href="/applications" 
-              className="flex items-center space-x-2.5 px-3 py-2 rounded-lg text-sm hover:bg-zinc-800/40 hover:text-zinc-200 transition-colors"
+              className="flex items-center space-x-2.5 px-3 py-2 rounded-lg text-sm hover:bg-elevated hover:text-primary transition-colors border-l-[2px] border-transparent"
             >
               <Mail className="w-4 h-4" />
               <span>Cover Letters</span>
@@ -96,7 +99,7 @@ export default function Sidebar() {
 
             <Link 
               href="/applications" 
-              className="flex items-center space-x-2.5 px-3 py-2 rounded-lg text-sm hover:bg-zinc-800/40 hover:text-zinc-200 transition-colors"
+              className="flex items-center space-x-2.5 px-3 py-2 rounded-lg text-sm hover:bg-elevated hover:text-primary transition-colors border-l-[2px] border-transparent"
             >
               <GraduationCap className="w-4 h-4" />
               <span>Interview Prep</span>
@@ -106,13 +109,14 @@ export default function Sidebar() {
       </div>
 
       {/* Settings / Sign Out Pinned to Bottom */}
-      <div className="p-4 border-t border-zinc-800/50 space-y-1">
+      <div className="p-4 space-y-1 relative">
+        <div className="absolute top-0 left-0 right-0 h-[1px]" style={{ background: "linear-gradient(90deg, transparent, var(--border-default), transparent)" }}></div>
         <Link 
           href="/settings"
-          className={`flex items-center space-x-2.5 px-3 py-2 rounded-lg text-sm transition-colors w-full text-left ${
+          className={`flex items-center space-x-2.5 px-3 py-2 rounded-lg text-sm transition-colors w-full text-left border-l-[2px] ${
             pathname === "/settings"
-              ? "bg-zinc-800 text-white font-medium"
-              : "hover:bg-zinc-800/40 hover:text-zinc-200"
+              ? "bg-accent-dim text-primary font-medium border-accent"
+              : "hover:bg-elevated hover:text-primary border-transparent"
           }`}
         >
           <Settings className="w-4 h-4" />
@@ -120,7 +124,7 @@ export default function Sidebar() {
         </Link>
         <button 
           onClick={handleSignOut}
-          className="flex items-center space-x-2.5 px-3 py-2 rounded-lg text-sm hover:bg-red-950/30 hover:text-red-400 transition-colors w-full text-left"
+          className="flex items-center space-x-2.5 px-3 py-2 rounded-lg text-sm hover:bg-red-950/30 hover:text-red-400 transition-colors w-full text-left border-l-[2px] border-transparent"
         >
           <LogOut className="w-4 h-4" />
           <span>Sign Out</span>

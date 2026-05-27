@@ -67,20 +67,52 @@ export default function OverviewTab({
   handleTriggerAnalysis
 }: OverviewTabProps) {
   // SVG DONUT FIT SCORE CALCULATIONS
-  const radius = 50;
-  const strokeWidth = 8;
+  const radius = 80;
+  const strokeWidth = 4;
   const circumference = 2 * Math.PI * radius;
   const score = application.fit_score !== null ? application.fit_score : 0;
-  const dashOffset = circumference - (score / 100) * circumference;
+  const targetOffset = circumference - (score / 100) * circumference;
+  const [dashOffset, setDashOffset] = React.useState(circumference);
+  const [displayScore, setDisplayScore] = React.useState(0);
 
-  let textColor = "text-rose-500";
+  React.useEffect(() => {
+    const t = setTimeout(() => setDashOffset(targetOffset), 100);
+    return () => clearTimeout(t);
+  }, [targetOffset]);
+
+  React.useEffect(() => {
+    if (score === 0) {
+      setDisplayScore(0);
+      return;
+    }
+    
+    const duration = 1500;
+    const startTime = performance.now();
+    const easeOutQuart = (x: number): number => 1 - Math.pow(1 - x, 4);
+    
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      setDisplayScore(Math.floor(easeOutQuart(progress) * score));
+      
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        setDisplayScore(score);
+      }
+    };
+    
+    requestAnimationFrame(animate);
+  }, [score]);
+
+  let textColor = "text-score-low";
   let labelText = "Low Fit";
   if (application.fit_score !== null) {
     if (score >= 80) {
-      textColor = "text-emerald-500";
+      textColor = "text-score-high";
       labelText = "Excellent Fit";
     } else if (score >= 50) {
-      textColor = "text-amber-500";
+      textColor = "text-score-mid";
       labelText = "Good Fit";
     }
   }
@@ -91,45 +123,73 @@ export default function OverviewTab({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           
           {/* Left Column: Donut Circle fit score */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 flex flex-col items-center justify-center text-center">
-            <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-4">Fit Score</p>
-            <div 
-              className={`text-8xl font-black tabular-nums animate-score ${textColor} py-4`}
-              style={{ '--target': score } as React.CSSProperties}
-            >
-              <span className="font-mono"></span>
-              <span className="text-2xl text-zinc-500 font-normal">/100</span>
+          <div className="bg-surface border border-border-default rounded-2xl p-6 flex flex-col items-center justify-center text-center">
+            <p className="text-secondary text-xs font-semibold uppercase tracking-wider mb-4">Fit Score</p>
+            
+            <div className="relative flex items-center justify-center">
+              <svg width="180" height="180" viewBox="0 0 180 180" className="absolute -rotate-90">
+                <circle
+                  cx="90"
+                  cy="90"
+                  r={radius}
+                  fill="transparent"
+                  stroke="currentColor"
+                  strokeWidth={strokeWidth}
+                  className="text-border-subtle"
+                />
+                <circle
+                  cx="90"
+                  cy="90"
+                  r={radius}
+                  fill="transparent"
+                  stroke="currentColor"
+                  strokeWidth={strokeWidth}
+                  strokeLinecap="round"
+                  className={score >= 80 ? 'text-score-high' : score >= 50 ? 'text-score-mid' : 'text-score-low'}
+                  strokeDasharray={circumference}
+                  strokeDashoffset={dashOffset}
+                  style={{ transition: "stroke-dashoffset 1s cubic-bezier(0.16,1,0.3,1)" }}
+                />
+              </svg>
+              <div 
+                className={`flex items-baseline justify-center w-[140px] h-[140px] rounded-full text-6xl font-black tabular-nums score-reveal ${textColor} ${score >= 80 ? 'shadow-[0_0_0_1px_rgba(34,197,94,0.2),0_0_32px_rgba(34,197,94,0.08)]' : ''}`}
+                style={{ paddingTop: '42px' }}
+              >
+                <span className="font-mono">{displayScore}</span>
+                <span className="text-xl text-muted font-normal ml-1">/100</span>
+              </div>
             </div>
+
             <h4 className={`text-base font-bold mt-4 ${textColor}`}>{labelText}</h4>
           </div>
 
           {/* Middle Column: Skills analysis */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 md:col-span-2 space-y-4">
-            <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">Skill Matching Analysis</p>
+          <div className="bg-surface border border-border-default rounded-2xl p-6 md:col-span-2 space-y-4">
+            <p className="text-secondary text-xs font-semibold uppercase tracking-wider">Skill Matching Analysis</p>
             
             {/* Matched Skills */}
             <div>
-              <p className="text-zinc-500 text-xs font-semibold mb-2">Matched Skills</p>
+              <p className="text-muted text-xs font-semibold mb-2">Matched Skills</p>
               <div className="flex flex-wrap gap-2">
                 {application.matched_skills && application.matched_skills.length > 0 ? (
                   application.matched_skills.map((skill, idx) => (
-                    <span key={idx} className="px-3 py-1 rounded-full text-xs font-medium bg-emerald-950 text-emerald-300 border border-emerald-800/40">
+                    <span key={idx} className="px-3 py-1 rounded-full text-xs font-medium bg-green-950/40 text-green-400 border border-green-900/40">
                       {skill}
                     </span>
                   ))
                 ) : (
-                  <span className="text-zinc-600 text-xs italic">No matching skills detected.</span>
+                  <span className="text-secondary text-xs italic">No matching skills detected.</span>
                 )}
               </div>
             </div>
 
             {/* Missing Skills */}
             <div>
-              <p className="text-zinc-500 text-xs font-semibold mb-2">Missing Skills</p>
+              <p className="text-muted text-xs font-semibold mb-2">Missing Skills</p>
               <div className="flex flex-wrap gap-2">
                 {application.missing_skills && application.missing_skills.length > 0 ? (
                   application.missing_skills.map((skill, idx) => (
-                    <span key={idx} className="px-3 py-1 rounded-full text-xs font-medium bg-rose-950 text-rose-300 border border-rose-800/40">
+                    <span key={idx} className="px-3 py-1 rounded-full text-xs font-medium bg-red-950/40 text-red-400 border border-red-900/40">
                       {skill}
                     </span>
                   ))
@@ -141,9 +201,9 @@ export default function OverviewTab({
           </div>
 
           {/* Assessment Summary row */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 md:col-span-3">
-            <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-3">AI Assessment Summary</p>
-            <p className="text-zinc-300 text-sm leading-relaxed whitespace-pre-line">
+          <div className="bg-surface border border-border-default rounded-2xl p-6 md:col-span-3">
+            <p className="text-secondary text-xs font-semibold uppercase tracking-wider mb-3">AI Assessment Summary</p>
+            <p className="text-primary text-sm leading-relaxed whitespace-pre-line">
               {application.summary || (
                 application.fit_score !== undefined && application.fit_score !== null
                   ? (application.fit_score >= 80 
@@ -159,16 +219,16 @@ export default function OverviewTab({
         </div>
       ) : (
         /* Analysis CTA Banner */
-        <div className="p-8 text-center bg-zinc-900 border border-zinc-800 rounded-2xl flex flex-col items-center">
+        <div className="p-8 text-center bg-surface border border-border-default rounded-2xl flex flex-col items-center">
           <Sparkles className="w-8 h-8 text-blue-400 mb-3 animate-pulse" />
-          <h3 className="text-white font-bold text-base mb-1">AI Analysis not run yet</h3>
-          <p className="text-zinc-500 text-xs max-w-sm mb-5">
+          <h3 className="text-primary font-bold text-base mb-1">AI Analysis not run yet</h3>
+          <p className="text-muted text-xs max-w-sm mb-5">
             Evaluate your resume against the job description to calculate your fit score and generate your prep material.
           </p>
           <button
             onClick={handleTriggerAnalysis}
             disabled={analyzing}
-            className="px-5 py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 font-bold text-sm transition-colors flex items-center space-x-2 disabled:bg-zinc-800 disabled:text-zinc-600"
+            className="px-5 py-2.5 rounded-xl bg-primary hover:bg-white text-base font-bold text-sm transition-colors flex items-center space-x-2 disabled:bg-elevated disabled:text-muted"
           >
             {analyzing ? (
               <>
@@ -176,7 +236,7 @@ export default function OverviewTab({
                 <span>Analyzing...</span>
               </>
             ) : (
-              <span>Run Analysis Now</span>
+              <span className="text-zinc-900">Run Analysis Now</span>
             )}
           </button>
         </div>
@@ -190,8 +250,8 @@ export default function OverviewTab({
         const co = parseCompanyResearch(rawText);
         
         return (
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mb-6 ring-1 ring-white/5">
-            <p className="text-zinc-400 text-xs font-bold uppercase tracking-wider mb-4">
+          <div className="bg-surface border border-border-default rounded-2xl p-6 mb-6 ring-1 ring-white/5">
+            <p className="text-secondary text-xs font-bold uppercase tracking-wider mb-4">
               About {application.company || "Company"}
             </p>
 
@@ -199,7 +259,7 @@ export default function OverviewTab({
             {co ? (
               <>
                 {co.overview && (
-                  <p className="text-zinc-300 text-sm leading-relaxed mb-5">{co.overview}</p>
+                  <p className="text-primary text-sm leading-relaxed mb-5">{co.overview}</p>
                 )}
 
                 {(co.website || co.industry || co.founded) && (
@@ -209,21 +269,21 @@ export default function OverviewTab({
                         href={co.website.startsWith("http") ? co.website : `https://${co.website}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs font-medium hover:bg-zinc-700 hover:text-white hover:border-zinc-500 transition-all group"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-elevated border border-border-default text-primary text-xs font-medium hover:bg-border-default hover:text-white transition-all group"
                       >
-                        <Globe className="w-3.5 h-3.5 text-zinc-500 group-hover:text-emerald-400 transition-colors" />
+                        <Globe className="w-3.5 h-3.5 text-muted group-hover:text-emerald-400 transition-colors" />
                         {co.website.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}
                       </a>
                     )}
                     {co.industry && (
-                      <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs font-medium">
-                        <Building2 className="w-3.5 h-3.5 text-zinc-500" />
+                      <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-elevated border border-border-default text-primary text-xs font-medium">
+                        <Building2 className="w-3.5 h-3.5 text-muted" />
                         {co.industry}
                       </span>
                     )}
                     {co.founded && (
-                      <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs font-medium">
-                        <Calendar className="w-3.5 h-3.5 text-zinc-500" />
+                      <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-elevated border border-border-default text-primary text-xs font-medium">
+                        <Calendar className="w-3.5 h-3.5 text-muted" />
                         Founded {co.founded}
                       </span>
                     )}
@@ -232,7 +292,7 @@ export default function OverviewTab({
               </>
             ) : (
               /* If parsing failed (e.g. rate limit error message or unformatted text), just show raw text */
-              <p className="text-zinc-300 text-sm leading-relaxed whitespace-pre-wrap text-rose-300/80">
+              <p className="text-primary text-sm leading-relaxed whitespace-pre-wrap text-rose-300/80">
                 {rawText}
               </p>
             )}
@@ -244,8 +304,8 @@ export default function OverviewTab({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
         {/* Status Dropdown Card */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-          <label className="block text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-3" htmlFor="app-status">
+        <div className="bg-surface border border-border-default rounded-2xl p-6">
+          <label className="block text-secondary text-xs font-semibold uppercase tracking-wider mb-3" htmlFor="app-status">
             Pipeline Status
           </label>
           <div className="relative">
@@ -254,7 +314,7 @@ export default function OverviewTab({
               value={application.status}
               disabled={updatingStatus}
               onChange={(e) => handleStatusChange(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:border-zinc-700 transition-colors text-sm appearance-none cursor-pointer disabled:opacity-50"
+              className="w-full px-4 py-3 rounded-xl bg-elevated border border-border-default text-primary focus:outline-none focus:border-border-strong transition-colors text-sm appearance-none cursor-pointer disabled:opacity-50"
             >
               <option value="saved">Saved</option>
               <option value="applied">Applied</option>
@@ -265,23 +325,23 @@ export default function OverviewTab({
             </select>
             {updatingStatus && (
               <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                <Loader2 className="w-4 h-4 text-zinc-500 animate-spin" />
+                <Loader2 className="w-4 h-4 text-secondary animate-spin" />
               </div>
             )}
           </div>
         </div>
 
         {/* Notes Card */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 md:col-span-2 space-y-3">
+        <div className="bg-surface border border-border-default rounded-2xl p-6 md:col-span-2 space-y-3">
           <div className="flex justify-between items-center">
-            <label className="block text-zinc-400 text-xs font-semibold uppercase tracking-wider" htmlFor="app-notes">
+            <label className="block text-secondary text-xs font-semibold uppercase tracking-wider" htmlFor="app-notes">
               My Application Notes
             </label>
             {notes !== (application.notes || "") && (
               <button
                 onClick={handleSaveNotes}
                 disabled={savingNotes}
-                className="text-xs font-bold text-blue-400 hover:text-blue-300 disabled:text-zinc-600 transition-colors flex items-center space-x-1"
+                className="text-xs font-bold text-accent hover:text-accent-dim disabled:text-muted transition-colors flex items-center space-x-1"
               >
                 {savingNotes && <Loader2 className="w-3 h-3 animate-spin" />}
                 <span>Save Notes</span>
@@ -291,7 +351,7 @@ export default function OverviewTab({
           <textarea
             id="app-notes"
             rows={3}
-            className="w-full px-4 py-3 rounded-xl bg-zinc-950 border border-zinc-800 text-white placeholder-zinc-700 focus:outline-none focus:border-zinc-700 transition-colors text-sm resize-none"
+            className="w-full px-4 py-3 rounded-xl bg-elevated border border-border-default text-primary placeholder-muted focus:outline-none focus:border-border-strong transition-colors text-sm resize-none"
             placeholder="Add interviews schedules, follow-up dates, or recruiter contacts..."
             value={notes}
             onChange={(e) => setNotes(e.target.value)}

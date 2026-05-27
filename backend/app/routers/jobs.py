@@ -140,7 +140,6 @@ async def import_job(
     from app.llm import sanitize_llm_input
     url = payload.url
     resume_text = sanitize_llm_input(payload.resume_text, max_chars=15000)
-    scraped_jd = sanitize_llm_input(payload.scraped_jd or "", max_chars=20000) if payload.scraped_jd else None
     
     # 1. Scrape URL using direct HTTP first (best for JSON-LD), then fallback to Firecrawl
     scraped_jd = payload.scraped_jd
@@ -343,6 +342,24 @@ async def import_job(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to save job details: {str(e)}"
+        )
+        
+    # Check if the user already has an application for this job
+    existing_app = supabase_service.table("applications") \
+        .select("id, status") \
+        .eq("user_id", str(current_user.id)) \
+        .eq("job_id", str(job_id)) \
+        .execute()
+
+    if existing_app.data and len(existing_app.data) > 0:
+        # Return the existing application instead of creating a duplicate
+        existing_id = existing_app.data[0]["id"]
+        existing_status = existing_app.data[0]["status"]
+        return JobImportResponse(
+            application_id=existing_id,
+            job_id=job_id,
+            company=company_name,
+            status=existing_status
         )
         
     # 5. Insert into applications table using supabase_service
