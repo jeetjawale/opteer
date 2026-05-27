@@ -53,7 +53,7 @@ export default function CoverLetterTab({
           
           {/* Content Body */}
           <div className="p-8 text-zinc-300 text-sm leading-relaxed whitespace-pre-wrap max-w-3xl mx-auto font-sans">
-            {coverLetter}
+            {coverLetter.replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*(.*?)\*/g, '$1')}
           </div>
         </div>
       ) : (

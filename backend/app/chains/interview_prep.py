@@ -12,7 +12,7 @@ def get_interview_prep_chain(user_api_key: str | None = None):
     """
     # 1. Initialize parser and LLM (temperature=0.3 for structured, balanced questions)
     parser = JsonOutputParser(pydantic_object=InterviewPrepResult)
-    llm = app.llm.get_llm(temperature=0.3, max_tokens=4000, model_override=settings.AI_MODEL_PREP, user_api_key=user_api_key)
+    llm = app.llm.get_llm(temperature=0.3, max_tokens=6000, model_override=settings.AI_MODEL_PREP, user_api_key=user_api_key)
 
     # 2. Build Prompt Template with formatting instructions
     prompt = PromptTemplate(
@@ -30,6 +30,7 @@ Instructions:
 3. For each question, provide a detailed "suggested_answer" guiding the candidate on how to structure their response.
 4. Each suggested answer MUST explicitly tie back to, and reference, actual achievements, roles, technologies, or projects from the candidate's Resume Text to make it personalized and authentic.
 5. Ensure the output strictly conforms to the JSON schema.
+6. IMPORTANT: Do not use markdown formatting like **bold** or bullet points with *. Use plain text only.
 
 {format_instructions}
 """,

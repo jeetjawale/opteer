@@ -127,6 +127,7 @@ async def run_interview_prep(state: AnalysisState) -> dict:
         })
         return {"interview_prep": result}
     except Exception as e:
+        print(f"[interview_prep ERROR]: {str(e)}")
         fallback_prep = {
             "questions": [
                 {
