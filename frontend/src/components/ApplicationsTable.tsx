@@ -144,7 +144,7 @@ export default function ApplicationsTable({ applications, onRefresh }: Applicati
   }
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden shadow-xl">
+    <div className="bg-surface border border-border-default rounded-xl overflow-hidden shadow-xl">
       {error && (
         <div className="p-4 bg-red-950/40 border-b border-red-800/50 text-red-300 text-sm">
           {error}
@@ -152,7 +152,7 @@ export default function ApplicationsTable({ applications, onRefresh }: Applicati
       )}
       <table className="w-full text-left border-collapse">
         <thead>
-          <tr className="border-b border-zinc-800 text-zinc-500 text-xs font-semibold uppercase tracking-wider bg-zinc-900/50">
+          <tr className="border-b border-white/5 text-secondary text-xs font-semibold uppercase tracking-wider bg-surface">
             <th className="px-6 py-4">Company & Role</th>
             <th className="px-6 py-4">Status</th>
             <th className="px-6 py-4">Fit Score</th>
@@ -160,7 +160,7 @@ export default function ApplicationsTable({ applications, onRefresh }: Applicati
             <th className="px-6 py-4 text-right">Actions</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-zinc-800/60">
+        <tbody className="divide-y divide-border-default">
           {applications.map((app) => {
             const company = app.company || "Unknown Company";
             const role = app.role || "Job Description";
@@ -169,14 +169,14 @@ export default function ApplicationsTable({ applications, onRefresh }: Applicati
             
             // Progress Bar Color Mapping
             const score = app.fit_score;
-            let barColor = "bg-red-500";
+            let fillGradient = "linear-gradient(90deg, var(--score-low), #f87171)";
             if (score !== null) {
-              if (score >= 80) barColor = "bg-green-500";
-              else if (score >= 50) barColor = "bg-amber-500";
+              if (score >= 80) fillGradient = "linear-gradient(90deg, var(--score-high), #4ade80)";
+              else if (score >= 50) fillGradient = "linear-gradient(90deg, var(--score-mid), #fb923c)";
             }
 
             return (
-              <tr key={app.id} className="hover:bg-zinc-800/20 transition-colors">
+              <tr key={app.id} className="hover:bg-elevated transition-colors hover:shadow-[inset_2px_0_0_var(--accent)]">
                 
                 {/* Company / Role */}
                 <td className="px-6 py-4">
@@ -187,11 +187,11 @@ export default function ApplicationsTable({ applications, onRefresh }: Applicati
                         url={app.url} 
                         initials={initials} 
                         avatarBg={avatarBg} 
-                        className="w-10 h-10 rounded-lg group-hover:opacity-90 transition-opacity flex-shrink-0" 
+                        className="w-10 h-10 rounded-lg transition-opacity flex-shrink-0 ring-1 ring-white/10 group-hover:ring-accent/30 group-hover:opacity-90" 
                       />
                       <div>
-                        <p className="text-white font-semibold text-sm leading-tight mb-0.5 group-hover:underline">{company}</p>
-                        <p className="text-zinc-400 text-xs leading-none">{role}</p>
+                        <p className="text-primary font-semibold text-sm leading-tight mb-0.5 group-hover:underline">{company}</p>
+                        <p className="text-secondary text-xs leading-none">{role}</p>
                       </div>
                     </Link>
                     {app.url && (
@@ -210,12 +210,19 @@ export default function ApplicationsTable({ applications, onRefresh }: Applicati
 
                 {/* Status Dropdown */}
                 <td className="px-6 py-4">
-                  <div className="relative inline-block">
+                  <div className={`relative inline-block before:content-[''] before:absolute before:w-1 before:h-1 before:rounded-full before:left-2.5 before:top-1/2 before:-translate-y-1/2 ${
+                    app.status === "saved" ? "before:bg-zinc-500" :
+                    app.status === "applied" ? "before:bg-blue-500" :
+                    app.status === "interview" ? "before:bg-amber-500" :
+                    app.status === "offer" ? "before:bg-green-500" :
+                    app.status === "closed" ? "before:bg-zinc-600" :
+                    app.status === "rejected" ? "before:bg-red-500" : ""
+                  }`}>
                     <select
                       value={app.status}
                       disabled={updatingId === app.id}
                       onChange={(e) => handleStatusChange(app.id, e.target.value)}
-                      className={`px-2.5 py-1 text-xs font-semibold rounded-full border focus:outline-none appearance-none cursor-pointer uppercase tracking-wider pr-6 ${
+                      className={`pl-5 pr-6 py-1 text-xs font-semibold rounded-full border focus:outline-none appearance-none cursor-pointer uppercase tracking-wider ${
                         app.status === "saved" ? "bg-zinc-800 text-zinc-400 border-zinc-700/35" :
                         app.status === "applied" ? "bg-blue-950 text-blue-300 border-blue-900/40" :
                         app.status === "interview" ? "bg-amber-950 text-amber-300 border-amber-900/40" :
@@ -245,15 +252,15 @@ export default function ApplicationsTable({ applications, onRefresh }: Applicati
                 <td className="px-6 py-4">
                   {score !== null ? (
                     <div className="flex items-center space-x-3">
-                      <div className="w-[120px] bg-zinc-800 h-2 rounded-full overflow-hidden">
-                        <div className={`h-full ${barColor}`} style={{ width: `${score}%` }}></div>
+                      <div className="w-[120px] h-2 rounded-full overflow-hidden" style={{ background: "linear-gradient(90deg, #1c1c1f, #27272a)" }}>
+                        <div className="h-full" style={{ width: `${score}%`, background: fillGradient }}></div>
                       </div>
-                      <span className="text-white text-sm font-semibold">{score}%</span>
+                      <span className="text-primary text-sm font-semibold font-mono tabular-nums">{score}%</span>
                     </div>
                   ) : (
                     <div className="flex items-center space-x-3">
-                      <div className="w-[120px] bg-zinc-800 h-2 rounded-full"></div>
-                      <span className="text-zinc-600 text-sm font-semibold">—</span>
+                      <div className="w-[120px] h-2 rounded-full" style={{ background: "linear-gradient(90deg, #1c1c1f, #27272a)" }}></div>
+                      <span className="text-secondary text-sm font-semibold">—</span>
                     </div>
                   )}
                 </td>

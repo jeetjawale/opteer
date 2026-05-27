@@ -22,7 +22,7 @@ def override_dependencies():
 def test_import_job_endpoint():
     # 1. Setup mock Firecrawl response
     mock_scrape_res = MagicMock()
-    mock_scrape_res.markdown = "Work at a Startup Job Description. Company: Work at a Startup."
+    mock_scrape_res.markdown = "Work at a Startup Job Description. Company: Work at a Startup. " * 10
     
     mock_firecrawl_inst = MagicMock()
     mock_firecrawl_inst.scrape_url.return_value = mock_scrape_res
@@ -52,7 +52,9 @@ def test_import_job_endpoint():
     
     # Setup mock query chain
     mock_select = MagicMock()
+    # Handle single .eq (jobs url check) and double .eq (application duplicate check)
     mock_select.eq.return_value.execute.return_value = mock_select_res
+    mock_select.eq.return_value.eq.return_value.execute.return_value = mock_select_res
     
     mock_insert = MagicMock()
     mock_insert.execute.side_effect = [mock_job_response, mock_app_response]
@@ -78,6 +80,8 @@ def test_import_job_endpoint():
         )
         
         # Verify outputs
+        if response.status_code != 201:
+            print("FAILED WITH 422:", response.json())
         assert response.status_code == 201
         data = response.json()
         assert data["company"] == "Work at a Startup"

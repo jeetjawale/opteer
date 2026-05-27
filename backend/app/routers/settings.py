@@ -27,12 +27,12 @@ async def get_settings(current_user = Depends(get_current_user)):
             
         if not response.data or len(response.data) == 0:
             # No user row yet — return the .env defaults so the UI reflects reality
-            saved_default = settings.AI_MODEL
+            saved_default = None
             return {
                 "id": str(uuid.uuid4()),
                 "user_id": str(current_user.id),
                 "updated_at": datetime.now(timezone.utc).isoformat(),
-                "model_default": saved_default,
+                "model_default": settings.AI_MODEL,
                 "model_fit":    _resolve(None, settings.AI_MODEL_FIT, saved_default),
                 "model_letter": _resolve(None, settings.AI_MODEL_LETTER, saved_default),
                 "model_prep":   _resolve(None, settings.AI_MODEL_PREP, saved_default),
@@ -40,8 +40,8 @@ async def get_settings(current_user = Depends(get_current_user)):
         
         row = response.data[0]
         # Resolve: user saved value → user default → .env override → global AI_MODEL
-        saved_default = row.get("model_default") or settings.AI_MODEL
-        row["model_default"] = saved_default
+        saved_default = row.get("model_default")
+        row["model_default"] = saved_default or settings.AI_MODEL
         row["model_fit"]    = _resolve(row.get("model_fit"),    settings.AI_MODEL_FIT,    saved_default)
         row["model_letter"] = _resolve(row.get("model_letter"), settings.AI_MODEL_LETTER, saved_default)
         row["model_prep"]   = _resolve(row.get("model_prep"),   settings.AI_MODEL_PREP,   saved_default)

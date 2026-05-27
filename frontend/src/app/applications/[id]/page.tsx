@@ -139,7 +139,7 @@ function ApplicationDetailContent() {
     <div className="p-8 max-w-5xl mx-auto space-y-6">
       
       {/* Back Link & Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 reveal reveal-1">
         <div className="space-y-2">
           <Link href="/applications" className="text-zinc-500 hover:text-white flex items-center space-x-1.5 text-sm font-medium">
             <ArrowLeft className="w-4 h-4" />

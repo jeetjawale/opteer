@@ -92,14 +92,27 @@ export const TASK_TIER_PREFERENCE: Record<string, "fast" | "balanced" | "powerfu
   prep:   "balanced",
 };
 
+/**
+ * Given a provider key (from getProviderFromKey) and a task name,
+ * returns the best model for that task based on TASK_TIER_PREFERENCE.
+ * Falls back to the provider default if no match found.
+ */
+export function getRecommendedModelForTask(
+  apiKey: string | null,
+  task: "fit" | "letter" | "prep"
+): string {
+  const provider = getProviderFromKey(apiKey);
+  const preferredTier = TASK_TIER_PREFERENCE[task];
+  const models = PROVIDER_MODELS[provider] || PROVIDER_MODELS["gemini"];
+  const match = models.find((m) => m.tier === preferredTier);
+  return match ? match.value : (PROVIDER_DEFAULTS[provider] || PROVIDER_DEFAULTS["gemini"]);
+}
+
 /** Detects provider from API key prefix. Falls back to gemini (server-side key). */
 export function getProviderFromKey(apiKey: string | null): string {
   if (!apiKey) return "gemini";
   if (apiKey.startsWith("sk-ant-")) return "anthropic";
   if (apiKey.startsWith("xai-"))    return "xai";
-  // Moonshot and MiniMax API keys also start with sk-, so this simple matching won't distinguish perfectly.
-  // Ideally, users would select the provider explicitly if they use Moonshot or MiniMax, 
-  // but for now, we'll fall back to openai if we see sk-
   if (apiKey.startsWith("sk-"))     return "openai";
   return "gemini";
 }

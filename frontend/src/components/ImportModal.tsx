@@ -188,8 +188,8 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-      <div className="w-full max-w-2xl bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-2xl relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+      <div className="w-full max-w-2xl bg-surface border border-white/10 rounded-2xl p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_25px_50px_-12px_rgba(0,0,0,0.5)] relative">
         
         {/* Close / Cancel Button — always functional */}
         <button 
@@ -371,32 +371,52 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
           </form>
         ) : (
           <div className="py-8 flex flex-col items-center justify-center">
-            <div className="w-full max-w-sm space-y-4">
+            <div className="w-full max-w-sm space-y-4 relative pl-8">
               
+              {/* Connecting progress line */}
+              <div className="absolute left-[15px] top-6 bottom-16 w-[1px] bg-border-default overflow-hidden">
+                <div 
+                  className="w-full bg-accent transition-all duration-1000 ease-in-out" 
+                  style={{ height: step === 1 ? '30%' : step === 2 ? '60%' : step >= 3 ? '100%' : '0%' }}
+                ></div>
+              </div>
+
               {/* Step 1: Scraping */}
-              <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-950/40 border border-zinc-800/40">
-                <span className={`text-sm ${step >= 1 ? "text-white" : "text-zinc-600"}`}>
+              <div className={`flex items-center justify-between p-3 rounded-xl transition-all relative z-10 ${
+                step === 1 ? 'bg-elevated border-accent-border shadow-[0_0_0_1px_var(--accent-border)] animate-pulse' :
+                step > 1 ? 'bg-surface border-border-default border-l-[3px] border-l-green-500' :
+                'bg-surface border-border-default'
+              }`}>
+                <span className={`text-sm ${step >= 1 ? "text-primary" : "text-muted"}`}>
                   Step 1: Scraping job posting...
                 </span>
-                {step === 1 && <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />}
+                {step === 1 && <Loader2 className="w-4 h-4 text-accent animate-spin" />}
                 {step > 1 && <CheckCircle2 className="w-4 h-4 text-green-500" />}
               </div>
 
               {/* Step 2: Researching */}
-              <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-950/40 border border-zinc-800/40">
-                <span className={`text-sm ${step >= 2 ? "text-white" : "text-zinc-600"}`}>
+              <div className={`flex items-center justify-between p-3 rounded-xl transition-all relative z-10 ${
+                step === 2 ? 'bg-elevated border-accent-border shadow-[0_0_0_1px_var(--accent-border)] animate-pulse' :
+                step > 2 ? 'bg-surface border-border-default border-l-[3px] border-l-green-500' :
+                'bg-surface border-border-default'
+              }`}>
+                <span className={`text-sm ${step >= 2 ? "text-primary" : "text-muted"}`}>
                   Step 2: Researching company...
                 </span>
-                {step === 2 && <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />}
+                {step === 2 && <Loader2 className="w-4 h-4 text-accent animate-spin" />}
                 {step > 2 && <CheckCircle2 className="w-4 h-4 text-green-500" />}
               </div>
 
               {/* Step 3: Saving */}
-              <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-950/40 border border-zinc-800/40">
-                <span className={`text-sm ${step >= 3 ? "text-white" : "text-zinc-600"}`}>
+              <div className={`flex items-center justify-between p-3 rounded-xl transition-all relative z-10 ${
+                step === 3 ? 'bg-elevated border-accent-border shadow-[0_0_0_1px_var(--accent-border)] animate-pulse' :
+                step > 3 ? 'bg-surface border-border-default border-l-[3px] border-l-green-500' :
+                'bg-surface border-border-default'
+              }`}>
+                <span className={`text-sm ${step >= 3 ? "text-primary" : "text-muted"}`}>
                   Step 3: Saving...
                 </span>
-                {step === 3 && <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />}
+                {step === 3 && <Loader2 className="w-4 h-4 text-accent animate-spin" />}
                 {step > 3 && <CheckCircle2 className="w-4 h-4 text-green-500" />}
               </div>
 

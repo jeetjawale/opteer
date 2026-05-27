@@ -59,10 +59,15 @@ create table applications (
   cover_letter    text,
   interview_prep  jsonb,
   notes           text,
+  
+  -- user_api_key: reserved for future cross-device key persistence.
+  -- Not written by current backend. Populated by future /settings/sync endpoint.
   user_api_key    text,
 
   analyzed_at     timestamptz,
-  created_at      timestamptz default now()
+  created_at      timestamptz default now(),
+  
+  UNIQUE(user_id, job_id)
 );
 
 -- ============================================
