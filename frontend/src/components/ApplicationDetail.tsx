@@ -8,6 +8,7 @@ import OverviewTab from "./OverviewTab";
 import CoverLetterTab from "./CoverLetterTab";
 import InterviewPrepTab from "./InterviewPrepTab";
 import RemindersTab from "./RemindersTab";
+import JobDescriptionTab from "./JobDescriptionTab";
 
 interface Application {
   id: string;
@@ -121,6 +122,16 @@ export default function ApplicationDetail({ application, onRefresh, defaultTab =
           Overview
         </button>
         <button
+          onClick={() => setActiveTab("job-description")}
+          className={`px-5 py-3 font-semibold text-sm transition-all -mb-px border-b-2 ${
+            activeTab === "job-description"
+              ? "text-white border-white"
+              : "text-zinc-500 border-transparent hover:text-zinc-300"
+          }`}
+        >
+          Job Description
+        </button>
+        <button
           onClick={() => setActiveTab("cover-letter")}
           className={`px-5 py-3 font-semibold text-sm transition-all -mb-px border-b-2 ${
             activeTab === "cover-letter"
@@ -175,7 +186,12 @@ export default function ApplicationDetail({ application, onRefresh, defaultTab =
         />
       )}
 
-      {/* TAB 2: COVER LETTER */}
+      {/* TAB 2: JOB DESCRIPTION */}
+      {activeTab === "job-description" && (
+        <JobDescriptionTab scrapedJd={application.scraped_jd || null} />
+      )}
+
+      {/* TAB 3: COVER LETTER */}
       {activeTab === "cover-letter" && (
         <CoverLetterTab
           coverLetter={application.cover_letter}

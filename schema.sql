@@ -101,6 +101,7 @@ create table resumes (
 create table user_settings (
   id              uuid primary key default uuid_generate_v4(),
   user_id         uuid references auth.users(id) on delete cascade not null unique,
+  model_default   text,
   model_fit       text,
   model_letter    text,
   model_prep      text,

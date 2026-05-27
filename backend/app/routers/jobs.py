@@ -77,15 +77,53 @@ def extract_text_content(content) -> str:
         return "".join(text_parts).strip()
     return str(content).strip()
 
-def clean_html(html: str) -> str:
+def clean_html(html_content: str) -> str:
     import re
+    import json
+    import html
+    
+    # 1. Try to extract JobPosting from JSON-LD first (common in modern ATS like Phenom People)
+    jd = ""
+    json_ld_matches = re.finditer(r'<script\s+type=[\"\']application/ld\+json[\"\'][^>]*>([\s\S]*?)</script>', html_content, re.IGNORECASE)
+    for match in json_ld_matches:
+        try:
+            data = json.loads(match.group(1).strip())
+            if isinstance(data, dict):
+                data = [data]
+            for item in data:
+                if item.get('@type') == 'JobPosting':
+                    title = item.get('title', '')
+                    description = item.get('description', '')
+                    if description:
+                        jd = f"{title}\n\n{description}"
+                        break
+        except Exception:
+            continue
+        if jd: break
+        
+    text_to_clean = jd if jd else html_content
+    
+    # Unescape HTML entities (e.g. &lt; to <)
+    text_to_clean = html.unescape(text_to_clean)
+    
     # Remove script and style elements
-    html = re.sub(r'<(script|style)\b[^>]*>([\s\S]*?)<\/\1>', ' ', html, flags=re.IGNORECASE)
+    text_to_clean = re.sub(r'<(script|style)\b[^>]*>([\s\S]*?)<\/\1>', ' ', text_to_clean, flags=re.IGNORECASE)
+    
+    # Preserve block elements and line breaks
+    text_to_clean = re.sub(r'<br\s*/?>', '\n', text_to_clean, flags=re.IGNORECASE)
+    text_to_clean = re.sub(r'</(p|div|h[1-6]|li)>', '\n', text_to_clean, flags=re.IGNORECASE)
+    text_to_clean = re.sub(r'<li>', '• ', text_to_clean, flags=re.IGNORECASE)
+    
     # Strip remaining HTML tags
-    html = re.sub(r'<[^>]+>', ' ', html)
-    # Collapse whitespace
-    html = re.sub(r'\s+', ' ', html)
-    return html.strip()
+    text_to_clean = re.sub(r'<[^>]+>', '', text_to_clean)
+    
+    # Clean up spaces but preserve newlines
+    text_to_clean = re.sub(r'[ \t]+', ' ', text_to_clean)
+    
+    # Clean up excessive newlines
+    text_to_clean = re.sub(r'\n\s*\n+', '\n\n', text_to_clean).strip()
+    
+    return text_to_clean
 
 from app.rate_limiter import rate_limiter
 
@@ -104,48 +142,91 @@ async def import_job(
     resume_text = sanitize_llm_input(payload.resume_text, max_chars=15000)
     scraped_jd = sanitize_llm_input(payload.scraped_jd or "", max_chars=20000) if payload.scraped_jd else None
     
-    # 1. Scrape URL using Firecrawl (or use manual fallback text if provided)
+    # 1. Scrape URL using direct HTTP first (best for JSON-LD), then fallback to Firecrawl
     scraped_jd = payload.scraped_jd
     if not scraped_jd:
+        direct_scraped = None
         try:
-            firecrawl_app = FirecrawlApp(api_key=settings.FIRECRAWL_API_KEY)
-            scrape_result = firecrawl_app.scrape_url(url, formats=["markdown"])
-            scraped_jd = (
-                scrape_result.markdown 
-                if hasattr(scrape_result, "markdown") 
-                else scrape_result.get("markdown", "")
-            )
-            if not scraped_jd:
-                raise ValueError("Firecrawl returned empty markdown content.")
-        except Exception as e:
-            # Fallback direct HTTP scraper
-            try:
-                import httpx
-                headers = {
-                    "User-Agent": (
-                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                        "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-                    )
-                }
-                with httpx.Client(follow_redirects=True, headers=headers, timeout=10.0) as client:
+            import httpx
+            import urllib.parse
+            headers = {
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                ),
+                "Accept": "application/json, text/html"
+            }
+            with httpx.Client(follow_redirects=True, headers=headers, timeout=10.0) as client:
+                parsed_url = urllib.parse.urlparse(url)
+                
+                # Workday API Fast Path (bypasses unformatted JSON-LD and cookie banners)
+                if "myworkdayjobs.com" in parsed_url.netloc:
+                    tenant = parsed_url.netloc.split(".")[0]
+                    api_url = f"{parsed_url.scheme}://{parsed_url.netloc}/wday/cxs/{tenant}{parsed_url.path}"
+                    api_resp = client.get(api_url)
+                    if api_resp.status_code == 200:
+                        job_data = api_resp.json()
+                        raw_html = job_data.get("jobPostingInfo", {}).get("jobDescription", "")
+                        if raw_html:
+                            direct_scraped = clean_html(raw_html)
+                
+                # Default Fast Path
+                if not direct_scraped:
                     resp = client.get(url)
                     if resp.status_code == 200:
-                        scraped_jd = clean_html(resp.text)
-                        if not scraped_jd:
-                            raise ValueError("Scraped content resulted in empty text.")
-                    else:
-                        raise ValueError(f"HTTP response status code: {resp.status_code}")
-            except Exception as direct_err:
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail=f"Scraping failed. Firecrawl: {str(e)} | Direct HTTP: {str(direct_err)}"
+                        direct_scraped = clean_html(resp.text)
+                        
+                # If it's robust and not a generic cookie/JS banner, use it immediately
+                if direct_scraped and len(direct_scraped) > 500 and not ("uses cookies" in direct_scraped.lower() and len(direct_scraped) < 1500) and not "enable javascript" in direct_scraped.lower():
+                    scraped_jd = direct_scraped
+        except Exception as e:
+            print(f"Fast path extraction failed: {e}")
+            pass
+
+        if not scraped_jd:
+            try:
+                firecrawl_app = FirecrawlApp(api_key=settings.FIRECRAWL_API_KEY)
+                scrape_result = firecrawl_app.scrape_url(url, formats=["markdown"])
+                scraped_jd = (
+                    scrape_result.markdown 
+                    if hasattr(scrape_result, "markdown") 
+                    else scrape_result.get("markdown", "")
                 )
+                # Reject if Firecrawl returns cookie banner or very short text
+                if not scraped_jd or len(scraped_jd.strip()) < 100 or ("uses cookies" in scraped_jd.lower() and len(scraped_jd) < 1500):
+                    raise ValueError("Firecrawl returned empty, insufficiently long, or cookie banner content.")
+            except Exception as e:
+                # Fallback to whatever direct HTTP got, if anything
+                if direct_scraped:
+                    scraped_jd = direct_scraped
+                else:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail=f"Scraping failed. Firecrawl error: {str(e)}"
+                    )
     
+    # Fetch user settings to respect the default model override for utility tasks
+    user_settings = {}
+    try:
+        settings_response = supabase_service.table("user_settings") \
+            .select("model_default") \
+            .eq("user_id", str(current_user.id)) \
+            .execute()
+        if settings_response.data:
+            user_settings = settings_response.data[0]
+    except Exception as e:
+        print(f"Warning: Failed to fetch user settings during import: {e}")
+
     # Ensure scraped content is sanitized and truncated
     scraped_jd = sanitize_llm_input(scraped_jd, max_chars=20000)
         
     # 2. Extract company name and job title using a single JSON LLM call (one-shot, temperature=0.0, max_tokens=100)
-    llm = get_llm(temperature=0.0, max_tokens=400, user_api_key=x_user_api_key)
+    llm = get_llm(
+        temperature=0.0, 
+        max_tokens=400, 
+        user_api_key=x_user_api_key,
+        model_override=user_settings.get("model_default")
+    )
     company_name = None
     role_name = None
     try:
@@ -217,12 +298,12 @@ async def import_job(
         if raw_research.strip() and company_name:
             research_prompt = (
                 f"You are a helpful assistant. Based on the following raw web search results for the company '{company_name}', "
-                "extract and format a concise company profile. "
+                "extract and format a concise company profile. You may also use your own general knowledge to fill in any missing details (Website, Industry, Founded) if the company is well-known.\n\n"
                 "Provide EXACTLY this format and nothing else:\n\n"
                 "Overview: [Quick overview of company (not too big nor too small)]\n"
-                "Website: [Website URL if available, else N/A]\n"
-                "Industry: [Industry if available, else N/A]\n"
-                "Founded: [Year founded if available, else N/A]\n\n"
+                "Website: [Website URL if available or known, else N/A]\n"
+                "Industry: [Industry if available or known, else N/A]\n"
+                "Founded: [Year founded if available or known, else N/A]\n\n"
                 f"Raw search results:\n{raw_research[:3000]}"
             )
             llm_research_resp = llm.invoke(research_prompt)

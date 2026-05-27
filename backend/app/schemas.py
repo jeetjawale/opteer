@@ -125,6 +125,7 @@ class ApplicationResponse(ApplicationBase):
     role: Optional[str] = None
     url: Optional[str] = None
     company_research: Optional[str] = None
+    scraped_jd: Optional[str] = None
     
     analyzed_at: Optional[datetime] = None
     created_at: datetime
@@ -214,6 +215,7 @@ class ResumeResponse(ResumeBase):
 # ============================================
 
 class UserSettingsUpdate(BaseModel):
+    model_default: Optional[str] = None
     model_fit: Optional[str] = None
     model_letter: Optional[str] = None
     model_prep: Optional[str] = None

@@ -12,3 +12,23 @@ body {
   background: var(--background);
   min-height: 100vh;
 }
+
+@property --score-target {
+  syntax: "<integer>";
+  initial-value: 0;
+  inherits: false;
+}
+
+@keyframes count {
+  from { --score-target: 0; }
+  to { --score-target: var(--target); }
+}
+
+.animate-score {
+  animation: count 1.5s ease-out forwards;
+  counter-set: score var(--score-target);
+}
+
+.animate-score > .font-mono::before {
+  content: counter(score);
+}
