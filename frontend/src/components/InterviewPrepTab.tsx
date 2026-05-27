@@ -55,7 +55,7 @@ export default function InterviewPrepTab({
                     <div className="pl-6 space-y-2">
                       <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider">Suggested Answer Strategy</p>
                       <p className="text-zinc-300 text-sm leading-relaxed whitespace-pre-line">
-                        {item.suggested_answer}
+                        {item.suggested_answer.replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*(.*?)\*/g, '$1')}
                       </p>
                     </div>
                   </div>

@@ -10,7 +10,7 @@ def get_cover_letter_chain(user_api_key: str | None = None):
     Pipes the prompt, LLM, and string parser into a single execution unit.
     """
     # 1. Initialize LLM (temperature=0.7 for creative/persuasive writing) and parser
-    llm = app.llm.get_llm(temperature=0.7, max_tokens=1500, frequency_penalty=0.5, model_override=settings.AI_MODEL_LETTER, user_api_key=user_api_key)
+    llm = app.llm.get_llm(temperature=0.7, max_tokens=2500, frequency_penalty=0.5, model_override=settings.AI_MODEL_LETTER, user_api_key=user_api_key)
     parser = StrOutputParser()
 
     # 2. Build Prompt Template
