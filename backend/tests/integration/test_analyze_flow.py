@@ -67,6 +67,10 @@ def test_analyze_application_success():
             else:
                 mock_table.select.return_value = mock_retrieve_select
             return mock_table
+        elif table_name == "user_settings":
+            mock_table = MagicMock()
+            mock_table.select.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
+            return mock_table
             
     with patch("app.routers.applications.supabase_service.table", side_effect=mock_table_routing), \
          patch("app.routers.applications.run_analysis", return_value={"error": None}) as mock_run_analysis:
@@ -88,7 +92,13 @@ def test_analyze_application_success():
         assert "Python" in data["matched_skills"]
         
         # Verify that the user key was fetched and passed correctly to run_analysis
-        mock_run_analysis.assert_called_once_with(str(application_id), user_api_key=user_key)
+        mock_run_analysis.assert_called_once_with(
+            str(application_id), 
+            user_api_key=user_key,
+            model_fit=None,
+            model_letter=None,
+            model_prep=None
+        )
 
 def test_analyze_application_pipeline_failure():
     application_id = uuid4()
@@ -104,6 +114,10 @@ def test_analyze_application_pipeline_failure():
         if table_name == "applications":
             mock_table = MagicMock()
             mock_table.select.return_value = mock_check_select
+            return mock_table
+        elif table_name == "user_settings":
+            mock_table = MagicMock()
+            mock_table.select.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
             return mock_table
             
     # Mock run_analysis returning a state with an error containing the key
@@ -122,7 +136,13 @@ def test_analyze_application_pipeline_failure():
         # Security check: the raw key must NOT appear in the exception response detail!
         assert user_key not in data["detail"]
         assert "[REDACTED]" in data["detail"]
-        mock_run_analysis.assert_called_once_with(str(application_id), user_api_key=user_key)
+        mock_run_analysis.assert_called_once_with(
+            str(application_id), 
+            user_api_key=user_key,
+            model_fit=None,
+            model_letter=None,
+            model_prep=None
+        )
 
 class MockTestLLM(SimpleChatModel):
     def _call(self, messages, stop=None, run_manager=None, **kwargs):

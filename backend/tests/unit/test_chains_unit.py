@@ -78,8 +78,8 @@ async def test_interview_prep_chain():
 def test_detect_provider():
     assert detect_provider("sk-ant-abc123") == "anthropic"
     assert detect_provider("sk-abc123") == "openai"
-    assert detect_provider("gsk_abc123") == "groq"
-    assert detect_provider("AIzaSyabc") == "gemini"
+    assert detect_provider("xai-abc123") == "xai"
+    assert detect_provider("invalid") == "gemini"
     assert detect_provider("") == "gemini"
     assert detect_provider("xyz") == "gemini"
     assert detect_provider(None) == "gemini"

@@ -5,7 +5,7 @@ import re
 KEY_PATTERNS = {
     "anthropic": re.compile(r"^sk-ant-[a-zA-Z0-9\-_]{20,}$"),
     "openai":    re.compile(r"^sk-[a-zA-Z0-9]{20,}$"),
-    "groq":      re.compile(r"^gsk_[a-zA-Z0-9]{20,}$"),
+    "xai":       re.compile(r"^xai-[a-zA-Z0-9\-_]{20,}$"),
     "gemini":    re.compile(r"^[A-Za-z0-9\-_]{30,}$"),
 }
 
@@ -21,8 +21,8 @@ def detect_provider(api_key: str | None) -> str:
         return "anthropic"
     elif api_key.startswith("sk-"):
         return "openai"
-    elif api_key.startswith("gsk_"):
-        return "groq"
+    elif api_key.startswith("xai-"):
+        return "xai"
     else:
         return "gemini"
 
@@ -68,7 +68,7 @@ def get_llm(
     Default models when user_api_key is provided:
       - anthropic -> claude-sonnet-4-5
       - openai    -> gpt-4o-mini
-      - groq      -> llama-3.3-70b-versatile
+      - xai       -> grok-3
       - gemini    -> gemini-2.5-flash
     """
     if user_api_key:
@@ -76,15 +76,15 @@ def get_llm(
         if provider != "local" and not validate_api_key_format(user_api_key):
             raise ValueError(f"Invalid API key format for provider: {provider}")
             
-        # Choose exactly the required default model names per provider
+        # Use model_override if provided, else choose exactly the required default model names per provider
         if provider == "anthropic":
-            model_name = "claude-sonnet-4-5"
+            model_name = model_override or "claude-sonnet-4-5"
         elif provider == "openai":
-            model_name = "gpt-4o-mini"
-        elif provider == "groq":
-            model_name = "llama-3.3-70b-versatile"
+            model_name = model_override or "gpt-4o-mini"
+        elif provider == "xai":
+            model_name = model_override or "grok-3"
         else:
-            model_name = "gemini-2.5-flash"
+            model_name = model_override or "gemini-2.5-flash"
             
         api_key = user_api_key
     else:
@@ -139,18 +139,19 @@ def get_llm(
             **kwargs
         )
 
-    elif provider == "groq":
-        from langchain_groq import ChatGroq
-        key = api_key or settings.GROQ_API_KEY
+    elif provider == "xai":
+        from langchain_openai import ChatOpenAI
+        key = api_key or settings.XAI_API_KEY
         if not key:
-            raise ValueError("GROQ_API_KEY is not configured in the environment.")
+            raise ValueError("XAI_API_KEY is not configured.")
         kwargs = {}
         if max_tokens is not None:
             kwargs["max_tokens"] = max_tokens
-        model = ChatGroq(
+        model = ChatOpenAI(
             model=model_name,
             temperature=temperature,
             api_key=key,
+            base_url="https://api.x.ai/v1",
             **kwargs
         )
 

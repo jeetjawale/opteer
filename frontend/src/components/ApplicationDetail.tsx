@@ -24,6 +24,7 @@ interface Application {
   company?: string | null;
   role?: string | null;
   url?: string | null;
+  company_research?: string | null;
 }
 
 interface ApplicationDetailProps {

@@ -13,6 +13,8 @@ interface Application {
   key_requirements: string[] | null;
   summary: string | null;
   notes: string | null;
+  company?: string | null;
+  company_research?: string | null;
 }
 
 interface OverviewTabProps {
@@ -140,7 +142,15 @@ export default function OverviewTab({
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 md:col-span-3">
             <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-3">AI Assessment Summary</p>
             <p className="text-zinc-300 text-sm leading-relaxed whitespace-pre-line">
-              {application.summary}
+              {application.summary || (
+                application.fit_score !== undefined && application.fit_score !== null
+                  ? (application.fit_score >= 80 
+                      ? "Strong fit based on the provided skills and experience." 
+                      : application.fit_score >= 50 
+                        ? "Moderate fit. Some key skills align, but there are areas missing." 
+                        : "Low fit. Significant gaps between the resume and the job requirements.")
+                  : "Analysis complete, but no summary was generated."
+              )}
             </p>
           </div>
 
@@ -167,6 +177,16 @@ export default function OverviewTab({
               <span>Run Analysis Now</span>
             )}
           </button>
+        </div>
+      )}
+
+      {/* About Company */}
+      {application.company_research && application.company_research.trim() !== "" && (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mb-6">
+          <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-3">About {application.company || "Company"}</p>
+          <p className="text-zinc-300 text-sm leading-relaxed whitespace-pre-line">
+            {application.company_research}
+          </p>
         </div>
       )}
 

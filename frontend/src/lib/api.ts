@@ -278,3 +278,22 @@ export async function deleteResume(id: string) {
   return response.status === 204 ? null : response.json();
 }
 
+export async function getUserSettings() {
+  const response = await fetchWithAuth(`${API_BASE_URL}/settings`, { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch settings: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function updateUserSettings(data: any) {
+  const response = await fetchWithAuth(`${API_BASE_URL}/settings`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to update settings: ${response.statusText}`);
+  }
+  return response.json();
+}

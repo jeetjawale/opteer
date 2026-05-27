@@ -27,7 +27,7 @@ async def list_applications(
     """
     try:
         query = supabase_service.table("applications") \
-            .select("*, jobs(company, role, url)") \
+            .select("*, jobs(company, role, url, company_research)") \
             .eq("user_id", current_user.id)
             
         if status_filter:
@@ -63,7 +63,7 @@ async def get_application(
     """
     try:
         response = supabase_service.table("applications") \
-            .select("*, jobs(company, role, url)") \
+            .select("*, jobs(company, role, url, company_research)") \
             .eq("id", str(application_id)) \
             .execute()
             
@@ -128,6 +128,14 @@ async def analyze_application(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Application not found"
             )
+            
+        # Fetch user settings for model overrides
+        settings_response = supabase_service.table("user_settings") \
+            .select("model_fit, model_letter, model_prep") \
+            .eq("user_id", str(current_user.id)) \
+            .execute()
+        user_settings = settings_response.data[0] if settings_response.data else {}
+            
     except HTTPException:
         raise
     except Exception as e:
@@ -137,7 +145,13 @@ async def analyze_application(
         )
         
     # 2. Run the async graph analysis using the key passed via header
-    final_state = await run_analysis(str(application_id), user_api_key=x_user_api_key)
+    final_state = await run_analysis(
+        str(application_id), 
+        user_api_key=x_user_api_key,
+        model_fit=user_settings.get("model_fit"),
+        model_letter=user_settings.get("model_letter"),
+        model_prep=user_settings.get("model_prep")
+    )
     if final_state.get("error") is not None:
         error_msg = sanitize_error(final_state["error"], x_user_api_key)
         raise HTTPException(

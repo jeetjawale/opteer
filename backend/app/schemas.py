@@ -124,6 +124,7 @@ class ApplicationResponse(ApplicationBase):
     company: Optional[str] = None
     role: Optional[str] = None
     url: Optional[str] = None
+    company_research: Optional[str] = None
     
     analyzed_at: Optional[datetime] = None
     created_at: datetime
@@ -208,3 +209,18 @@ class ResumeResponse(ResumeBase):
 
     model_config = ConfigDict(from_attributes=True)
 
+# ============================================
+# SETTINGS SCHEMAS
+# ============================================
+
+class UserSettingsUpdate(BaseModel):
+    model_fit: Optional[str] = None
+    model_letter: Optional[str] = None
+    model_prep: Optional[str] = None
+
+class UserSettingsResponse(UserSettingsUpdate):
+    id: UUID
+    user_id: UUID
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)

@@ -20,6 +20,9 @@ class AnalysisState(TypedDict):
     cover_letter: str
     interview_prep: dict
     user_api_key: Optional[str]
+    model_fit: Optional[str]
+    model_letter: Optional[str]
+    model_prep: Optional[str]
     error: Optional[str]
 
 # ============================================
@@ -76,7 +79,10 @@ async def run_fit_scoring(state: AnalysisState) -> dict:
     Falls back to a clean default schema on parse failures or transient rate limits.
     """
     try:
-        fit_chain = get_fit_scoring_chain(user_api_key=state.get("user_api_key"))
+        fit_chain = get_fit_scoring_chain(
+            user_api_key=state.get("user_api_key"),
+            model_override=state.get("model_fit")
+        )
         result = await fit_chain.ainvoke({
             "resume_text": state["resume_text"],
             "scraped_jd": state["scraped_jd"]
@@ -99,7 +105,10 @@ async def run_cover_letter(state: AnalysisState) -> dict:
     Invokes the Cover Letter Chain using resume, job description, and company research.
     """
     try:
-        cl_chain = get_cover_letter_chain(user_api_key=state.get("user_api_key"))
+        cl_chain = get_cover_letter_chain(
+            user_api_key=state.get("user_api_key"),
+            model_override=state.get("model_letter")
+        )
         result = await cl_chain.ainvoke({
             "resume_text": state["resume_text"],
             "scraped_jd": state["scraped_jd"],
@@ -120,7 +129,10 @@ async def run_interview_prep(state: AnalysisState) -> dict:
     Falls back to a clean default schema on parse failures or transient rate limits.
     """
     try:
-        prep_chain = get_interview_prep_chain(user_api_key=state.get("user_api_key"))
+        prep_chain = get_interview_prep_chain(
+            user_api_key=state.get("user_api_key"),
+            model_override=state.get("model_prep")
+        )
         result = await prep_chain.ainvoke({
             "resume_text": state["resume_text"],
             "scraped_jd": state["scraped_jd"]
@@ -145,13 +157,26 @@ async def save_results(state: AnalysisState) -> dict:
     """
     app_id = state.get("application_id")
     fit = state.get("fit_result") or {}
+    
+    summary = fit.get("summary") or fit.get("assessment_summary") or fit.get("overview")
+    if not summary:
+        score = fit.get("fit_score")
+        if score is None:
+            summary = "Analysis could not be completed. Please retry."
+        elif score >= 80:
+            summary = "Strong fit based on the provided skills and experience."
+        elif score >= 50:
+            summary = "Moderate fit. Some key skills align, but there are areas missing."
+        else:
+            summary = "Low fit. Significant gaps between the resume and the job requirements."
+
     try:
         update_data = {
             "fit_score": fit.get("fit_score"),
             "matched_skills": fit.get("matched_skills"),
             "missing_skills": fit.get("missing_skills"),
             "key_requirements": fit.get("key_requirements"),
-            "summary": fit.get("summary"),
+            "summary": summary,
             "cover_letter": state.get("cover_letter"),
             "interview_prep": state.get("interview_prep"),
             "analyzed_at": datetime.now(timezone.utc).isoformat()
@@ -224,7 +249,13 @@ graph = workflow.compile()
 # PUBLIC INTERFACE
 # ============================================
 
-async def run_analysis(application_id: str, user_api_key: str | None = None) -> dict:
+async def run_analysis(
+    application_id: str, 
+    user_api_key: str | None = None,
+    model_fit: str | None = None,
+    model_letter: str | None = None,
+    model_prep: str | None = None
+) -> dict:
     """
     Compiles and invokes the state graph asynchronously to run the full AI analysis 
     on the specified application, storing findings back to the database.
@@ -240,6 +271,9 @@ async def run_analysis(application_id: str, user_api_key: str | None = None) -> 
         "cover_letter": "",
         "interview_prep": {},
         "user_api_key": user_api_key,
+        "model_fit": model_fit,
+        "model_letter": model_letter,
+        "model_prep": model_prep,
         "error": None
     }
     

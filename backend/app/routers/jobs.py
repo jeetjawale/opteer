@@ -145,7 +145,7 @@ async def import_job(
     scraped_jd = sanitize_llm_input(scraped_jd, max_chars=20000)
         
     # 2. Extract company name and job title using a single JSON LLM call (one-shot, temperature=0.0, max_tokens=100)
-    llm = get_llm(temperature=0.0, max_tokens=200, user_api_key=x_user_api_key)
+    llm = get_llm(temperature=0.0, max_tokens=400, user_api_key=x_user_api_key)
     company_name = None
     role_name = None
     try:
@@ -158,16 +158,14 @@ async def import_job(
         llm_response = llm.invoke(prompt)
         raw_text = extract_text_content(llm_response.content)
         
-        # Clean potential markdown wrapping if present
-        if raw_text.startswith("```"):
-            lines = raw_text.splitlines()
-            if lines[0].startswith("```"):
-                lines = lines[1:]
-            if lines and lines[-1].startswith("```"):
-                lines = lines[:-1]
-            raw_text = "\n".join(lines).strip()
-            
+        import re
         import json
+        
+        # Robustly extract JSON object using regex
+        match = re.search(r'\{[\s\S]*\}', raw_text)
+        if match:
+            raw_text = match.group(0)
+            
         extracted_data = json.loads(raw_text)
         company_name = extracted_data.get("company_name", "").strip()
         role_name = extracted_data.get("role_name", "").strip()
@@ -186,7 +184,7 @@ async def import_job(
         # Strip common job-board subdomain prefixes (jobs., careers., apply.)
         # e.g. jobs.revvity.com → revvity, careers.google.com → google
         parts = parsed.netloc.replace("www.", "").split(".")
-        skip_prefixes = {"jobs", "careers", "apply", "work", "hire", "talent"}
+        skip_prefixes = {"jobs", "careers", "apply", "work", "hire", "talent", "jobsearch", "portal", "career"}
         company_part = parts[0] if parts[0].lower() not in skip_prefixes else (parts[1] if len(parts) > 1 else parts[0])
         company_name = company_part.capitalize()
         
@@ -211,10 +209,27 @@ async def import_job(
     # 3. Research company using Tavily
     try:
         tavily_client = TavilyClient(api_key=settings.TAVILY_API_KEY)
-        search_query = f"{company_name} company overview"
+        search_query = f"{company_name} company overview website industry founded"
         results = tavily_client.search(query=search_query, max_results=3)
         raw_results = results.get("results", [])
-        company_research = " ".join([r.get("content", "") for r in raw_results])
+        raw_research = " ".join([r.get("content", "") for r in raw_results])
+        
+        if raw_research.strip() and company_name:
+            research_prompt = (
+                f"You are a helpful assistant. Based on the following raw web search results for the company '{company_name}', "
+                "extract and format a concise company profile. "
+                "Provide EXACTLY this format and nothing else:\n\n"
+                "Overview: [Quick overview of company (not too big nor too small)]\n"
+                "Website: [Website URL if available, else N/A]\n"
+                "Industry: [Industry if available, else N/A]\n"
+                "Founded: [Year founded if available, else N/A]\n\n"
+                f"Raw search results:\n{raw_research[:3000]}"
+            )
+            llm_research_resp = llm.invoke(research_prompt)
+            company_research = extract_text_content(llm_research_resp.content).strip()
+        else:
+            company_research = "No additional research available."
+            
     except Exception as e:
         company_research = f"No additional research available. Search failed: {str(e)}"
         

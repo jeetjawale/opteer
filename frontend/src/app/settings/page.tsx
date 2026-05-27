@@ -2,12 +2,19 @@
 
 import React, { useState, useEffect } from "react";
 import { Settings as SettingsIcon, Save, Cpu, Eye, EyeOff, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
-import { testLlmConnection } from "@/lib/api";
+import { testLlmConnection, getUserSettings, updateUserSettings } from "@/lib/api";
+import { PROVIDER_MODELS } from "@/lib/models";
 
 export default function SettingsPage() {
   const [userApiKey, setUserApiKey] = useState("");
   const [showKey, setShowKey] = useState(false);
   const [isSavedKey, setIsSavedKey] = useState(false);
+  
+  // Model configuration states
+  const [modelFit, setModelFit] = useState("");
+  const [modelLetter, setModelLetter] = useState("");
+  const [modelPrep, setModelPrep] = useState("");
+  const [loadingSettings, setLoadingSettings] = useState(true);
   
   // Test connection states
   const [testing, setTesting] = useState(false);
@@ -20,7 +27,7 @@ export default function SettingsPage() {
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   const getDetectedProvider = (key: string): string => {
-    if (!key) return "";
+    if (!key) return "Gemini";
     if (key.startsWith("sk-ant-")) return "Anthropic";
     if (key.startsWith("sk-")) return "OpenAI";
     if (key.startsWith("gsk_")) return "Groq";
@@ -31,12 +38,35 @@ export default function SettingsPage() {
     const savedKey = localStorage.getItem("jobpilot_api_key") || "";
     setUserApiKey(savedKey);
     setIsSavedKey(!!savedKey);
+    
+    getUserSettings().then(data => {
+      if (data) {
+        setModelFit(data.model_fit || "");
+        setModelLetter(data.model_letter || "");
+        setModelPrep(data.model_prep || "");
+      }
+    }).catch(err => {
+      console.error("Failed to fetch user settings", err);
+    }).finally(() => {
+      setLoadingSettings(false);
+    });
   }, []);
 
   const handleKeyChange = (val: string) => {
+    const oldProvider = getDetectedProvider(userApiKey).toLowerCase();
+    const newProvider = getDetectedProvider(val).toLowerCase();
+    
     setUserApiKey(val);
     const savedKey = localStorage.getItem("jobpilot_api_key") || "";
     setIsSavedKey(val === savedKey && !!val);
+    
+    if (newProvider !== oldProvider && PROVIDER_MODELS[newProvider]) {
+      const models = PROVIDER_MODELS[newProvider];
+      setModelFit(models[0].value);
+      setModelLetter(models[0].value);
+      setModelPrep(models[0].value);
+    }
+    
     // Reset test/save states on change
     setTestResult({ status: "idle", message: "" });
     setSaveSuccess(false);
@@ -47,11 +77,17 @@ export default function SettingsPage() {
     setIsSavedKey(false);
     localStorage.removeItem("jobpilot_api_key");
     setTestResult({ status: "idle", message: "" });
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 2500);
+    
+    // Switch to Gemini defaults on clear
+    if (PROVIDER_MODELS["gemini"]) {
+      const models = PROVIDER_MODELS["gemini"];
+      setModelFit(models[0].value);
+      setModelLetter(models[0].value);
+      setModelPrep(models[0].value);
+    }
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (userApiKey.trim()) {
       localStorage.setItem("jobpilot_api_key", userApiKey.trim());
@@ -60,8 +96,18 @@ export default function SettingsPage() {
       localStorage.removeItem("jobpilot_api_key");
       setIsSavedKey(false);
     }
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 2500);
+    
+    try {
+      await updateUserSettings({
+        model_fit: modelFit || null,
+        model_letter: modelLetter || null,
+        model_prep: modelPrep || null
+      });
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2500);
+    } catch (err) {
+      console.error("Failed to save settings", err);
+    }
   };
 
   const handleTestConnection = async () => {
@@ -100,6 +146,8 @@ export default function SettingsPage() {
   };
 
   const detected = getDetectedProvider(userApiKey);
+  const detectedLower = detected.toLowerCase();
+  const availableModels = PROVIDER_MODELS[detectedLower] || PROVIDER_MODELS["gemini"];
 
   return (
     <div className="p-8 max-w-7xl mx-auto min-h-screen">
@@ -181,6 +229,52 @@ export default function SettingsPage() {
                 The key is saved locally in your browser and sent only for your runs, securely clearing from database caches once finished.
               </p>
             </div>
+            
+            {/* Model Selections */}
+            {!loadingSettings && (
+              <div className="space-y-4 pt-2">
+                <h3 className="text-zinc-300 text-sm font-semibold border-b border-zinc-800/40 pb-2">Task Model Preferences</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                  <label className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">Fit Scoring Model</label>
+                  <select 
+                    value={modelFit} 
+                    onChange={(e) => setModelFit(e.target.value)}
+                    className="w-full p-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-white text-sm focus:outline-none focus:border-zinc-700"
+                  >
+                    {availableModels.map(m => (
+                      <option key={m.value} value={m.value}>{m.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                  <label className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">Cover Letter Model</label>
+                  <select 
+                    value={modelLetter} 
+                    onChange={(e) => setModelLetter(e.target.value)}
+                    className="w-full p-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-white text-sm focus:outline-none focus:border-zinc-700"
+                  >
+                    {availableModels.map(m => (
+                      <option key={m.value} value={m.value}>{m.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                  <label className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">Interview Prep Model</label>
+                  <select 
+                    value={modelPrep} 
+                    onChange={(e) => setModelPrep(e.target.value)}
+                    className="w-full p-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-white text-sm focus:outline-none focus:border-zinc-700"
+                  >
+                    {availableModels.map(m => (
+                      <option key={m.value} value={m.value}>{m.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
 
             {/* Test Connection Display */}
             {testResult.status !== "idle" && (
@@ -233,38 +327,19 @@ export default function SettingsPage() {
         <div className="space-y-6">
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-2xl space-y-4">
             <h3 className="text-white text-sm font-semibold uppercase tracking-wider border-b border-zinc-800/40 pb-3">
-              Supported Providers & Models
+              Model Overrides
             </h3>
             <p className="text-zinc-500 text-xs leading-relaxed">
-              When a user-provided API key is used, the system automatically routes all LLM chains (fit scoring, cover letter, and interview prep) to these optimized models:
+              When an API key is active, you can customize which models handle each specific analysis task.
             </p>
-
-            <div className="space-y-3 pt-2">
-              
-              {/* Anthropic */}
-              <div className="flex flex-col p-2.5 rounded-xl bg-zinc-950/40 border border-zinc-800/50">
-                <span className="text-zinc-400 text-xs font-bold">Anthropic</span>
-                <span className="text-zinc-300 font-mono text-[11px] mt-0.5">claude-sonnet-4-5</span>
+            <p className="text-zinc-500 text-xs leading-relaxed">
+              For optimal results, use the recommended model. <strong>Smarter</strong> models yield better reasoning but take longer. <strong>Faster</strong> models return results instantly but might lack nuance.
+            </p>
+            <div className="pt-2">
+              <div className="flex flex-col p-3 rounded-xl bg-zinc-950/40 border border-zinc-800/50 space-y-1">
+                <span className="text-zinc-400 text-xs font-bold">Detected Provider</span>
+                <span className="text-white font-mono text-[13px]">{detected}</span>
               </div>
-
-              {/* OpenAI */}
-              <div className="flex flex-col p-2.5 rounded-xl bg-zinc-950/40 border border-zinc-800/50">
-                <span className="text-zinc-400 text-xs font-bold">OpenAI</span>
-                <span className="text-zinc-300 font-mono text-[11px] mt-0.5">gpt-4o-mini</span>
-              </div>
-
-              {/* Groq */}
-              <div className="flex flex-col p-2.5 rounded-xl bg-zinc-950/40 border border-zinc-800/50">
-                <span className="text-zinc-400 text-xs font-bold">Groq</span>
-                <span className="text-zinc-300 font-mono text-[11px] mt-0.5">llama-3.3-70b-versatile</span>
-              </div>
-
-              {/* Gemini */}
-              <div className="flex flex-col p-2.5 rounded-xl bg-zinc-950/40 border border-zinc-800/50">
-                <span className="text-zinc-400 text-xs font-bold">Gemini (Default)</span>
-                <span className="text-zinc-300 font-mono text-[11px] mt-0.5">gemini-2.5-flash</span>
-              </div>
-
             </div>
           </div>
         </div>
