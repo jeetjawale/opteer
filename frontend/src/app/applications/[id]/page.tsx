@@ -7,6 +7,7 @@ import { ArrowLeft, RefreshCw, Trash2, Loader2, ExternalLink } from "lucide-reac
 
 import { getApplication, deleteApplication } from "@/lib/api";
 import ApplicationDetail from "@/components/ApplicationDetail";
+import CompanyLogo from "@/components/CompanyLogo";
 
 const formatImportedDate = (isoString: string) => {
   try {
@@ -144,9 +145,18 @@ function ApplicationDetailContent() {
             <ArrowLeft className="w-4 h-4" />
             <span>Applications</span>
           </Link>
-          <h1 className="text-white text-2xl md:text-3xl font-extrabold tracking-tight">
-            {application.role || "Job Opportunity"}
-          </h1>
+          <div className="flex items-center space-x-3">
+            <CompanyLogo 
+              company={application.company || "Unknown"} 
+              url={application.url} 
+              initials={(application.company || "U").substring(0,2).toUpperCase()} 
+              avatarBg="bg-brand" 
+              className="w-8 h-8 rounded-lg flex-shrink-0" 
+            />
+            <h1 className="text-white text-2xl md:text-3xl font-extrabold tracking-tight">
+              {application.role || "Job Opportunity"}
+            </h1>
+          </div>
           <div className="flex flex-col md:flex-row md:items-center gap-1.5 md:gap-3 text-zinc-400 text-sm font-medium">
             <span>{application.company}</span>
             <span className="hidden md:inline text-zinc-600">•</span>

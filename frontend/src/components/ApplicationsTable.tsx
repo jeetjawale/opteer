@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2, ArrowRight, ExternalLink } from "lucide-react";
+import CompanyLogo from "./CompanyLogo";
 import { updateApplication } from "@/lib/api";
 import { analysisTracker } from "@/lib/analysisTracker";
 
@@ -181,9 +182,13 @@ export default function ApplicationsTable({ applications, onRefresh }: Applicati
                 <td className="px-6 py-4">
                   <div className="flex items-center justify-between group">
                     <Link href={`/applications/${app.id}`} className="flex items-center space-x-3 flex-1">
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm group-hover:opacity-90 transition-opacity ${avatarBg}`}>
-                        {initials}
-                      </div>
+                      <CompanyLogo 
+                        company={company} 
+                        url={app.url} 
+                        initials={initials} 
+                        avatarBg={avatarBg} 
+                        className="w-10 h-10 rounded-lg group-hover:opacity-90 transition-opacity flex-shrink-0" 
+                      />
                       <div>
                         <p className="text-white font-semibold text-sm leading-tight mb-0.5 group-hover:underline">{company}</p>
                         <p className="text-zinc-400 text-xs leading-none">{role}</p>

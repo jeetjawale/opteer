@@ -9,7 +9,6 @@ langchain-core
 langchain-google-genai
 langchain-anthropic
 langchain-openai
-langchain-groq
 langgraph
 firecrawl-py
 tavily-python

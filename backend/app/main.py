@@ -5,6 +5,7 @@ from app.routers.jobs import router as jobs_router
 from app.routers.applications import router as applications_router
 from app.routers.reminders import router as reminders_router
 from app.routers.resumes import router as resumes_router
+from app.routers.settings import router as settings_router
 
 # Initialize the FastAPI app
 app = FastAPI(
@@ -28,6 +29,7 @@ app.include_router(jobs_router)
 app.include_router(applications_router)
 app.include_router(reminders_router)
 app.include_router(resumes_router)
+app.include_router(settings_router)
 
 @app.get("/health", tags=["health"])
 async def health_check():

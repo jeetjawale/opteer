@@ -5,6 +5,7 @@ drop table if exists reminders cascade;
 drop table if exists applications cascade;
 drop table if exists jobs cascade;
 drop table if exists resumes cascade;
+drop table if exists user_settings cascade;
 
 -- ============================================
 -- EXTENSIONS
@@ -58,6 +59,7 @@ create table applications (
   cover_letter    text,
   interview_prep  jsonb,
   notes           text,
+  user_api_key    text,
 
   analyzed_at     timestamptz,
   created_at      timestamptz default now()
@@ -93,6 +95,19 @@ create table resumes (
 );
 
 -- ============================================
+-- TABLE 5: user_settings
+-- Stores user preferences for AI models.
+-- ============================================
+create table user_settings (
+  id              uuid primary key default uuid_generate_v4(),
+  user_id         uuid references auth.users(id) on delete cascade not null unique,
+  model_fit       text,
+  model_letter    text,
+  model_prep      text,
+  updated_at      timestamptz default now()
+);
+
+-- ============================================
 -- INDEXES
 -- Speed up the most common queries
 -- ============================================
@@ -113,6 +128,7 @@ alter table jobs enable row level security;
 alter table applications enable row level security;
 alter table reminders enable row level security;
 alter table resumes enable row level security;
+alter table user_settings enable row level security;
 
 -- jobs: anyone authenticated can read + insert
 -- (jobs are shared, not user-specific)
@@ -158,6 +174,13 @@ create policy "users can manage own reminders"
 -- resumes: users only see their own
 create policy "users can manage own resumes"
   on resumes for all
+  to authenticated
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+-- user_settings: users only manage their own
+create policy "users can manage own settings"
+  on user_settings for all
   to authenticated
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);

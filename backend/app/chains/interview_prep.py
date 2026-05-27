@@ -4,7 +4,7 @@ import app.llm
 from app.schemas import InterviewPrepResult
 from app.config import settings
 
-def get_interview_prep_chain(user_api_key: str | None = None):
+def get_interview_prep_chain(user_api_key: str | None = None, model_override: str | None = None):
     """
     Creates and returns a LangChain chain for generating personalized interview prep questions and answers.
     Uses temperature=0.3 to balance structured analytical insights with natural conversational replies.
@@ -12,7 +12,7 @@ def get_interview_prep_chain(user_api_key: str | None = None):
     """
     # 1. Initialize parser and LLM (temperature=0.3 for structured, balanced questions)
     parser = JsonOutputParser(pydantic_object=InterviewPrepResult)
-    llm = app.llm.get_llm(temperature=0.3, max_tokens=6000, model_override=settings.AI_MODEL_PREP, user_api_key=user_api_key)
+    llm = app.llm.get_llm(temperature=0.3, max_tokens=6000, model_override=model_override or settings.AI_MODEL_PREP, user_api_key=user_api_key)
 
     # 2. Build Prompt Template with formatting instructions
     prompt = PromptTemplate(

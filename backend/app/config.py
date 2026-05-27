@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     GOOGLE_API_KEY: str | None = None
     OPENAI_API_KEY: str | None = None
     ANTHROPIC_API_KEY: str | None = None
-    GROQ_API_KEY: str | None = None
+    XAI_API_KEY: str | None = None
     
     # Integrations
     FIRECRAWL_API_KEY: str | None = None
@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     @field_validator("AI_PROVIDER")
     @classmethod
     def validate_ai_provider(cls, v: str) -> str:
-        allowed = {"gemini", "anthropic", "openai", "groq", "local", "mock"}
+        allowed = {"gemini", "anthropic", "openai", "xai", "local", "mock"}
         provider = v.lower()
         if provider not in allowed:
             raise ValueError(f"AI_PROVIDER must be one of {allowed}")
