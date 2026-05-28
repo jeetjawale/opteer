@@ -2,9 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File,
 from typing import Optional
 from firecrawl import FirecrawlApp
 from tavily import TavilyClient
+import ipaddress
 import pypdf
 import docx
 import io
+from urllib.parse import urlparse
 
 from app.config import settings
 from app.database import supabase_service, get_current_user
@@ -127,6 +129,52 @@ def clean_html(html_content: str) -> str:
 
 from app.rate_limiter import rate_limiter
 
+BLOCKED_HOSTNAMES = {"localhost", "metadata.google.internal"}
+
+def validate_public_http_url(url: str) -> str:
+    """
+    Rejects unsupported schemes and obvious internal network targets before the
+    backend or third-party scrapers fetch a user-supplied import URL.
+    """
+    parsed = urlparse(url)
+    if parsed.scheme not in {"http", "https"}:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Job URL must use http or https."
+        )
+    if not parsed.hostname:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Job URL must include a valid hostname."
+        )
+
+    hostname = parsed.hostname.rstrip(".").lower()
+    if hostname in BLOCKED_HOSTNAMES or hostname.endswith(".localhost"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Job URL host is not allowed."
+        )
+
+    try:
+        ip = ipaddress.ip_address(hostname)
+    except ValueError:
+        return url
+
+    if (
+        ip.is_private
+        or ip.is_loopback
+        or ip.is_link_local
+        or ip.is_multicast
+        or ip.is_reserved
+        or ip.is_unspecified
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Job URL host is not allowed."
+        )
+
+    return url
+
 @router.post("/import", response_model=JobImportResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(rate_limiter(limit=10, window_seconds=60))])
 async def import_job(
     payload: ImportJobRequest,
@@ -138,7 +186,7 @@ async def import_job(
     background research, and registers the job and application records in Supabase.
     """
     from app.llm import sanitize_llm_input
-    url = payload.url
+    url = validate_public_http_url(payload.url.strip())
     resume_text = sanitize_llm_input(payload.resume_text, max_chars=15000)
     
     # 1. Scrape URL using direct HTTP first (best for JSON-LD), then fallback to Firecrawl
@@ -155,13 +203,13 @@ async def import_job(
                 ),
                 "Accept": "application/json, text/html"
             }
-            with httpx.Client(follow_redirects=True, headers=headers, timeout=10.0) as client:
+            with httpx.Client(follow_redirects=False, headers=headers, timeout=10.0) as client:
                 parsed_url = urllib.parse.urlparse(url)
                 
                 # Workday API Fast Path (bypasses unformatted JSON-LD and cookie banners)
                 if "myworkdayjobs.com" in parsed_url.netloc:
                     tenant = parsed_url.netloc.split(".")[0]
-                    api_url = f"{parsed_url.scheme}://{parsed_url.netloc}/wday/cxs/{tenant}{parsed_url.path}"
+                    api_url = validate_public_http_url(f"{parsed_url.scheme}://{parsed_url.netloc}/wday/cxs/{tenant}{parsed_url.path}")
                     api_resp = client.get(api_url)
                     if api_resp.status_code == 200:
                         job_data = api_resp.json()

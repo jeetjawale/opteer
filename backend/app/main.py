@@ -1,6 +1,8 @@
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, Header, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
+from app.database import get_current_user
+from app.rate_limiter import rate_limiter
 from app.routers.jobs import router as jobs_router
 from app.routers.applications import router as applications_router
 from app.routers.reminders import router as reminders_router
@@ -44,17 +46,25 @@ async def health_check():
     }
 
 
-from fastapi import Header
 from typing import Optional
 from app.llm import get_llm, detect_provider
 
-@app.post("/health/llm", tags=["health"])
-def health_check_llm(x_user_api_key: Optional[str] = Header(None, alias="X-User-Api-Key")):
+@app.post("/health/llm", tags=["health"], dependencies=[Depends(rate_limiter(limit=5, window_seconds=60))])
+def health_check_llm(
+    x_user_api_key: Optional[str] = Header(None, alias="X-User-Api-Key"),
+    current_user = Depends(get_current_user),
+):
     """
     Validates user-provided LLM connection and API key credentials.
     Runs get_llm(user_api_key=key).invoke("say ok") to verify connectivity.
     """
     key = x_user_api_key
+    if not key:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A user API key is required to test an LLM connection."
+        )
+
     try:
         # Initialize and invoke connection test
         llm = get_llm(temperature=0.0, user_api_key=key)
@@ -68,4 +78,3 @@ def health_check_llm(x_user_api_key: Optional[str] = Header(None, alias="X-User-
         if key and len(key) > 8:
             error_msg = error_msg.replace(key, "[REDACTED]")
         return {"status": "error", "detail": error_msg}
-

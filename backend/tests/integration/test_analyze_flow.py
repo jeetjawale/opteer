@@ -119,18 +119,19 @@ class TestAnalyzeEndpoint:
             # First call: ownership check → returns user_id
             # Second call: user_settings fetch → returns empty
             # Third call: fetch updated application after analysis
-            mock_supa.table.return_value.select.return_value \
-                .eq.return_value.execute.side_effect = [
-                    make_supabase_response([{"user_id": USER_ID}]),   # ownership check
-                    make_supabase_response([]),                         # user_settings
-                    make_supabase_response([{**flat_app, "jobs": {    # post-analyze fetch
-                        "company": "Acme Corp",
-                        "role": "Backend Engineer",
-                        "url": "https://acme.com/jobs/123",
-                        "company_research": "Overview: A great company.\nWebsite: https://acme.com\nHeadquarters: San Francisco, CA\nCompany Size: 50-200\nIndustry: Tech\nWork Model: Remote",
-                        "scraped_jd": "We need a Python backend engineer."
-                    }}]),
-                ]
+            query = mock_supa.table.return_value.select.return_value
+            query.eq.return_value = query
+            query.execute.side_effect = [
+                make_supabase_response([{"user_id": USER_ID}]),   # ownership check
+                make_supabase_response([]),                         # user_settings
+                make_supabase_response([{**flat_app, "jobs": {    # post-analyze fetch
+                    "company": "Acme Corp",
+                    "role": "Backend Engineer",
+                    "url": "https://acme.com/jobs/123",
+                    "company_research": "Overview: A great company.\nWebsite: https://acme.com\nHeadquarters: San Francisco, CA\nCompany Size: 50-200\nIndustry: Tech\nWork Model: Remote",
+                    "scraped_jd": "We need a Python backend engineer."
+                }}]),
+            ]
 
             response = client.post(
                 f"/applications/{APPLICATION_ID}/analyze",
@@ -154,8 +155,9 @@ class TestAnalyzeEndpoint:
         with (
             patch("app.routers.applications.supabase_service") as mock_supa,
         ):
-            mock_supa.table.return_value.select.return_value \
-                .eq.return_value.execute.return_value = make_supabase_response([])
+            query = mock_supa.table.return_value.select.return_value
+            query.eq.return_value = query
+            query.execute.return_value = make_supabase_response([])
 
             response = client.post(
                 f"/applications/{fake_id}/analyze",
@@ -170,16 +172,13 @@ class TestAnalyzeEndpoint:
         POST /applications/{id}/analyze should return 404
         when the application belongs to a different user (ownership check).
         """
-        other_user_id = str(uuid4())
-
         with (
             patch("app.routers.applications.supabase_service") as mock_supa,
         ):
-            # Return an application owned by a different user
-            mock_supa.table.return_value.select.return_value \
-                .eq.return_value.execute.return_value = make_supabase_response(
-                    [{"user_id": other_user_id}]
-                )
+            # The user_id DB filter should hide applications owned by other users.
+            query = mock_supa.table.return_value.select.return_value
+            query.eq.return_value = query
+            query.execute.return_value = make_supabase_response([])
 
             response = client.post(
                 f"/applications/{APPLICATION_ID}/analyze",
@@ -198,11 +197,12 @@ class TestAnalyzeEndpoint:
             patch("app.routers.applications.run_analysis", new_callable=AsyncMock,
                   return_value=ERROR_GRAPH_STATE),
         ):
-            mock_supa.table.return_value.select.return_value \
-                .eq.return_value.execute.side_effect = [
-                    make_supabase_response([{"user_id": USER_ID}]),
-                    make_supabase_response([]),
-                ]
+            query = mock_supa.table.return_value.select.return_value
+            query.eq.return_value = query
+            query.execute.side_effect = [
+                make_supabase_response([{"user_id": USER_ID}]),
+                make_supabase_response([]),
+            ]
 
             response = client.post(
                 f"/applications/{APPLICATION_ID}/analyze",
@@ -225,17 +225,18 @@ class TestAnalyzeEndpoint:
             patch("app.routers.applications.run_analysis", new_callable=AsyncMock,
                   return_value=SUCCESSFUL_GRAPH_STATE) as mock_run,
         ):
-            mock_supa.table.return_value.select.return_value \
-                .eq.return_value.execute.side_effect = [
-                    make_supabase_response([{"user_id": USER_ID}]),
-                    make_supabase_response([]),
-                    make_supabase_response([{**flat_app, "jobs": {
-                        "company": "Acme Corp", "role": "Backend Engineer",
-                        "url": "https://acme.com/jobs/123",
-                        "company_research": "Overview: A great company.\nWebsite: https://acme.com\nHeadquarters: San Francisco, CA\nCompany Size: 50-200\nIndustry: Tech\nWork Model: Remote",
-                        "scraped_jd": "We need a Python backend engineer."
-                    }}]),
-                ]
+            query = mock_supa.table.return_value.select.return_value
+            query.eq.return_value = query
+            query.execute.side_effect = [
+                make_supabase_response([{"user_id": USER_ID}]),
+                make_supabase_response([]),
+                make_supabase_response([{**flat_app, "jobs": {
+                    "company": "Acme Corp", "role": "Backend Engineer",
+                    "url": "https://acme.com/jobs/123",
+                    "company_research": "Overview: A great company.\nWebsite: https://acme.com\nHeadquarters: San Francisco, CA\nCompany Size: 50-200\nIndustry: Tech\nWork Model: Remote",
+                    "scraped_jd": "We need a Python backend engineer."
+                }}]),
+            ]
 
             client.post(
                 f"/applications/{APPLICATION_ID}/analyze",
