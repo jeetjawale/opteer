@@ -65,6 +65,7 @@ async def get_application(
         response = supabase_service.table("applications") \
             .select("*, jobs(company, role, url, company_research, scraped_jd)") \
             .eq("id", str(application_id)) \
+            .eq("user_id", str(current_user.id)) \
             .execute()
             
         if not response.data or len(response.data) == 0:
@@ -74,13 +75,6 @@ async def get_application(
             )
             
         row = response.data[0]
-        # Strict ownership verification
-        if str(row.get("user_id")) != str(current_user.id):
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Application not found"
-            )
-            
         row.pop("user_api_key", None)  # Security rule
         job_data = row.pop("jobs", {}) or {}
         if isinstance(job_data, list):
@@ -114,16 +108,10 @@ async def analyze_application(
         check_response = supabase_service.table("applications") \
             .select("user_id") \
             .eq("id", str(application_id)) \
+            .eq("user_id", str(current_user.id)) \
             .execute()
             
         if not check_response.data or len(check_response.data) == 0:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Application not found"
-            )
-            
-        row = check_response.data[0]
-        if str(row.get("user_id")) != str(current_user.id):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Application not found"
@@ -165,6 +153,7 @@ async def analyze_application(
         response = supabase_service.table("applications") \
             .select("*, jobs(company, role, url)") \
             .eq("id", str(application_id)) \
+            .eq("user_id", str(current_user.id)) \
             .execute()
             
         if not response.data or len(response.data) == 0:
@@ -204,6 +193,7 @@ async def update_application(
         check_response = supabase_service.table("applications") \
             .select("user_id") \
             .eq("id", str(application_id)) \
+            .eq("user_id", str(current_user.id)) \
             .execute()
             
         if not check_response.data or len(check_response.data) == 0:
@@ -212,11 +202,6 @@ async def update_application(
                 detail="Application not found"
             )
             
-        if str(check_response.data[0].get("user_id")) != str(current_user.id):
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Application not found"
-            )
     except HTTPException:
         raise
     except Exception as e:
@@ -243,12 +228,14 @@ async def update_application(
             supabase_service.table("applications") \
                 .update(update_data) \
                 .eq("id", str(application_id)) \
+                .eq("user_id", str(current_user.id)) \
                 .execute()
                 
         # 3. Retrieve and return the updated application record
         response = supabase_service.table("applications") \
             .select("*, jobs(company, role, url, company_research, scraped_jd)") \
             .eq("id", str(application_id)) \
+            .eq("user_id", str(current_user.id)) \
             .execute()
             
         row = response.data[0]
@@ -280,6 +267,7 @@ async def delete_application(
         check_response = supabase_service.table("applications") \
             .select("user_id, job_id") \
             .eq("id", str(application_id)) \
+            .eq("user_id", str(current_user.id)) \
             .execute()
             
         if not check_response.data or len(check_response.data) == 0:
@@ -289,11 +277,6 @@ async def delete_application(
             )
             
         app_data = check_response.data[0]
-        if str(app_data.get("user_id")) != str(current_user.id):
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Application not found"
-            )
         job_id = app_data.get("job_id")
     except HTTPException:
         raise
@@ -308,6 +291,7 @@ async def delete_application(
         supabase_service.table("applications") \
             .delete() \
             .eq("id", str(application_id)) \
+            .eq("user_id", str(current_user.id)) \
             .execute()
             
         # Clean up the corresponding job if it is now orphaned

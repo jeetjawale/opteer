@@ -60,8 +60,12 @@ export async function middleware(request: NextRequest) {
   const { data: { user }, error } = await supabase.auth.getUser();
   const path = request.nextUrl.pathname;
 
-  // Protect /applications and sub-routes
-  if (path.startsWith("/applications")) {
+  // Protect authenticated application areas and sub-routes
+  if (
+    path.startsWith("/applications") ||
+    path.startsWith("/resumes") ||
+    path.startsWith("/settings")
+  ) {
     if (!user) {
       return NextResponse.redirect(new URL("/login", request.url));
     }
@@ -86,6 +90,8 @@ export const config = {
   matcher: [
     "/",
     "/applications/:path*",
+    "/resumes/:path*",
+    "/settings/:path*",
     "/login",
     "/signup",
   ],

@@ -88,3 +88,25 @@ def test_import_job_endpoint():
         assert data["application_id"] == "33333333-3333-3333-3333-333333333333"
         assert data["job_id"] == "22222222-2222-2222-2222-222222222222"
         assert data["status"] == "saved"
+
+
+@pytest.mark.parametrize(
+    "blocked_url",
+    [
+        "http://127.0.0.1/admin",
+        "http://localhost:8080/internal",
+        "http://169.254.169.254/latest/meta-data/",
+        "file:///etc/passwd",
+    ],
+)
+def test_import_rejects_internal_or_unsupported_urls(blocked_url):
+    response = client.post(
+        "/jobs/import",
+        json={
+            "url": blocked_url,
+            "resume_text": "BS in CS, 3 years React experience.",
+        },
+    )
+
+    assert response.status_code == 400
+    assert "url" in response.json()["detail"].lower()

@@ -138,17 +138,9 @@ alter table reminders enable row level security;
 alter table resumes enable row level security;
 alter table user_settings enable row level security;
 
--- jobs: anyone authenticated can read + insert
--- (jobs are shared, not user-specific)
-create policy "authenticated users can insert jobs"
-  on jobs for insert
-  to authenticated
-  with check (true);
-
-create policy "authenticated users can read jobs"
-  on jobs for select
-  to authenticated
-  using (true);
+-- jobs are managed only by the backend service role.
+-- Do not grant authenticated browser clients direct access because job rows can
+-- include imported URLs, scraped descriptions, and company research from other users.
 
 -- applications: users only see their own rows
 create policy "users can insert own applications"

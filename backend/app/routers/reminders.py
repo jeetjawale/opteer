@@ -47,6 +47,7 @@ async def create_reminder(
         app_response = supabase_service.table("applications") \
             .select("user_id") \
             .eq("id", str(payload.application_id)) \
+            .eq("user_id", str(current_user.id)) \
             .execute()
             
         if not app_response.data or len(app_response.data) == 0:
@@ -55,11 +56,6 @@ async def create_reminder(
                 detail="Linked application not found."
             )
             
-        if str(app_response.data[0].get("user_id")) != str(current_user.id):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You do not have permission to add reminders to this application."
-            )
     except HTTPException:
         raise
     except Exception as e:
@@ -103,6 +99,7 @@ async def update_reminder(
         check_response = supabase_service.table("reminders") \
             .select("user_id") \
             .eq("id", str(reminder_id)) \
+            .eq("user_id", str(current_user.id)) \
             .execute()
             
         if not check_response.data or len(check_response.data) == 0:
@@ -111,11 +108,6 @@ async def update_reminder(
                 detail="Reminder not found."
             )
             
-        if str(check_response.data[0].get("user_id")) != str(current_user.id):
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Reminder not found."
-            )
     except HTTPException:
         raise
     except Exception as e:
@@ -139,12 +131,14 @@ async def update_reminder(
             supabase_service.table("reminders") \
                 .update(update_data) \
                 .eq("id", str(reminder_id)) \
+                .eq("user_id", str(current_user.id)) \
                 .execute()
                 
         # 3. Retrieve updated row
         response = supabase_service.table("reminders") \
             .select("*") \
             .eq("id", str(reminder_id)) \
+            .eq("user_id", str(current_user.id)) \
             .execute()
             
         return response.data[0]
@@ -169,6 +163,7 @@ async def delete_reminder(
         check_response = supabase_service.table("reminders") \
             .select("user_id") \
             .eq("id", str(reminder_id)) \
+            .eq("user_id", str(current_user.id)) \
             .execute()
             
         if not check_response.data or len(check_response.data) == 0:
@@ -177,11 +172,6 @@ async def delete_reminder(
                 detail="Reminder not found."
             )
             
-        if str(check_response.data[0].get("user_id")) != str(current_user.id):
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Reminder not found."
-            )
     except HTTPException:
         raise
     except Exception as e:
@@ -195,6 +185,7 @@ async def delete_reminder(
         supabase_service.table("reminders") \
             .delete() \
             .eq("id", str(reminder_id)) \
+            .eq("user_id", str(current_user.id)) \
             .execute()
             
         return Response(status_code=status.HTTP_204_NO_CONTENT)

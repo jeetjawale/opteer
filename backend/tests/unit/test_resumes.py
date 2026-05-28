@@ -112,19 +112,17 @@ def test_update_resume():
     }
 
     # Mock owner check
-    mock_check_execute = MagicMock()
-    mock_check_execute.execute.return_value = MagicMock(data=[{"user_id": MockUser.id}])
     mock_check_table = MagicMock()
     mock_check_table.select.return_value = mock_check_table
-    mock_check_table.eq.return_value = mock_check_execute
+    mock_check_table.eq.return_value = mock_check_table
+    mock_check_table.execute.return_value = MagicMock(data=[{"user_id": MockUser.id}])
 
     # Mock update + select updated row
-    mock_update_execute = MagicMock()
-    mock_update_execute.execute.return_value = MagicMock(data=[mock_resume])
     mock_update_table = MagicMock()
     mock_update_table.update.return_value = mock_update_table
     mock_update_table.select.return_value = mock_update_table
-    mock_update_table.eq.return_value = mock_update_execute
+    mock_update_table.eq.return_value = mock_update_table
+    mock_update_table.execute.return_value = MagicMock(data=[mock_resume])
 
     # Custom side effect for table mock
     def mock_table_routing(table_name):
@@ -156,18 +154,16 @@ def test_update_resume():
 
 def test_delete_resume():
     # Mock owner check
-    mock_check_execute = MagicMock()
-    mock_check_execute.execute.return_value = MagicMock(data=[{"user_id": MockUser.id}])
     mock_check_table = MagicMock()
     mock_check_table.select.return_value = mock_check_table
-    mock_check_table.eq.return_value = mock_check_execute
+    mock_check_table.eq.return_value = mock_check_table
+    mock_check_table.execute.return_value = MagicMock(data=[{"user_id": MockUser.id}])
 
     # Mock delete
-    mock_delete_execute = MagicMock()
-    mock_delete_execute.execute.return_value = MagicMock(data=[])
     mock_delete_table = MagicMock()
     mock_delete_table.delete.return_value = mock_delete_table
-    mock_delete_table.eq.return_value = mock_delete_execute
+    mock_delete_table.eq.return_value = mock_delete_table
+    mock_delete_table.execute.return_value = MagicMock(data=[])
 
     def mock_table_routing(table_name):
         if table_name == "resumes":

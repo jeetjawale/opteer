@@ -79,6 +79,7 @@ async def get_resume(
         response = supabase_service.table("resumes") \
             .select("*") \
             .eq("id", str(resume_id)) \
+            .eq("user_id", str(current_user.id)) \
             .execute()
             
         if not response.data or len(response.data) == 0:
@@ -87,14 +88,7 @@ async def get_resume(
                 detail="Resume not found"
             )
             
-        row = response.data[0]
-        if str(row.get("user_id")) != str(current_user.id):
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Resume not found"
-            )
-            
-        return row
+        return response.data[0]
     except HTTPException:
         raise
     except Exception as e:
@@ -117,6 +111,7 @@ async def update_resume(
         check_response = supabase_service.table("resumes") \
             .select("user_id") \
             .eq("id", str(resume_id)) \
+            .eq("user_id", str(current_user.id)) \
             .execute()
             
         if not check_response.data or len(check_response.data) == 0:
@@ -125,11 +120,6 @@ async def update_resume(
                 detail="Resume not found"
             )
             
-        if str(check_response.data[0].get("user_id")) != str(current_user.id):
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Resume not found"
-            )
     except HTTPException:
         raise
     except Exception as e:
@@ -149,12 +139,14 @@ async def update_resume(
             supabase_service.table("resumes") \
                 .update(update_data) \
                 .eq("id", str(resume_id)) \
+                .eq("user_id", str(current_user.id)) \
                 .execute()
                 
         # 3. Retrieve updated row
         response = supabase_service.table("resumes") \
             .select("*") \
             .eq("id", str(resume_id)) \
+            .eq("user_id", str(current_user.id)) \
             .execute()
             
         return response.data[0]
@@ -177,6 +169,7 @@ async def delete_resume(
         check_response = supabase_service.table("resumes") \
             .select("user_id") \
             .eq("id", str(resume_id)) \
+            .eq("user_id", str(current_user.id)) \
             .execute()
             
         if not check_response.data or len(check_response.data) == 0:
@@ -185,11 +178,6 @@ async def delete_resume(
                 detail="Resume not found"
             )
             
-        if str(check_response.data[0].get("user_id")) != str(current_user.id):
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Resume not found"
-            )
     except HTTPException:
         raise
     except Exception as e:
@@ -203,6 +191,7 @@ async def delete_resume(
         supabase_service.table("resumes") \
             .delete() \
             .eq("id", str(resume_id)) \
+            .eq("user_id", str(current_user.id)) \
             .execute()
             
         return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -225,22 +214,22 @@ async def delete_resume_file(
         check_response = supabase_service.table("resumes") \
             .select("user_id") \
             .eq("id", str(resume_id)) \
+            .eq("user_id", str(current_user.id)) \
             .execute()
             
         if not check_response.data or len(check_response.data) == 0:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
             
-        if str(check_response.data[0].get("user_id")) != str(current_user.id):
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
-            
         supabase_service.table("resumes") \
             .update({"file_url": None, "file_name": None, "updated_at": datetime.now(timezone.utc).isoformat()}) \
             .eq("id", str(resume_id)) \
+            .eq("user_id", str(current_user.id)) \
             .execute()
             
         response = supabase_service.table("resumes") \
             .select("*") \
             .eq("id", str(resume_id)) \
+            .eq("user_id", str(current_user.id)) \
             .execute()
             
         return response.data[0]
@@ -251,4 +240,3 @@ async def delete_resume_file(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete resume file: {str(e)}"
         )
-

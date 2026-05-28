@@ -51,11 +51,9 @@ def test_list_reminders():
 
 def test_create_reminder_success():
     # 1. Mock application select (check ownership)
-    mock_app_execute = MagicMock()
-    mock_app_execute.execute.return_value = MagicMock(data=[{"user_id": MockUser.id}])
-    
     mock_app_select = MagicMock()
-    mock_app_select.eq.return_value = mock_app_execute
+    mock_app_select.eq.return_value = mock_app_select
+    mock_app_select.execute.return_value = MagicMock(data=[{"user_id": MockUser.id}])
     
     # 2. Mock reminder insert
     mock_reminder_data = {
@@ -99,11 +97,10 @@ def test_create_reminder_success():
         assert data["type"] == "follow-up"
 
 def test_create_reminder_unowned_application():
-    # Mock application check returning another user's ID
-    mock_app_execute = MagicMock()
-    mock_app_execute.execute.return_value = MagicMock(data=[{"user_id": "someone-else-uuid"}])
+    # The user_id DB filter should hide applications owned by other users.
     mock_app_select = MagicMock()
-    mock_app_select.eq.return_value = mock_app_execute
+    mock_app_select.eq.return_value = mock_app_select
+    mock_app_select.execute.return_value = MagicMock(data=[])
     
     def mock_table_routing(table_name):
         if table_name == "applications":
@@ -121,15 +118,14 @@ def test_create_reminder_unowned_application():
                 "note": "Send thank you note"
             }
         )
-        assert response.status_code == 403
-        assert "permission" in response.json()["detail"].lower()
+        assert response.status_code == 404
+        assert "not found" in response.json()["detail"].lower()
 
 def test_update_reminder():
     # 1. Mock verify reminder ownership
-    mock_check_execute = MagicMock()
-    mock_check_execute.execute.return_value = MagicMock(data=[{"user_id": MockUser.id}])
     mock_check_select = MagicMock()
-    mock_check_select.eq.return_value = mock_check_execute
+    mock_check_select.eq.return_value = mock_check_select
+    mock_check_select.execute.return_value = MagicMock(data=[{"user_id": MockUser.id}])
     
     # 2. Mock update result
     mock_reminder_data = {
@@ -162,7 +158,8 @@ def test_update_reminder():
         else:
             mock_table = MagicMock()
             mock_table.update.return_value = mock_table
-            mock_table.eq.return_value = mock_update_execute
+            mock_table.eq.return_value = mock_table
+            mock_table.execute.return_value = MagicMock(data=[mock_reminder_data])
             mock_table.select.return_value = mock_table
             return mock_table
 
@@ -181,15 +178,15 @@ def test_update_reminder():
 
 def test_delete_reminder():
     # 1. Mock verify reminder ownership
-    mock_check_execute = MagicMock()
-    mock_check_execute.execute.return_value = MagicMock(data=[{"user_id": MockUser.id}])
     mock_check_select = MagicMock()
-    mock_check_select.eq.return_value = mock_check_execute
+    mock_check_select.eq.return_value = mock_check_select
+    mock_check_select.execute.return_value = MagicMock(data=[{"user_id": MockUser.id}])
     
     # Mock delete execution
     mock_delete_table = MagicMock()
     mock_delete_table.delete.return_value = mock_delete_table
-    mock_delete_table.eq.return_value = MagicMock(execute=lambda: MagicMock())
+    mock_delete_table.eq.return_value = mock_delete_table
+    mock_delete_table.execute.return_value = MagicMock()
     
     call_count = 0
     def mock_table_routing(table_name):
