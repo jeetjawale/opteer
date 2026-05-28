@@ -95,6 +95,8 @@ create table resumes (
   user_id         uuid references auth.users(id) on delete cascade not null,
   name            text not null,
   content         text not null,
+  file_url        text,
+  file_name       text,
   created_at      timestamptz default now(),
   updated_at      timestamptz default now()
 );
@@ -190,6 +192,44 @@ create policy "users can manage own settings"
   to authenticated
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
+
+-- ============================================
+-- STORAGE BUCKET: resumes
+-- Stores uploaded resume files
+-- ============================================
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'resumes',
+  'resumes', 
+  false,
+  5242880,
+  ARRAY['application/pdf','application/vnd.openxmlformats-officedocument.wordprocessingml.document','text/plain','application/x-tex']
+)
+on conflict (id) do nothing;
+
+create policy "users can upload own resumes"
+  on storage.objects for insert
+  to authenticated
+  with check (
+    bucket_id = 'resumes' and
+    (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+create policy "users can read own resumes"
+  on storage.objects for select
+  to authenticated
+  using (
+    bucket_id = 'resumes' and
+    (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+create policy "users can delete own resumes"
+  on storage.objects for delete
+  to authenticated
+  using (
+    bucket_id = 'resumes' and
+    (storage.foldername(name))[1] = auth.uid()::text
+  );
 
 -- ============================================
 -- PRIVILEGES & SCHEMA CACHE RELOAD

@@ -18,7 +18,7 @@ async def list_resumes(
     """
     try:
         response = supabase_service.table("resumes") \
-            .select("id, name, content, created_at, updated_at") \
+            .select("id, name, content, file_url, file_name, created_at, updated_at") \
             .eq("user_id", current_user.id) \
             .order("created_at", desc=True) \
             .execute()
@@ -32,6 +32,8 @@ async def list_resumes(
                 "id": record["id"],
                 "name": record["name"],
                 "preview": preview,
+                "file_url": record.get("file_url"),
+                "file_name": record.get("file_name"),
                 "created_at": record["created_at"],
                 "updated_at": record["updated_at"]
             })
@@ -209,3 +211,44 @@ async def delete_resume(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete resume: {str(e)}"
         )
+
+@router.delete("/{resume_id}/file", response_model=ResumeResponse)
+async def delete_resume_file(
+    resume_id: UUID,
+    current_user = Depends(get_current_user)
+):
+    """
+    Removes the file_url and file_name from a resume record.
+    Returns the updated ResumeResponse.
+    """
+    try:
+        check_response = supabase_service.table("resumes") \
+            .select("user_id") \
+            .eq("id", str(resume_id)) \
+            .execute()
+            
+        if not check_response.data or len(check_response.data) == 0:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
+            
+        if str(check_response.data[0].get("user_id")) != str(current_user.id):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
+            
+        supabase_service.table("resumes") \
+            .update({"file_url": None, "file_name": None, "updated_at": datetime.now(timezone.utc).isoformat()}) \
+            .eq("id", str(resume_id)) \
+            .execute()
+            
+        response = supabase_service.table("resumes") \
+            .select("*") \
+            .eq("id", str(resume_id)) \
+            .execute()
+            
+        return response.data[0]
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete resume file: {str(e)}"
+        )
+

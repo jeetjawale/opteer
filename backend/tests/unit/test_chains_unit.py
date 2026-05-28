@@ -45,7 +45,7 @@ INTERVIEW_PREP_JSON = (
 
 RESUME = "Senior Python developer, 5 years FastAPI, PostgreSQL, REST APIs."
 JD     = "We need a Python backend engineer with FastAPI and REST API experience."
-CO_RES = "Overview: Fast-growing fintech startup.\nWebsite: https://example.com\nIndustry: Fintech\nFounded: 2018"
+CO_RES = "Overview: Fast-growing fintech startup.\nWebsite: https://example.com\nHeadquarters: San Francisco, CA\nCompany Size: 50-200\nIndustry: Fintech\nWork Model: Remote"
 
 
 # ── Fit Scoring Chain ───────────────────────────────────────────────────────

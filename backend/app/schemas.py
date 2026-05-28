@@ -187,16 +187,21 @@ class ResumeBase(BaseModel):
     content: str = Field(..., min_length=50, description="Full parsed resume text content")
 
 class ResumeCreate(ResumeBase):
-    pass
+    file_url: Optional[str] = None
+    file_name: Optional[str] = None
 
 class ResumeUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1)
     content: Optional[str] = Field(None, min_length=50)
+    file_url: Optional[str] = None
+    file_name: Optional[str] = None
 
 class ResumeListResponse(BaseModel):
     id: UUID
     name: str
     preview: str
+    file_url: Optional[str] = None
+    file_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -205,6 +210,8 @@ class ResumeListResponse(BaseModel):
 class ResumeResponse(ResumeBase):
     id: UUID
     user_id: UUID
+    file_url: Optional[str] = None
+    file_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

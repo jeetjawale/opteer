@@ -301,8 +301,10 @@ async def import_job(
                 "Provide EXACTLY this format and nothing else:\n\n"
                 "Overview: [Quick overview of company (not too big nor too small)]\n"
                 "Website: [Website URL if available or known, else N/A]\n"
+                "Headquarters: [Headquarters location if available or known, else N/A]\n"
+                "Company Size: [Company size if available or known, else N/A]\n"
                 "Industry: [Industry if available or known, else N/A]\n"
-                "Founded: [Year founded if available or known, else N/A]\n\n"
+                "Work Model: [Work model (e.g. Remote, Hybrid, On-site) if available or known, else N/A]\n\n"
                 f"Raw search results:\n{raw_research[:3000]}"
             )
             llm_research_resp = llm.invoke(research_prompt)
