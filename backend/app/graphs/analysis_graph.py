@@ -6,6 +6,7 @@ from app.chains.fit_scoring import get_fit_scoring_chain
 from app.chains.cover_letter import get_cover_letter_chain
 from app.chains.interview_prep import get_interview_prep_chain
 from app.database import supabase_service
+from app.schemas import FitScoreResult, InterviewPrepResult
 
 # ============================================
 # STATE SCHEMA DEFINITION
@@ -77,7 +78,6 @@ async def fetch_context(state: AnalysisState) -> dict:
 async def run_fit_scoring(state: AnalysisState) -> dict:
     """
     Invokes the Fit Scoring Chain using candidate's resume and job description.
-    Falls back to a clean default schema on parse failures or transient rate limits.
     """
     try:
         model_override = state.get("model_fit") or state.get("model_default") or None
@@ -91,15 +91,7 @@ async def run_fit_scoring(state: AnalysisState) -> dict:
         })
         return {"fit_result": result}
     except Exception as e:
-        # Graceful fallback schema
-        fallback_result = {
-            "fit_score": None,
-            "matched_skills": [],
-            "missing_skills": [],
-            "key_requirements": [],
-            "summary": "Analysis could not be completed. Please retry."
-        }
-        return {"fit_result": fallback_result}
+        return {"error": f"fit_scoring failed: {str(e)}"}
 
 
 async def run_cover_letter(state: AnalysisState) -> dict:
@@ -119,17 +111,12 @@ async def run_cover_letter(state: AnalysisState) -> dict:
         })
         return {"cover_letter": result}
     except Exception as e:
-        fallback_letter = (
-            "Cover letter generation encountered an issue. "
-            "Please retry the analysis or write your cover letter manually."
-        )
-        return {"cover_letter": fallback_letter}
+        return {"error": f"cover_letter failed: {str(e)}"}
 
 
 async def run_interview_prep(state: AnalysisState) -> dict:
     """
     Invokes the Interview Prep Chain using resume and job description.
-    Falls back to a clean default schema on parse failures or transient rate limits.
     """
     try:
         model_override = state.get("model_prep") or state.get("model_default") or None
@@ -143,16 +130,7 @@ async def run_interview_prep(state: AnalysisState) -> dict:
         })
         return {"interview_prep": result}
     except Exception as e:
-        print(f"[interview_prep ERROR]: {str(e)}")
-        fallback_prep = {
-            "questions": [
-                {
-                    "question": "Could you walk us through your experience and how it aligns with the requirements of this role?",
-                    "suggested_answer": "Focus on the key achievements from your resume that overlap with the core needs of this job description."
-                }
-            ]
-        }
-        return {"interview_prep": fallback_prep}
+        return {"error": f"interview_prep failed: {str(e)}"}
 
 
 async def save_results(state: AnalysisState) -> dict:
@@ -161,28 +139,22 @@ async def save_results(state: AnalysisState) -> dict:
     """
     app_id = state.get("application_id")
     fit = state.get("fit_result") or {}
-    
-    summary = fit.get("summary") or fit.get("assessment_summary") or fit.get("overview")
-    if not summary:
-        score = fit.get("fit_score")
-        if score is None:
-            summary = "Analysis could not be completed. Please retry."
-        elif score >= 80:
-            summary = "Strong fit based on the provided skills and experience."
-        elif score >= 50:
-            summary = "Moderate fit. Some key skills align, but there are areas missing."
-        else:
-            summary = "Low fit. Significant gaps between the resume and the job requirements."
 
     try:
+        fit_result = FitScoreResult.model_validate(fit)
+        interview_prep = InterviewPrepResult.model_validate(state.get("interview_prep") or {})
+        cover_letter = state.get("cover_letter")
+        if not isinstance(cover_letter, str) or not cover_letter.strip():
+            raise ValueError("cover_letter must be a non-empty string")
+
         update_data = {
-            "fit_score": fit.get("fit_score"),
-            "matched_skills": fit.get("matched_skills"),
-            "missing_skills": fit.get("missing_skills"),
-            "key_requirements": fit.get("key_requirements"),
-            "summary": summary,
-            "cover_letter": state.get("cover_letter"),
-            "interview_prep": state.get("interview_prep"),
+            "fit_score": fit_result.fit_score,
+            "matched_skills": fit_result.matched_skills,
+            "missing_skills": fit_result.missing_skills,
+            "key_requirements": fit_result.key_requirements,
+            "summary": fit_result.summary,
+            "cover_letter": cover_letter,
+            "interview_prep": interview_prep.model_dump(),
             "analyzed_at": datetime.now(timezone.utc).isoformat()
         }
         supabase_service.table("applications") \
@@ -192,7 +164,7 @@ async def save_results(state: AnalysisState) -> dict:
             
         return {}
     except Exception as e:
-        return {"error": f"save_results database update failed: {str(e)}"}
+        return {"error": f"save_results validation or database update failed: {str(e)}"}
 
 # ============================================
 # GRAPH WIRING & ROUTING

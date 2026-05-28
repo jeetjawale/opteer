@@ -43,6 +43,9 @@ MOCK_APPLICATION = {
     "company_research": "Overview: A great company.\nWebsite: https://acme.com\nHeadquarters: San Francisco, CA\nCompany Size: 50-200\nIndustry: Tech\nWork Model: Remote",
     "scraped_jd": "We need a Python backend engineer.",
     "analyzed_at": "2026-05-25T10:00:00+00:00",
+    "analysis_status": "completed",
+    "analysis_started_at": "2026-05-25T09:59:00+00:00",
+    "analysis_error": None,
     "created_at": "2026-05-24T09:00:00+00:00",
 }
 
@@ -116,13 +119,13 @@ class TestAnalyzeEndpoint:
             patch("app.routers.applications.run_analysis", new_callable=AsyncMock,
                   return_value=SUCCESSFUL_GRAPH_STATE),
         ):
-            # First call: ownership check → returns user_id
+            # First call: ownership/status check
             # Second call: user_settings fetch → returns empty
             # Third call: fetch updated application after analysis
             query = mock_supa.table.return_value.select.return_value
             query.eq.return_value = query
             query.execute.side_effect = [
-                make_supabase_response([{"user_id": USER_ID}]),   # ownership check
+                make_supabase_response([{"user_id": USER_ID, "analysis_status": "idle"}]),
                 make_supabase_response([]),                         # user_settings
                 make_supabase_response([{**flat_app, "jobs": {    # post-analyze fetch
                     "company": "Acme Corp",
@@ -144,6 +147,27 @@ class TestAnalyzeEndpoint:
         assert "Python" in data["matched_skills"]
         assert "Dear Hiring Manager" in data["cover_letter"]
         assert len(data["interview_prep"]["questions"]) >= 1
+        assert data["analysis_status"] == "completed"
+
+    def test_analyze_returns_409_when_already_processing(self):
+        """
+        POST /applications/{id}/analyze should reject duplicate analysis requests
+        while the same user's application is already processing.
+        """
+        with patch("app.routers.applications.supabase_service") as mock_supa:
+            query = mock_supa.table.return_value.select.return_value
+            query.eq.return_value = query
+            query.execute.return_value = make_supabase_response([
+                {"user_id": USER_ID, "analysis_status": "processing"}
+            ])
+
+            response = client.post(
+                f"/applications/{APPLICATION_ID}/analyze",
+                headers={"Authorization": "Bearer fake-jwt-token"}
+            )
+
+        assert response.status_code == 409
+        assert "already" in response.json()["detail"].lower()
 
     def test_analyze_returns_404_for_nonexistent_application(self):
         """
@@ -200,7 +224,7 @@ class TestAnalyzeEndpoint:
             query = mock_supa.table.return_value.select.return_value
             query.eq.return_value = query
             query.execute.side_effect = [
-                make_supabase_response([{"user_id": USER_ID}]),
+                make_supabase_response([{"user_id": USER_ID, "analysis_status": "idle"}]),
                 make_supabase_response([]),
             ]
 
@@ -211,6 +235,12 @@ class TestAnalyzeEndpoint:
 
         assert response.status_code == 500
         assert "pipeline failed" in response.json()["detail"].lower()
+        update_calls = mock_supa.table.return_value.update.call_args_list
+        assert any(
+            call.args[0].get("analysis_status") == "failed"
+            and "pipeline failed" in call.args[0].get("analysis_error", "").lower()
+            for call in update_calls
+        )
 
     def test_analyze_passes_user_api_key_to_graph(self):
         """
@@ -228,7 +258,7 @@ class TestAnalyzeEndpoint:
             query = mock_supa.table.return_value.select.return_value
             query.eq.return_value = query
             query.execute.side_effect = [
-                make_supabase_response([{"user_id": USER_ID}]),
+                make_supabase_response([{"user_id": USER_ID, "analysis_status": "idle"}]),
                 make_supabase_response([]),
                 make_supabase_response([{**flat_app, "jobs": {
                     "company": "Acme Corp", "role": "Backend Engineer",

@@ -1,3 +1,4 @@
+alter database postgres set timezone to 'UTC';
 -- ============================================
 -- CLEANUP (Run these to reset database)
 -- ============================================
@@ -59,6 +60,12 @@ create table applications (
   cover_letter    text,
   interview_prep  jsonb,
   notes           text,
+
+  -- durable AI analysis state
+  analysis_status text default 'idle'
+                  check (analysis_status in ('idle','queued','processing','completed','failed')),
+  analysis_started_at timestamptz,
+  analysis_error  text,
   
   -- user_api_key: reserved for future cross-device key persistence.
   -- Not written by current backend. Populated by future /settings/sync endpoint.
@@ -121,6 +128,7 @@ create table user_settings (
 -- ============================================
 create index on applications(user_id);
 create index on applications(status);
+create index on applications(analysis_status);
 create index on applications(fit_score desc);
 create index on applications(job_id);
 create index on reminders(user_id);
@@ -198,6 +206,10 @@ values (
   ARRAY['application/pdf','application/vnd.openxmlformats-officedocument.wordprocessingml.document','text/plain','application/x-tex']
 )
 on conflict (id) do nothing;
+
+drop policy if exists "users can upload own resumes" on storage.objects;
+drop policy if exists "users can read own resumes" on storage.objects;
+drop policy if exists "users can delete own resumes" on storage.objects;
 
 create policy "users can upload own resumes"
   on storage.objects for insert

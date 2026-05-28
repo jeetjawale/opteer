@@ -18,6 +18,8 @@ interface Application {
   company?: string | null;
   role?: string | null;
   url?: string | null;
+  analysis_status?: "idle" | "queued" | "processing" | "completed" | "failed";
+  analysis_error?: string | null;
   created_at: string;
 }
 
@@ -36,7 +38,7 @@ export default function ApplicationsTable({ applications, onRefresh }: Applicati
     // Initial sync of active analysis states
     const active = new Set<string>();
     applications.forEach((app) => {
-      if (analysisTracker.isAnalyzing(app.id)) {
+      if (app.analysis_status === "processing" || analysisTracker.isAnalyzing(app.id)) {
         active.add(app.id);
       }
     });
@@ -166,6 +168,7 @@ export default function ApplicationsTable({ applications, onRefresh }: Applicati
             const role = app.role || "Job Description";
             const initials = company.substring(0, 2).toUpperCase();
             const avatarBg = getAvatarBg(company);
+            const isAnalyzing = app.analysis_status === "processing" || localAnalyzingIds.has(app.id);
             
             // Progress Bar Color Mapping
             const score = app.fit_score;
@@ -272,7 +275,7 @@ export default function ApplicationsTable({ applications, onRefresh }: Applicati
 
                 {/* Context-aware Actions */}
                 <td className="px-6 py-4 text-right">
-                  {localAnalyzingIds.has(app.id) ? (
+                  {isAnalyzing ? (
                     <div className="inline-flex items-center text-xs font-medium text-zinc-400 space-x-1.5 pr-2">
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       <span>Analyzing...</span>
@@ -285,7 +288,7 @@ export default function ApplicationsTable({ applications, onRefresh }: Applicati
                           <button
                             onClick={() => handleStatusChange(app.id, "applied")}
                             className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition-colors disabled:opacity-50"
-                            disabled={updatingId === app.id || localAnalyzingIds.has(app.id)}
+                            disabled={updatingId === app.id || isAnalyzing}
                           >
                             {updatingId === app.id ? "Updating..." : "Mark Applied"}
                           </button>
@@ -304,7 +307,7 @@ export default function ApplicationsTable({ applications, onRefresh }: Applicati
                                 ? "bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
                                 : "border border-blue-500/50 hover:bg-blue-900/20 text-blue-400 hover:text-blue-300"
                             }`}
-                            disabled={updatingId === app.id || localAnalyzingIds.has(app.id)}
+                            disabled={updatingId === app.id || isAnalyzing}
                           >
                             {app.fit_score !== null ? "Re-analyze" : "Analyze now"}
                           </button>
@@ -316,6 +319,7 @@ export default function ApplicationsTable({ applications, onRefresh }: Applicati
                           <button
                             onClick={() => handleAnalyze(app.id)}
                             className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold text-xs transition-colors"
+                            disabled={isAnalyzing}
                           >
                             Analyze
                           </button>
