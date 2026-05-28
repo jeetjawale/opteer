@@ -95,9 +95,9 @@ def test_import_job_endpoint():
         assert data["application_id"] == "33333333-3333-3333-3333-333333333333"
         assert data["job_id"] == "22222222-2222-2222-2222-222222222222"
         assert data["status"] == "saved"
-        assert data["analysis_status"] == "completed"
+        assert data["analysis_status"] == "idle"
         assert data["analysis_error"] is None
-        mock_run_analysis.assert_awaited_once()
+        mock_run_analysis.assert_not_called()
 
 
 @pytest.mark.parametrize(
