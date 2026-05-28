@@ -7,25 +7,31 @@ import { Loader2, Sparkles, Globe, Building2, Calendar } from "lucide-react";
 // Expected format produced by the scraper LLM:
 //   Overview: ...
 //   Website: ...
+//   Headquarters: ...
+//   Company Size: ...
 //   Industry: ...
-//   Founded: ...
+//   Work Model: ...
 function parseCompanyResearch(raw: string | null | undefined) {
   if (!raw) return null;
   const get = (key: string) => {
     const match = raw.match(new RegExp(`${key}:\\s*(.+)`, "i"));
     return match ? match[1].trim() : null;
   };
-  const overview  = get("Overview");
-  const website   = get("Website");
-  const industry  = get("Industry");
-  const founded   = get("Founded");
+  const overview     = get("Overview");
+  const website      = get("Website");
+  const headquarters = get("Headquarters");
+  const companySize  = get("Company Size");
+  const industry     = get("Industry");
+  const workModel    = get("Work Model");
   // Return null if nothing useful was parsed
-  if (!overview && !website && !industry && !founded) return null;
+  if (!overview && !website && !industry && !headquarters && !companySize && !workModel) return null;
   return {
     overview,
-    website:  website  === "N/A" ? null : website,
-    industry: industry === "N/A" ? null : industry,
-    founded:  founded  === "N/A" ? null : founded,
+    website:      website      === "N/A" ? null : website,
+    headquarters: headquarters === "N/A" ? null : headquarters,
+    companySize:  companySize  === "N/A" ? null : companySize,
+    industry:     industry     === "N/A" ? null : industry,
+    workModel:    workModel    === "N/A" ? null : workModel,
   };
 }
 
@@ -262,7 +268,7 @@ export default function OverviewTab({
                   <p className="text-primary text-sm leading-relaxed mb-5">{co.overview}</p>
                 )}
 
-                {(co.website || co.industry || co.founded) && (
+                {(co.website || co.headquarters || co.companySize || co.industry || co.workModel) && (
                   <div className="flex flex-wrap gap-3">
                     {co.website && (
                       <a
@@ -275,16 +281,24 @@ export default function OverviewTab({
                         {co.website.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}
                       </a>
                     )}
-                    {co.industry && (
+                    {co.headquarters && (
                       <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-elevated border border-border-default text-primary text-xs font-medium">
-                        <Building2 className="w-3.5 h-3.5 text-muted" />
-                        {co.industry}
+                        🌍 {co.headquarters}
                       </span>
                     )}
-                    {co.founded && (
+                    {co.companySize && (
                       <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-elevated border border-border-default text-primary text-xs font-medium">
-                        <Calendar className="w-3.5 h-3.5 text-muted" />
-                        Founded {co.founded}
+                        👥 {co.companySize}
+                      </span>
+                    )}
+                    {co.industry && (
+                      <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-elevated border border-border-default text-primary text-xs font-medium">
+                        💼 {co.industry}
+                      </span>
+                    )}
+                    {co.workModel && (
+                      <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-elevated border border-border-default text-primary text-xs font-medium">
+                        🏢 {co.workModel}
                       </span>
                     )}
                   </div>

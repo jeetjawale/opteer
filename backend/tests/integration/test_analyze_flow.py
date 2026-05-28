@@ -40,7 +40,7 @@ MOCK_APPLICATION = {
     "company": "Acme Corp",
     "role": "Backend Engineer",
     "url": "https://acme.com/jobs/123",
-    "company_research": "Overview: A great company.\nWebsite: https://acme.com\nIndustry: Tech\nFounded: 2010",
+    "company_research": "Overview: A great company.\nWebsite: https://acme.com\nHeadquarters: San Francisco, CA\nCompany Size: 50-200\nIndustry: Tech\nWork Model: Remote",
     "scraped_jd": "We need a Python backend engineer.",
     "analyzed_at": "2026-05-25T10:00:00+00:00",
     "created_at": "2026-05-24T09:00:00+00:00",
@@ -127,7 +127,7 @@ class TestAnalyzeEndpoint:
                         "company": "Acme Corp",
                         "role": "Backend Engineer",
                         "url": "https://acme.com/jobs/123",
-                        "company_research": "Overview: A great company.\nWebsite: https://acme.com\nIndustry: Tech\nFounded: 2010",
+                        "company_research": "Overview: A great company.\nWebsite: https://acme.com\nHeadquarters: San Francisco, CA\nCompany Size: 50-200\nIndustry: Tech\nWork Model: Remote",
                         "scraped_jd": "We need a Python backend engineer."
                     }}]),
                 ]
@@ -232,7 +232,7 @@ class TestAnalyzeEndpoint:
                     make_supabase_response([{**flat_app, "jobs": {
                         "company": "Acme Corp", "role": "Backend Engineer",
                         "url": "https://acme.com/jobs/123",
-                        "company_research": "Overview: A great company.\nWebsite: https://acme.com\nIndustry: Tech\nFounded: 2010",
+                        "company_research": "Overview: A great company.\nWebsite: https://acme.com\nHeadquarters: San Francisco, CA\nCompany Size: 50-200\nIndustry: Tech\nWork Model: Remote",
                         "scraped_jd": "We need a Python backend engineer."
                     }}]),
                 ]

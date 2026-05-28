@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { X, CheckCircle2, Loader2, Import, Upload, XCircle } from "lucide-react";
 import { importJob, parseResume, getResumes, getResume, createResume } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 
 interface ImportModalProps {
   isOpen: boolean;
@@ -29,6 +30,7 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
   const [useOneOffResume, setUseOneOffResume] = useState(false);
   const [saveNewResume, setSaveNewResume] = useState(false);
   const [newResumeName, setNewResumeName] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [parsingFile, setParsingFile] = useState(false);
@@ -52,8 +54,10 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
     try {
       const response = await parseResume(formData);
       setResumeText(response.text);
+      setSelectedFile(file);
     } catch (err: any) {
       setError(err.message || "Failed to parse resume file.");
+      setSelectedFile(null);
     } finally {
       setParsingFile(false);
       e.target.value = ""; // Clear file input
@@ -95,6 +99,7 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
       setUseOneOffResume(false);
       setSaveNewResume(false);
       setNewResumeName("");
+      setSelectedFile(null);
     } else {
       const savedKey = localStorage.getItem("jobpilot_api_key") || "";
       setUserApiKey(savedKey);
@@ -156,10 +161,34 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
         const fullResume = await getResume(selectedResumeId);
         finalResumeText = fullResume.content;
       } else if (useOneOffResume && saveNewResume) {
+        let finalFileUrl = null;
+        let finalFileName = null;
+
+        if (selectedFile) {
+          try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+              const path = `${user.id}/${crypto.randomUUID()}-${selectedFile.name}`;
+              const { error: uploadError } = await supabase.storage.from('resumes').upload(path, selectedFile);
+              if (!uploadError) {
+                const { data: urlData } = await supabase.storage.from('resumes').createSignedUrl(path, 60 * 60 * 24 * 365);
+                if (urlData) {
+                  finalFileUrl = urlData.signedUrl;
+                  finalFileName = selectedFile.name;
+                }
+              }
+            }
+          } catch (uploadErr) {
+            console.error("Failed to upload file during save", uploadErr);
+          }
+        }
+
         const nameToSave = newResumeName.trim() || `Resume - ${new Date().toLocaleDateString()}`;
         await createResume({
           name: nameToSave,
-          content: resumeText
+          content: resumeText,
+          ...(finalFileUrl && { file_url: finalFileUrl }),
+          ...(finalFileName && { file_name: finalFileName })
         });
       }
 
