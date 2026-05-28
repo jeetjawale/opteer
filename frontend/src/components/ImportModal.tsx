@@ -38,7 +38,7 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
   const [cancelled, setCancelled] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   
-  // Progress Steps: 0 = Idle, 1 = Scraping, 2 = Researching, 3 = Saving, 4 = Success
+  // Progress Steps: 0 = Idle, 1 = Scraping, 2 = Researching, 3 = Saving, 4 = Analyzing, 5 = Success
   const [step, setStep] = useState(0);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -192,7 +192,13 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
         });
       }
 
-      await importJob(url, finalResumeText, showManualJd ? manualJd : undefined, userApiKey || undefined);
+      const imported = await importJob(
+        url,
+        finalResumeText,
+        showManualJd ? manualJd : undefined,
+        userApiKey || undefined,
+        controller.signal
+      );
 
       if (controller.signal.aborted) return; // User cancelled — don't navigate
 
@@ -394,7 +400,7 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
                 type="submit"
                 className="px-5 py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 font-semibold text-sm transition-colors"
               >
-                Import & Analyze
+                Import Job
               </button>
             </div>
           </form>

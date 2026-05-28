@@ -16,6 +16,13 @@ class ApplicationStatus(str, Enum):
     CLOSED = "closed"
     REJECTED = "rejected"
 
+class AnalysisStatus(str, Enum):
+    IDLE = "idle"
+    QUEUED = "queued"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
 class ReminderType(str, Enum):
     FOLLOW_UP = "follow-up"
     INTERVIEW = "interview"
@@ -26,7 +33,7 @@ class ReminderType(str, Enum):
 # ============================================
 
 class FitScoreResult(BaseModel):
-    fit_score: Optional[int] = Field(None, description="Fit score from 0 to 100")
+    fit_score: Optional[int] = Field(None, ge=0, le=100, description="Fit score from 0 to 100")
     matched_skills: List[str] = Field(..., description="List of user skills matching the job description")
     missing_skills: List[str] = Field(..., description="List of critical skills/requirements missing from user profile")
     key_requirements: List[str] = Field(..., description="List of primary job requirements identified")
@@ -70,6 +77,8 @@ class JobImportResponse(BaseModel):
     job_id: UUID = Field(..., description="ID of the newly created job posting")
     company: Optional[str] = Field(None, description="The company name extracted from the job posting")
     status: str = Field(..., description="Status of the application (e.g. 'saved')")
+    analysis_status: AnalysisStatus = Field(AnalysisStatus.IDLE, description="Durable AI analysis state")
+    analysis_error: Optional[str] = Field(None, description="Last analysis error, when analysis failed")
 
 # ============================================
 # APPLICATION SCHEMAS
@@ -128,6 +137,9 @@ class ApplicationResponse(ApplicationBase):
     scraped_jd: Optional[str] = None
     
     analyzed_at: Optional[datetime] = None
+    analysis_status: AnalysisStatus = AnalysisStatus.IDLE
+    analysis_started_at: Optional[datetime] = None
+    analysis_error: Optional[str] = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

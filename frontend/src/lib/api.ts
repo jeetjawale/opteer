@@ -64,7 +64,13 @@ export async function getApplication(id: string) {
   return response.json();
 }
 
-export async function importJob(url: string, resumeText: string, scrapedJd?: string, userApiKey?: string) {
+export async function importJob(
+  url: string,
+  resumeText: string,
+  scrapedJd?: string,
+  userApiKey?: string,
+  signal?: AbortSignal
+) {
   // Fallback to localStorage saved key if not provided dynamically
   const savedKey = typeof window !== "undefined" ? window.localStorage.getItem("jobpilot_api_key") : null;
   const activeKey = userApiKey !== undefined ? userApiKey : (savedKey || undefined);
@@ -77,6 +83,7 @@ export async function importJob(url: string, resumeText: string, scrapedJd?: str
   const response = await fetchWithAuth(`${API_BASE_URL}/jobs/import`, {
     method: "POST",
     headers,
+    signal,
     body: JSON.stringify({ 
       url, 
       resume_text: resumeText, 
@@ -92,7 +99,7 @@ export async function importJob(url: string, resumeText: string, scrapedJd?: str
 }
 
 export async function testLlmConnection(key: string) {
-  const response = await fetch(`${API_BASE_URL}/health/llm`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/health/llm`, {
     method: "POST",
     headers: {
       "X-User-Api-Key": key
@@ -107,7 +114,7 @@ export async function testLlmConnection(key: string) {
 }
 
 
-export async function analyzeApplication(id: string, userApiKey?: string) {
+export async function analyzeApplication(id: string, userApiKey?: string, signal?: AbortSignal) {
   // Fallback to localStorage saved key if not provided dynamically
   const savedKey = typeof window !== "undefined" ? window.localStorage.getItem("jobpilot_api_key") : null;
   const activeKey = userApiKey !== undefined ? userApiKey : (savedKey || undefined);
@@ -119,7 +126,8 @@ export async function analyzeApplication(id: string, userApiKey?: string) {
 
   const response = await fetchWithAuth(`${API_BASE_URL}/applications/${id}/analyze`, {
     method: "POST",
-    headers
+    headers,
+    signal
   });
   
   if (!response.ok) {

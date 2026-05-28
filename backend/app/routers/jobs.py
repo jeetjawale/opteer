@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Header
 from typing import Optional
+from datetime import datetime, timezone
 from firecrawl import FirecrawlApp
 from tavily import TavilyClient
 import ipaddress
@@ -12,6 +13,7 @@ from app.config import settings
 from app.database import supabase_service, get_current_user
 from app.schemas import ImportJobRequest, JobImportResponse
 from app.llm import get_llm
+from app.graphs.analysis_graph import run_analysis
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -131,6 +133,11 @@ from app.rate_limiter import rate_limiter
 
 BLOCKED_HOSTNAMES = {"localhost", "metadata.google.internal"}
 
+def sanitize_error(error: str, api_key: str | None) -> str:
+    if api_key and len(api_key) > 8:
+        return error.replace(api_key, "[REDACTED]")
+    return error
+
 def validate_public_http_url(url: str) -> str:
     """
     Rejects unsupported schemes and obvious internal network targets before the
@@ -174,6 +181,86 @@ def validate_public_http_url(url: str) -> str:
         )
 
     return url
+
+async def analyze_imported_application(
+    application_id: str,
+    user_id: str,
+    user_api_key: Optional[str],
+    user_settings: dict,
+) -> tuple[str, Optional[str]]:
+    """
+    Runs analysis after import while preserving the imported application if AI fails.
+    """
+    try:
+        check_response = supabase_service.table("applications") \
+            .select("analysis_status") \
+            .eq("id", str(application_id)) \
+            .eq("user_id", str(user_id)) \
+            .execute()
+        if not check_response.data:
+            return "failed", "Imported application was not found for analysis."
+
+        current_status = check_response.data[0].get("analysis_status") or "idle"
+        if current_status in {"processing", "completed"}:
+            return current_status, None
+
+        processing_response = supabase_service.table("applications") \
+            .update({
+                "analysis_status": "processing",
+                "analysis_started_at": datetime.now(timezone.utc).isoformat(),
+                "analysis_error": None,
+            }) \
+            .eq("id", str(application_id)) \
+            .eq("user_id", str(user_id)) \
+            .neq("analysis_status", "processing") \
+            .execute()
+        if getattr(processing_response, "data", None) == []:
+            return "processing", None
+
+        final_state = await run_analysis(
+            str(application_id),
+            user_api_key=user_api_key,
+            model_default=user_settings.get("model_default"),
+            model_fit=user_settings.get("model_fit"),
+            model_letter=user_settings.get("model_letter"),
+            model_prep=user_settings.get("model_prep"),
+        )
+
+        if final_state.get("error") is not None:
+            error_msg = f"AI analysis pipeline failed: {sanitize_error(final_state['error'], user_api_key)}"
+            supabase_service.table("applications") \
+                .update({
+                    "analysis_status": "failed",
+                    "analysis_error": error_msg,
+                }) \
+                .eq("id", str(application_id)) \
+                .eq("user_id", str(user_id)) \
+                .execute()
+            return "failed", error_msg
+
+        supabase_service.table("applications") \
+            .update({
+                "analysis_status": "completed",
+                "analysis_error": None,
+            }) \
+            .eq("id", str(application_id)) \
+            .eq("user_id", str(user_id)) \
+            .execute()
+        return "completed", None
+    except Exception as e:
+        error_msg = f"AI analysis pipeline failed: {sanitize_error(str(e), user_api_key)}"
+        try:
+            supabase_service.table("applications") \
+                .update({
+                    "analysis_status": "failed",
+                    "analysis_error": error_msg,
+                }) \
+                .eq("id", str(application_id)) \
+                .eq("user_id", str(user_id)) \
+                .execute()
+        except Exception:
+            pass
+        return "failed", error_msg
 
 @router.post("/import", response_model=JobImportResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(rate_limiter(limit=10, window_seconds=60))])
 async def import_job(
@@ -256,7 +343,7 @@ async def import_job(
     user_settings = {}
     try:
         settings_response = supabase_service.table("user_settings") \
-            .select("model_default") \
+            .select("model_default, model_fit, model_letter, model_prep") \
             .eq("user_id", str(current_user.id)) \
             .execute()
         if settings_response.data:
@@ -369,13 +456,6 @@ async def import_job(
         existing_job = supabase_service.table("jobs").select("id").eq("url", url).execute()
         if existing_job.data and len(existing_job.data) > 0:
             job_id = existing_job.data[0]["id"]
-            # Update the existing job details with the latest scraped/manual data
-            supabase_service.table("jobs").update({
-                "company": company_name,
-                "role": role_name,
-                "scraped_jd": scraped_jd,
-                "company_research": company_research
-            }).eq("id", job_id).execute()
         else:
             job_payload = {
                 "url": url,
@@ -396,7 +476,7 @@ async def import_job(
         
     # Check if the user already has an application for this job
     existing_app = supabase_service.table("applications") \
-        .select("id, status") \
+        .select("id, status, analysis_status, analysis_error") \
         .eq("user_id", str(current_user.id)) \
         .eq("job_id", str(job_id)) \
         .execute()
@@ -409,7 +489,9 @@ async def import_job(
             application_id=existing_id,
             job_id=job_id,
             company=company_name,
-            status=existing_status
+            status=existing_status,
+            analysis_status=existing_app.data[0].get("analysis_status") or "idle",
+            analysis_error=existing_app.data[0].get("analysis_error"),
         )
         
     # 5. Insert into applications table using supabase_service
@@ -418,7 +500,9 @@ async def import_job(
             "user_id": current_user.id,
             "job_id": job_id,
             "resume_text": resume_text,
-            "status": "saved"
+            "status": "saved",
+            "analysis_status": "idle",
+            "analysis_error": None
         }
         app_response = supabase_service.table("applications").insert(app_payload).execute()
         if not app_response.data or len(app_response.data) == 0:
@@ -436,5 +520,7 @@ async def import_job(
         application_id=application_id,
         job_id=job_id,
         company=company_name,
-        status=status_val
+        status=status_val,
+        analysis_status="idle",
+        analysis_error=None,
     )

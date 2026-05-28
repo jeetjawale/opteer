@@ -45,7 +45,12 @@ def test_import_job_endpoint():
     mock_job_response.data = [{"id": "22222222-2222-2222-2222-222222222222"}]
     
     mock_app_response = MagicMock()
-    mock_app_response.data = [{"id": "33333333-3333-3333-3333-333333333333", "status": "saved"}]
+    mock_app_response.data = [{
+        "id": "33333333-3333-3333-3333-333333333333",
+        "status": "saved",
+        "analysis_status": "idle",
+        "analysis_error": None,
+    }]
     
     mock_select_res = MagicMock()
     mock_select_res.data = []  # No existing job found
@@ -68,7 +73,9 @@ def test_import_job_endpoint():
     with patch("app.routers.jobs.FirecrawlApp", return_value=mock_firecrawl_inst), \
          patch("app.routers.jobs.get_llm", return_value=mock_llm), \
          patch("app.routers.jobs.TavilyClient", return_value=mock_tavily_inst), \
+         patch("app.routers.jobs.run_analysis") as mock_run_analysis, \
          patch("app.routers.jobs.supabase_service.table", return_value=mock_table):
+        mock_run_analysis.return_value = {"error": None}
          
         # Execute API request
         response = client.post(
@@ -88,6 +95,9 @@ def test_import_job_endpoint():
         assert data["application_id"] == "33333333-3333-3333-3333-333333333333"
         assert data["job_id"] == "22222222-2222-2222-2222-222222222222"
         assert data["status"] == "saved"
+        assert data["analysis_status"] == "completed"
+        assert data["analysis_error"] is None
+        mock_run_analysis.assert_awaited_once()
 
 
 @pytest.mark.parametrize(

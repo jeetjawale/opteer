@@ -1,6 +1,7 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Header
 from uuid import UUID
+from datetime import datetime, timezone
 
 from app.database import supabase_service, get_current_user
 from app.schemas import ApplicationResponse, ApplicationUpdate, ApplicationStatus
@@ -106,7 +107,7 @@ async def analyze_application(
     # 1. Verify existence and ownership of application
     try:
         check_response = supabase_service.table("applications") \
-            .select("user_id") \
+            .select("user_id, analysis_status") \
             .eq("id", str(application_id)) \
             .eq("user_id", str(current_user.id)) \
             .execute()
@@ -115,6 +116,12 @@ async def analyze_application(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Application not found"
+            )
+
+        if check_response.data[0].get("analysis_status") == "processing":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Analysis is already processing for this application"
             )
             
         # Fetch user settings for model overrides
@@ -131,6 +138,30 @@ async def analyze_application(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Database verification check failed: {sanitize_error(str(e), x_user_api_key)}"
         )
+
+    try:
+        processing_response = supabase_service.table("applications") \
+            .update({
+                "analysis_status": "processing",
+                "analysis_started_at": datetime.now(timezone.utc).isoformat(),
+                "analysis_error": None,
+            }) \
+            .eq("id", str(application_id)) \
+            .eq("user_id", str(current_user.id)) \
+            .neq("analysis_status", "processing") \
+            .execute()
+        if getattr(processing_response, "data", None) == []:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Analysis is already processing for this application"
+            )
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to mark analysis as processing: {sanitize_error(str(e), x_user_api_key)}"
+        )
         
     # 2. Run the async graph analysis using the key passed via header
     final_state = await run_analysis(
@@ -143,9 +174,35 @@ async def analyze_application(
     )
     if final_state.get("error") is not None:
         error_msg = sanitize_error(final_state["error"], x_user_api_key)
+        try:
+            supabase_service.table("applications") \
+                .update({
+                    "analysis_status": "failed",
+                    "analysis_error": f"AI analysis pipeline failed: {error_msg}",
+                }) \
+                .eq("id", str(application_id)) \
+                .eq("user_id", str(current_user.id)) \
+                .execute()
+        except Exception:
+            pass
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"AI analysis pipeline failed: {error_msg}"
+        )
+
+    try:
+        supabase_service.table("applications") \
+            .update({
+                "analysis_status": "completed",
+                "analysis_error": None,
+            }) \
+            .eq("id", str(application_id)) \
+            .eq("user_id", str(current_user.id)) \
+            .execute()
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to mark analysis as completed: {sanitize_error(str(e), x_user_api_key)}"
         )
         
     # 3. Retrieve the updated application payload

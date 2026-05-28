@@ -22,6 +22,9 @@ interface Application {
   cover_letter: string | null;
   interview_prep: { questions: Array<{ question: string; suggested_answer: string }> } | any;
   notes: string | null;
+  analysis_status?: "idle" | "queued" | "processing" | "completed" | "failed";
+  analysis_started_at?: string | null;
+  analysis_error?: string | null;
   company?: string | null;
   role?: string | null;
   url?: string | null;
@@ -49,7 +52,8 @@ export default function ApplicationDetail({ application, onRefresh, defaultTab =
 
   // Sync initial state and subscribe to changes
   useEffect(() => {
-    setAnalyzing(analysisTracker.isAnalyzing(application.id));
+    setAnalyzing(application.analysis_status === "processing" || analysisTracker.isAnalyzing(application.id));
+    setAnalysisError(application.analysis_status === "failed" ? (application.analysis_error || "Analysis failed.") : null);
 
     const unsubscribe = analysisTracker.subscribe((update) => {
       if (update.id === application.id) {
@@ -68,7 +72,7 @@ export default function ApplicationDetail({ application, onRefresh, defaultTab =
     });
 
     return unsubscribe;
-  }, [application.id, onRefresh]);
+  }, [application.id, application.analysis_status, application.analysis_error, onRefresh]);
 
   // Status Change Handler
   const handleStatusChange = async (newStatus: string) => {
@@ -98,6 +102,10 @@ export default function ApplicationDetail({ application, onRefresh, defaultTab =
 
   // Triggers AI Analysis inline if not yet run
   const handleTriggerAnalysis = async () => {
+    if (application.analysis_status === "processing" || analysisTracker.isAnalyzing(application.id)) {
+      return;
+    }
+
     setAnalysisError(null);
     try {
       await analysisTracker.performAnalysis(application.id);
