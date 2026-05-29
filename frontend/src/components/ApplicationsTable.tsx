@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2, ArrowRight, ExternalLink } from "lucide-react";
+import { AlertCircle, ArrowRight, CheckCircle2, Clock3, ExternalLink, Loader2, RotateCcw } from "lucide-react";
 import CompanyLogo from "./CompanyLogo";
 import { updateApplication } from "@/lib/api";
 import { analysisTracker } from "@/lib/analysisTracker";
@@ -28,6 +28,46 @@ interface ApplicationsTableProps {
   onRefresh: () => void;
 }
 
+type AnalysisStatus = NonNullable<Application["analysis_status"]>;
+
+const isAnalysisActive = (status?: AnalysisStatus) => status === "queued" || status === "processing";
+
+const getAnalysisMeta = (status?: AnalysisStatus, hasScore?: boolean) => {
+  if (status === "failed") {
+    return {
+      label: "Failed",
+      className: "bg-red-950/40 text-red-300 border-red-900/50",
+      icon: AlertCircle,
+    };
+  }
+  if (status === "queued") {
+    return {
+      label: "Queued",
+      className: "bg-amber-950/35 text-amber-300 border-amber-900/45",
+      icon: Clock3,
+    };
+  }
+  if (status === "processing") {
+    return {
+      label: "Processing",
+      className: "bg-blue-950/35 text-blue-300 border-blue-900/45",
+      icon: Loader2,
+    };
+  }
+  if (status === "completed" || hasScore) {
+    return {
+      label: "Completed",
+      className: "bg-emerald-950/35 text-emerald-300 border-emerald-900/45",
+      icon: CheckCircle2,
+    };
+  }
+  return {
+    label: "Analyze later",
+    className: "bg-zinc-800/70 text-zinc-400 border-zinc-700/50",
+    icon: Clock3,
+  };
+};
+
 export default function ApplicationsTable({ applications, onRefresh }: ApplicationsTableProps) {
   const router = useRouter();
   const [localAnalyzingIds, setLocalAnalyzingIds] = useState<Set<string>>(new Set());
@@ -38,7 +78,7 @@ export default function ApplicationsTable({ applications, onRefresh }: Applicati
     // Initial sync of active analysis states
     const active = new Set<string>();
     applications.forEach((app) => {
-      if (app.analysis_status === "processing" || analysisTracker.isAnalyzing(app.id)) {
+      if (isAnalysisActive(app.analysis_status) || analysisTracker.isAnalyzing(app.id)) {
         active.add(app.id);
       }
     });
@@ -158,6 +198,7 @@ export default function ApplicationsTable({ applications, onRefresh }: Applicati
             <th className="px-6 py-4">Company & Role</th>
             <th className="px-6 py-4">Status</th>
             <th className="px-6 py-4">Fit Score</th>
+            <th className="px-6 py-4">Analysis</th>
             <th className="px-6 py-4">Applied</th>
             <th className="px-6 py-4 text-right">Actions</th>
           </tr>
@@ -168,7 +209,15 @@ export default function ApplicationsTable({ applications, onRefresh }: Applicati
             const role = app.role || "Job Description";
             const initials = company.substring(0, 2).toUpperCase();
             const avatarBg = getAvatarBg(company);
-            const isAnalyzing = app.analysis_status === "processing" || localAnalyzingIds.has(app.id);
+            const isAnalyzing = isAnalysisActive(app.analysis_status) || localAnalyzingIds.has(app.id);
+            const hasAnalysis = app.fit_score !== null;
+            const analysisMeta = getAnalysisMeta(app.analysis_status, hasAnalysis);
+            const AnalysisIcon = analysisMeta.icon;
+            const analyzeButtonLabel = app.analysis_status === "failed"
+              ? "Retry"
+              : hasAnalysis
+                ? "Re-analyze"
+                : "Analyze now";
             
             // Progress Bar Color Mapping
             const score = app.fit_score;
@@ -268,6 +317,21 @@ export default function ApplicationsTable({ applications, onRefresh }: Applicati
                   )}
                 </td>
 
+                {/* Analysis durable state */}
+                <td className="px-6 py-4">
+                  <div className="flex flex-col items-start gap-1.5">
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-semibold ${analysisMeta.className}`}>
+                      <AnalysisIcon className={`w-3.5 h-3.5 ${app.analysis_status === "processing" ? "animate-spin" : ""}`} />
+                      {analysisMeta.label}
+                    </span>
+                    {app.analysis_status === "failed" && app.analysis_error && (
+                      <span className="max-w-[160px] truncate text-[11px] text-red-300/75" title={app.analysis_error}>
+                        {app.analysis_error}
+                      </span>
+                    )}
+                  </div>
+                </td>
+
                 {/* Applied relative date */}
                 <td className="px-6 py-4 text-zinc-400 text-sm">
                   {getRelativeDate(app.applied_at, app.status)}
@@ -282,6 +346,16 @@ export default function ApplicationsTable({ applications, onRefresh }: Applicati
                     </div>
                   ) : (
                     <div className="inline-flex space-x-2">
+                      {app.analysis_status === "failed" && !["saved", "applied", "interview"].includes(app.status) && (
+                        <button
+                          onClick={() => handleAnalyze(app.id)}
+                          className="px-3 py-1.5 rounded-lg border border-red-500/50 hover:bg-red-900/20 text-red-300 font-semibold text-xs transition-colors inline-flex items-center gap-1.5"
+                          disabled={isAnalyzing}
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                          <span>Retry</span>
+                        </button>
+                      )}
                       
                       {app.status === "saved" && (
                         <>
@@ -303,13 +377,15 @@ export default function ApplicationsTable({ applications, onRefresh }: Applicati
                           <button
                             onClick={() => handleAnalyze(app.id)}
                             className={`px-3 py-1.5 rounded-lg font-semibold text-xs transition-colors ${
-                              app.fit_score !== null
+                              app.analysis_status === "failed"
+                                ? "border border-red-500/50 hover:bg-red-900/20 text-red-300"
+                                : app.fit_score !== null
                                 ? "bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
                                 : "border border-blue-500/50 hover:bg-blue-900/20 text-blue-400 hover:text-blue-300"
                             }`}
                             disabled={updatingId === app.id || isAnalyzing}
                           >
-                            {app.fit_score !== null ? "Re-analyze" : "Analyze now"}
+                            {analyzeButtonLabel}
                           </button>
                         </>
                       )}
@@ -318,10 +394,15 @@ export default function ApplicationsTable({ applications, onRefresh }: Applicati
                         <>
                           <button
                             onClick={() => handleAnalyze(app.id)}
-                            className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold text-xs transition-colors"
+                            className={`px-3 py-1.5 rounded-lg font-semibold text-xs transition-colors inline-flex items-center gap-1.5 ${
+                              app.analysis_status === "failed"
+                                ? "border border-red-500/50 hover:bg-red-900/20 text-red-300"
+                                : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+                            }`}
                             disabled={isAnalyzing}
                           >
-                            Analyze
+                            {app.analysis_status === "failed" && <RotateCcw className="w-3 h-3" />}
+                            <span>{analyzeButtonLabel}</span>
                           </button>
                           <Link
                             href={`/applications/${app.id}?tab=cover-letter`}

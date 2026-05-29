@@ -8,6 +8,7 @@ from app.schemas import ApplicationResponse, ApplicationUpdate, ApplicationStatu
 from app.graphs.analysis_graph import run_analysis
 
 router = APIRouter(prefix="/applications", tags=["applications"])
+ACTIVE_ANALYSIS_STATUSES = {"queued", "processing"}
 
 def sanitize_error(error: str, api_key: str | None) -> str:
     """
@@ -118,10 +119,10 @@ async def analyze_application(
                 detail="Application not found"
             )
 
-        if check_response.data[0].get("analysis_status") == "processing":
+        if check_response.data[0].get("analysis_status") in ACTIVE_ANALYSIS_STATUSES:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="Analysis is already processing for this application"
+                detail="Analysis is already queued or processing for this application"
             )
             
         # Fetch user settings for model overrides
