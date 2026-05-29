@@ -1,6 +1,16 @@
 const path = require('path')
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') })
 
+// Run Frontend Environment Validation
+async function validateEnv() {
+  const { validateClientEnv } = await import('./src/env.mjs');
+  validateClientEnv(process.env);
+}
+validateEnv().catch(err => {
+  console.error(err);
+  process.exit(1);
+});
+
 const isDev = process.env.NODE_ENV !== 'production';
 
 // We dynamically construct the CSP based on environment.

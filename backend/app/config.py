@@ -1,6 +1,6 @@
 import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "JobPilot"
@@ -54,4 +54,38 @@ class Settings(BaseSettings):
             raise ValueError(f"AI_PROVIDER must be one of {allowed}")
         return provider
 
+    @field_validator("SUPABASE_URL")
+    @classmethod
+    def validate_supabase_url(cls, v: str) -> str:
+        if not v.startswith("http://") and not v.startswith("https://"):
+            raise ValueError("SUPABASE_URL must be a valid HTTP or HTTPS URL")
+        # Assume production if not explicity set to development
+        env = os.getenv("ENVIRONMENT", "development")
+        if env == "production" and not v.startswith("https://"):
+            raise ValueError("SUPABASE_URL must use HTTPS in production")
+        return v
+
+    @model_validator(mode="after")
+    def validate_ai_keys(self) -> "Settings":
+        provider = self.AI_PROVIDER.lower()
+        if provider == "openai" and not self.OPENAI_API_KEY:
+            raise ValueError("OPENAI_API_KEY is required when AI_PROVIDER=openai")
+        if provider == "gemini" and not self.GOOGLE_API_KEY:
+            raise ValueError("GOOGLE_API_KEY is required when AI_PROVIDER=gemini")
+        if provider == "anthropic" and not self.ANTHROPIC_API_KEY:
+            raise ValueError("ANTHROPIC_API_KEY is required when AI_PROVIDER=anthropic")
+        if provider == "xai" and not self.XAI_API_KEY:
+            raise ValueError("XAI_API_KEY is required when AI_PROVIDER=xai")
+        return self
+
 settings = Settings()
+
+# Startup Config Banner
+print("\n" + "="*50)
+print("🚀 STARTING JOBPILOT BACKEND")
+print("="*50)
+print(f"[CONFIG] provider={settings.AI_PROVIDER}")
+print(f"[CONFIG] model={settings.AI_MODEL}")
+print(f"[CONFIG] supabase_url={settings.SUPABASE_URL}")
+print("="*50 + "\n")
+
