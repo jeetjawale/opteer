@@ -287,8 +287,8 @@ export default function AnalyticsPage() {
               <TrendingUp className="w-5 h-5 text-accent" />
               <h2 className="text-white font-bold text-lg">Application Velocity</h2>
             </div>
-            <div className="h-72 w-full">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-72 w-full min-w-0">
+              <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                 <AreaChart data={timelineData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
@@ -332,8 +332,8 @@ export default function AnalyticsPage() {
               <BarChart3 className="w-5 h-5 text-blue-400" />
               <h2 className="text-white font-bold text-lg">Pipeline Funnel</h2>
             </div>
-            <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-64 w-full min-w-0">
+              <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                 <BarChart data={funnelData} layout="vertical" margin={{ top: 0, right: 30, left: 20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" horizontal={true} vertical={false} />
                   <XAxis type="number" hide />
@@ -375,8 +375,8 @@ export default function AnalyticsPage() {
               <Target className="w-5 h-5 text-emerald-400" />
               <h2 className="text-white font-bold text-lg">AI Fit Scores</h2>
             </div>
-            <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-64 w-full min-w-0">
+              <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                 <BarChart data={fitScoreData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
                   <XAxis 
@@ -436,7 +436,7 @@ export default function AnalyticsPage() {
             ) : (
               <div className="w-full flex flex-col min-w-0">
                 <div className="h-64 w-full min-h-[200px]">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                   <PieChart>
                     <Pie
                       data={topCompaniesData}
@@ -454,6 +454,7 @@ export default function AnalyticsPage() {
                     <Tooltip content={<TopCompaniesTooltip />} />
                   </PieChart>
                 </ResponsiveContainer>
+                </div>
                 {/* Custom Legend */}
                 <div className="mt-4 flex flex-col space-y-2">
                   {topCompaniesData.map((entry, index) => (

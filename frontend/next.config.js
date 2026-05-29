@@ -20,9 +20,10 @@ const ContentSecurityPolicy = `
   default-src 'self';
   script-src 'self' 'unsafe-inline' ${isDev ? "'unsafe-eval'" : ""};
   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-  img-src 'self' data: blob: https://www.google.com;
+  img-src 'self' data: blob: https://*.google.com https://www.google.com https://*.gstatic.com https://t2.gstatic.com;
   font-src 'self' https://fonts.gstatic.com;
   connect-src 'self' ${process.env.NEXT_PUBLIC_SUPABASE_URL || ''} ${process.env.NEXT_PUBLIC_API_URL || ''} http://localhost:8085 ws://localhost:* wss://*;
+  frame-src 'self' ${process.env.NEXT_PUBLIC_SUPABASE_URL || ''};
   frame-ancestors 'none';
   base-uri 'self';
   form-action 'self';
