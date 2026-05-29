@@ -102,10 +102,10 @@ export function getRecommendedModelForTask(
   task: "fit" | "letter" | "prep"
 ): string {
   const provider = getProviderFromKey(apiKey);
-  const preferredTier = TASK_TIER_PREFERENCE[task];
-  const models = PROVIDER_MODELS[provider] || PROVIDER_MODELS["gemini"];
+  const preferredTier = Object.prototype.hasOwnProperty.call(TASK_TIER_PREFERENCE, task) ? TASK_TIER_PREFERENCE[task] : "balanced";
+  const models = Object.prototype.hasOwnProperty.call(PROVIDER_MODELS, provider) ? PROVIDER_MODELS[provider] : PROVIDER_MODELS["gemini"];
   const match = models.find((m) => m.tier === preferredTier);
-  return match ? match.value : (PROVIDER_DEFAULTS[provider] || PROVIDER_DEFAULTS["gemini"]);
+  return match ? match.value : (Object.prototype.hasOwnProperty.call(PROVIDER_DEFAULTS, provider) ? PROVIDER_DEFAULTS[provider] : PROVIDER_DEFAULTS["gemini"]);
 }
 
 /** Detects provider from API key prefix. Falls back to gemini (server-side key). */
@@ -121,10 +121,10 @@ export function getModelsForKey(apiKey: string | null): ModelOption[] {
   // If the user's provider isn't strictly detectable from key, we can return all models 
   // or allow them to be merged in the UI. For now, just return based on simple prefix.
   const provider = getProviderFromKey(apiKey);
-  return PROVIDER_MODELS[provider] || PROVIDER_MODELS["gemini"];
+  return Object.prototype.hasOwnProperty.call(PROVIDER_MODELS, provider) ? PROVIDER_MODELS[provider] : PROVIDER_MODELS["gemini"];
 }
 
 export function getDefaultModelForKey(apiKey: string | null): string {
   const provider = getProviderFromKey(apiKey);
-  return PROVIDER_DEFAULTS[provider] || PROVIDER_DEFAULTS["gemini"];
+  return Object.prototype.hasOwnProperty.call(PROVIDER_DEFAULTS, provider) ? PROVIDER_DEFAULTS[provider] : PROVIDER_DEFAULTS["gemini"];
 }

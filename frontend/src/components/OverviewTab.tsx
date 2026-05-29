@@ -13,16 +13,16 @@ import { Loader2, Sparkles, Globe, Building2, Calendar } from "lucide-react";
 //   Work Model: ...
 function parseCompanyResearch(raw: string | null | undefined) {
   if (!raw) return null;
-  const get = (key: string) => {
-    const match = raw.match(new RegExp(`${key}:\\s*(.+)`, "i"));
+  const matchField = (regex: RegExp) => {
+    const match = raw.match(regex);
     return match ? match[1].trim() : null;
   };
-  const overview     = get("Overview");
-  const website      = get("Website");
-  const headquarters = get("Headquarters");
-  const companySize  = get("Company Size");
-  const industry     = get("Industry");
-  const workModel    = get("Work Model");
+  const overview     = matchField(/Overview:\s*(.+)/i);
+  const website      = matchField(/Website:\s*(.+)/i);
+  const headquarters = matchField(/Headquarters:\s*(.+)/i);
+  const companySize  = matchField(/Company Size:\s*(.+)/i);
+  const industry     = matchField(/Industry:\s*(.+)/i);
+  const workModel    = matchField(/Work Model:\s*(.+)/i);
   // Return null if nothing useful was parsed
   if (!overview && !website && !industry && !headquarters && !companySize && !workModel) return null;
   return {

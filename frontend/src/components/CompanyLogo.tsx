@@ -14,8 +14,8 @@ const getRootDomain = (hostname: string) => {
   const parts = hostname.split(".");
   if (parts.length <= 2) return hostname;
   
-  const secondLevel = parts[parts.length - 2];
-  if (["co", "com", "org", "net", "edu", "gov", "ac"].includes(secondLevel)) {
+  const secondLevel = parts.at(-2);
+  if (secondLevel && ["co", "com", "org", "net", "edu", "gov", "ac"].includes(secondLevel)) {
     return parts.slice(-3).join(".");
   }
   return parts.slice(-2).join(".");
@@ -42,7 +42,7 @@ export default function CompanyLogo({ company, url, initials, avatarBg, classNam
     }
     
     if (domain) {
-      setLogoUrl(`https://logo.clearbit.com/${domain}`);
+      setLogoUrl(`https://www.google.com/s2/favicons?domain=${domain}&sz=128`);
     } else {
       setError(true);
     }
