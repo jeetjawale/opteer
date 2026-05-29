@@ -29,7 +29,6 @@ export default function RootLayout({
           </main>
         </div>
         <Toaster theme="dark" richColors />
-        </div>
       </body>
     </html>
   );
