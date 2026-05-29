@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { ServerCrash, RefreshCcw } from "lucide-react";
-import "../globals.css"; // Ensure Tailwind loads
+import "./globals.css"; // Ensure Tailwind loads
 
 export default function GlobalError({
   error,

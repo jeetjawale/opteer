@@ -38,6 +38,11 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
     - name: Run unit tests
+      env:
+        AI_PROVIDER: mock
+        SUPABASE_URL: http://mockdb.supabase.co
+        SUPABASE_KEY: mockkey
+        SUPABASE_SERVICE_KEY: mockservice
       run: |
         # Run pytest on the tests directory
         python -m pytest
