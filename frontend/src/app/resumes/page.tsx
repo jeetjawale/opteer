@@ -434,6 +434,7 @@ export default function ResumesPage() {
       return (
         <>
           <iframe 
+            data-testid="resume-preview"
             src={currentFileUrl}
             className="w-full h-[600px] rounded-xl border border-border-default bg-zinc-900/50 mt-2"
             title="Resume PDF Preview"
