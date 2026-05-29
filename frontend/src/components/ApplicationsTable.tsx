@@ -134,7 +134,7 @@ export default function ApplicationsTable({ applications, onRefresh }: Applicati
     for (let i = 0; i < companyName.length; i++) {
       hash += companyName.charCodeAt(i);
     }
-    return bgColors.at(hash % bgColors.length);
+    return bgColors.at(hash % bgColors.length) || "bg-blue-600";
   };
 
   // Safe relative date formatter
