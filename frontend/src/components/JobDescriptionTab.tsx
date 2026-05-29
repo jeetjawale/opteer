@@ -3,6 +3,8 @@
 import React from "react";
 import { FileText } from "lucide-react";
 
+import ReactMarkdown from "react-markdown";
+
 interface JobDescriptionTabProps {
   scrapedJd: string | null;
 }
@@ -27,10 +29,8 @@ export default function JobDescriptionTab({ scrapedJd }: JobDescriptionTabProps)
         <h2 className="text-white font-bold text-lg">Raw Job Description</h2>
       </div>
       
-      <div className="prose prose-invert prose-sm max-w-none text-zinc-300">
-        <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed bg-zinc-950 p-6 rounded-xl border border-zinc-800/60">
-          {scrapedJd}
-        </pre>
+      <div className="prose prose-invert prose-sm max-w-none text-zinc-300 prose-pre:bg-zinc-950 prose-pre:border prose-pre:border-zinc-800/60 prose-a:text-emerald-400">
+        <ReactMarkdown>{scrapedJd}</ReactMarkdown>
       </div>
     </div>
   );

@@ -43,6 +43,9 @@ yarn-debug.log*
 yarn-error.log*
 
 # OS files
+
 .DS_Store
 
 GEMINI.md
+.codex
+supabase/.temp

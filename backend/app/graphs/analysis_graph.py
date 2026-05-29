@@ -5,8 +5,9 @@ from langgraph.graph import StateGraph, END, START
 from app.chains.fit_scoring import get_fit_scoring_chain
 from app.chains.cover_letter import get_cover_letter_chain
 from app.chains.interview_prep import get_interview_prep_chain
+from app.chains.resume_tailor import get_resume_tailoring_chain
 from app.database import supabase_service
-from app.schemas import FitScoreResult, InterviewPrepResult
+from app.schemas import FitScoreResult, InterviewPrepResult, ResumeEditsResult
 
 # ============================================
 # STATE SCHEMA DEFINITION
@@ -20,6 +21,7 @@ class AnalysisState(TypedDict):
     fit_result: dict
     cover_letter: str
     interview_prep: dict
+    resume_edits: dict
     user_api_key: Optional[str]
     model_default: Optional[str]
     model_fit: Optional[str]
@@ -133,6 +135,25 @@ async def run_interview_prep(state: AnalysisState) -> dict:
         return {"error": f"interview_prep failed: {str(e)}"}
 
 
+async def run_resume_tailoring(state: AnalysisState) -> dict:
+    """
+    Invokes the Resume Tailoring Chain using resume and job description.
+    """
+    try:
+        model_override = state.get("model_prep") or state.get("model_default") or None
+        tailor_chain = get_resume_tailoring_chain(
+            user_api_key=state.get("user_api_key"),
+            model_override=model_override
+        )
+        result = await tailor_chain.ainvoke({
+            "resume_text": state["resume_text"],
+            "scraped_jd": state["scraped_jd"]
+        })
+        return {"resume_edits": result}
+    except Exception as e:
+        return {"error": f"resume_tailoring failed: {str(e)}"}
+
+
 async def save_results(state: AnalysisState) -> dict:
     """
     Saves the aggregated analysis outputs back to the application record in Supabase.
@@ -143,6 +164,7 @@ async def save_results(state: AnalysisState) -> dict:
     try:
         fit_result = FitScoreResult.model_validate(fit)
         interview_prep = InterviewPrepResult.model_validate(state.get("interview_prep") or {})
+        resume_edits = ResumeEditsResult.model_validate(state.get("resume_edits") or {})
         cover_letter = state.get("cover_letter")
         if not isinstance(cover_letter, str) or not cover_letter.strip():
             raise ValueError("cover_letter must be a non-empty string")
@@ -155,6 +177,7 @@ async def save_results(state: AnalysisState) -> dict:
             "summary": fit_result.summary,
             "cover_letter": cover_letter,
             "interview_prep": interview_prep.model_dump(),
+            "resume_edits": resume_edits.model_dump(),
             "analyzed_at": datetime.now(timezone.utc).isoformat()
         }
         supabase_service.table("applications") \
@@ -187,6 +210,7 @@ workflow.add_node("fetch_context", fetch_context)
 workflow.add_node("run_fit_scoring", run_fit_scoring)
 workflow.add_node("run_cover_letter", run_cover_letter)
 workflow.add_node("run_interview_prep", run_interview_prep)
+workflow.add_node("run_resume_tailoring", run_resume_tailoring)
 workflow.add_node("save_results", save_results)
 
 # Build Graph Edges with error-routing checks
@@ -212,6 +236,12 @@ workflow.add_conditional_edges(
 
 workflow.add_conditional_edges(
     "run_interview_prep",
+    lambda state: route_after_node(state, "run_resume_tailoring"),
+    {"run_resume_tailoring": "run_resume_tailoring", END: END}
+)
+
+workflow.add_conditional_edges(
+    "run_resume_tailoring",
     lambda state: route_after_node(state, "save_results"),
     {"save_results": "save_results", END: END}
 )
@@ -247,6 +277,7 @@ async def run_analysis(
         "fit_result": {},
         "cover_letter": "",
         "interview_prep": {},
+        "resume_edits": {},
         "user_api_key": user_api_key,
         "model_default": model_default,
         "model_fit": model_fit,
