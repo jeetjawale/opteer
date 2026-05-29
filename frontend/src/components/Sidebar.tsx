@@ -55,8 +55,12 @@ export default function Sidebar() {
             </Link>
 
             <Link 
-              href="#"
-              className="flex items-center space-x-2.5 px-3 py-2 rounded-lg text-sm hover:bg-elevated hover:text-primary transition-colors border-l-[2px] border-transparent"
+              href="/analytics"
+              className={`flex items-center space-x-2.5 px-3 py-2 rounded-lg text-sm transition-colors border-l-[2px] ${
+                pathname.startsWith("/analytics")
+                  ? "bg-accent-dim text-primary font-medium border-accent"
+                  : "hover:bg-elevated hover:text-primary border-transparent"
+              }`}
             >
               <BarChart3 className="w-4 h-4" />
               <span>Analytics</span>
