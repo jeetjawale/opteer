@@ -261,20 +261,20 @@ export default function AnalyticsPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 reveal reveal-2">
           
           {/* KPIs */}
-          <div className="bg-surface border border-border-subtle rounded-3xl p-6 shadow-sm flex flex-col justify-center">
+          <div data-testid="analytics-card" className="bg-surface border border-border-subtle rounded-3xl p-6 shadow-sm flex flex-col justify-center">
             <p className="text-sm font-medium text-zinc-400 mb-1">Total Active Applications</p>
             <p className="text-4xl font-extrabold text-white mb-2">{totalActive}</p>
             <p className="text-xs text-zinc-500">Excluding unapplied/saved jobs</p>
           </div>
           
-          <div className="bg-surface border border-border-subtle rounded-3xl p-6 shadow-sm flex flex-col justify-center relative overflow-hidden">
+          <div data-testid="analytics-card" className="bg-surface border border-border-subtle rounded-3xl p-6 shadow-sm flex flex-col justify-center relative overflow-hidden">
             <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl"></div>
             <p className="text-sm font-medium text-blue-400 mb-1">Response Rate</p>
             <p className="text-4xl font-extrabold text-white mb-2">{responseRate}%</p>
             <p className="text-xs text-zinc-500">Apps leading to interviews</p>
           </div>
 
-          <div className="bg-surface border border-border-subtle rounded-3xl p-6 shadow-sm flex flex-col justify-center relative overflow-hidden">
+          <div data-testid="analytics-card" className="bg-surface border border-border-subtle rounded-3xl p-6 shadow-sm flex flex-col justify-center relative overflow-hidden">
             <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl"></div>
             <p className="text-sm font-medium text-emerald-400 mb-1">Interview Conversion</p>
             <p className="text-4xl font-extrabold text-white mb-2">{interviewConversion}%</p>
@@ -282,7 +282,7 @@ export default function AnalyticsPage() {
           </div>
 
           {/* Timeline Chart */}
-          <div className="bg-surface border border-border-subtle rounded-3xl p-6 shadow-sm col-span-1 md:col-span-3">
+          <div data-testid="analytics-card" className="bg-surface border border-border-subtle rounded-3xl p-6 shadow-sm col-span-1 md:col-span-3">
             <div className="flex items-center space-x-2 mb-6">
               <TrendingUp className="w-5 h-5 text-accent" />
               <h2 className="text-white font-bold text-lg">Application Velocity</h2>
@@ -327,7 +327,7 @@ export default function AnalyticsPage() {
           </div>
 
           {/* Funnel Chart */}
-          <div className="bg-surface border border-border-subtle rounded-3xl p-6 shadow-sm col-span-1 md:col-span-2 lg:col-span-1">
+          <div data-testid="analytics-card" className="bg-surface border border-border-subtle rounded-3xl p-6 shadow-sm col-span-1 md:col-span-2 lg:col-span-1">
             <div className="flex items-center space-x-2 mb-6">
               <BarChart3 className="w-5 h-5 text-blue-400" />
               <h2 className="text-white font-bold text-lg">Pipeline Funnel</h2>
@@ -370,7 +370,7 @@ export default function AnalyticsPage() {
           </div>
 
           {/* Fit Score Distribution */}
-          <div className="bg-surface border border-border-subtle rounded-3xl p-6 shadow-sm col-span-1 md:col-span-2 lg:col-span-1">
+          <div data-testid="analytics-card" className="bg-surface border border-border-subtle rounded-3xl p-6 shadow-sm col-span-1 md:col-span-2 lg:col-span-1">
             <div className="flex items-center space-x-2 mb-6">
               <Target className="w-5 h-5 text-emerald-400" />
               <h2 className="text-white font-bold text-lg">AI Fit Scores</h2>
@@ -424,7 +424,7 @@ export default function AnalyticsPage() {
           </div>
 
           {/* Top Companies */}
-          <div className="bg-surface border border-border-subtle rounded-3xl p-6 shadow-sm col-span-1 md:col-span-3 lg:col-span-1">
+          <div data-testid="analytics-card" className="bg-surface border border-border-subtle rounded-3xl p-6 shadow-sm col-span-1 md:col-span-3 lg:col-span-1">
             <div className="flex items-center space-x-2 mb-6">
               <Briefcase className="w-5 h-5 text-indigo-400" />
               <h2 className="text-white font-bold text-lg">Top Companies</h2>
