@@ -46,6 +46,15 @@ class InterviewQuestion(BaseModel):
 class InterviewPrepResult(BaseModel):
     questions: List[InterviewQuestion] = Field(..., description="List of custom-generated interview prep questions")
 
+class ResumeEdit(BaseModel):
+    section: str = Field(..., description="The section of the resume (e.g., 'Summary', 'Experience', 'Skills')")
+    suggestion: str = Field(..., description="The specific, actionable edit to make")
+    reasoning: str = Field(..., description="Why this edit will improve the match against the job description")
+    type: str = Field(..., description="The type of edit: 'add', 'remove', or 'modify'")
+
+class ResumeEditsResult(BaseModel):
+    edits: List[ResumeEdit] = Field(..., description="List of tailored resume edits")
+
 # ============================================
 # JOB SCHEMAS
 # ============================================
@@ -109,6 +118,7 @@ class ApplicationUpdate(BaseModel):
     summary: Optional[str] = None
     cover_letter: Optional[str] = None
     interview_prep: Optional[InterviewPrepResult] = None
+    resume_edits: Optional[ResumeEditsResult] = None
     notes: Optional[str] = None
 
 class ApplicationResponse(ApplicationBase):
@@ -127,6 +137,7 @@ class ApplicationResponse(ApplicationBase):
     summary: Optional[str] = None
     cover_letter: Optional[str] = None
     interview_prep: Optional[Any] = None  # Stored as jsonb in DB (matches InterviewPrepResult structure)
+    resume_edits: Optional[Any] = None    # Stored as jsonb in DB (matches ResumeEditsResult structure)
     notes: Optional[str] = None
     
     # Flat-mapped job fields from join
@@ -189,6 +200,7 @@ class JobAnalysisResponse(BaseModel):
     fit_score_result: FitScoreResult
     cover_letter: str
     interview_prep_result: InterviewPrepResult
+    resume_edits_result: ResumeEditsResult
 
 # ============================================
 # RESUME SCHEMAS

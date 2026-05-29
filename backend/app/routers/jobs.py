@@ -311,7 +311,7 @@ async def import_job(
                         direct_scraped = clean_html(resp.text)
                         
                 # If it's robust and not a generic cookie/JS banner, use it immediately
-                if direct_scraped and len(direct_scraped) > 500 and not ("uses cookies" in direct_scraped.lower() and len(direct_scraped) < 1500) and not "enable javascript" in direct_scraped.lower():
+                if direct_scraped and len(direct_scraped) > 500 and not ("uses cookies" in direct_scraped.lower() and len(direct_scraped) < 1500) and not "enable javascript" in direct_scraped.lower() and not ("{{" in direct_scraped and "}}" in direct_scraped):
                     scraped_jd = direct_scraped
         except Exception as e:
             print(f"Fast path extraction failed: {e}")
@@ -354,10 +354,10 @@ async def import_job(
     # Ensure scraped content is sanitized and truncated
     scraped_jd = sanitize_llm_input(scraped_jd, max_chars=20000)
         
-    # 2. Extract company name and job title using a single JSON LLM call (one-shot, temperature=0.0, max_tokens=100)
+    # 2. Extract company name, job title, and a cleaned JD using a single JSON LLM call
     llm = get_llm(
         temperature=0.0, 
-        max_tokens=400, 
+        max_tokens=4000, 
         user_api_key=x_user_api_key,
         model_override=user_settings.get("model_default")
     )
@@ -365,8 +365,9 @@ async def import_job(
     role_name = None
     try:
         prompt = (
-            "Analyze this job description and extract the company name and the job title/role.\n"
-            "Return ONLY a JSON object with the keys 'company_name' and 'role_name', and nothing else. "
+            "Analyze this job description and extract the company name, the job title/role, and a cleaned version of the job description.\n"
+            "The cleaned job description should preserve the core job details (responsibilities, requirements, qualifications) in clean markdown, but MUST strip away all website navigation text, 'similar jobs' links, cookie notices, header/footer boilerplate, and excessively long legal/diversity footers.\n"
+            "Return ONLY a JSON object with the keys 'company_name', 'role_name', and 'cleaned_jd'. "
             "Do not include markdown code block formatting (like ```json).\n\n"
             f"Job Description:\n{scraped_jd}"
         )
@@ -384,7 +385,11 @@ async def import_job(
         extracted_data = json.loads(raw_text)
         company_name = extracted_data.get("company_name", "").strip()
         role_name = extracted_data.get("role_name", "").strip()
+        cleaned_jd = extracted_data.get("cleaned_jd", "").strip()
         
+        if cleaned_jd and len(cleaned_jd) > 100:
+            scraped_jd = cleaned_jd
+            
         if company_name.lower() in {"n/a", "unknown", "none", "null", "not found"}:
             company_name = None
         if role_name.lower() in {"n/a", "unknown", "none", "null", "not found", "job description"}:

@@ -9,6 +9,7 @@ import CoverLetterTab from "./CoverLetterTab";
 import InterviewPrepTab from "./InterviewPrepTab";
 import RemindersTab from "./RemindersTab";
 import JobDescriptionTab from "./JobDescriptionTab";
+import ResumeTailorTab from "./ResumeTailorTab";
 
 interface Application {
   id: string;
@@ -21,6 +22,7 @@ interface Application {
   summary: string | null;
   cover_letter: string | null;
   interview_prep: { questions: Array<{ question: string; suggested_answer: string }> } | any;
+  resume_edits: any;
   notes: string | null;
   analysis_status?: "idle" | "queued" | "processing" | "completed" | "failed";
   analysis_started_at?: string | null;
@@ -188,6 +190,16 @@ export default function ApplicationDetail({ application, onRefresh, defaultTab =
           Cover Letter
         </button>
         <button
+          onClick={() => setActiveTab("resume-tailor")}
+          className={`px-5 py-3 font-semibold text-sm transition-all -mb-px border-b-2 ${
+            activeTab === "resume-tailor"
+              ? "text-white border-white"
+              : "text-zinc-500 border-transparent hover:text-zinc-300"
+          }`}
+        >
+          Tailor Resume
+        </button>
+        <button
           onClick={() => setActiveTab("interview-prep")}
           className={`px-5 py-3 font-semibold text-sm transition-all -mb-px border-b-2 ${
             activeTab === "interview-prep"
@@ -272,6 +284,17 @@ export default function ApplicationDetail({ application, onRefresh, defaultTab =
         <div className="reveal reveal-3">
           <CoverLetterTab
             coverLetter={application.cover_letter}
+            analyzing={analyzing}
+            handleTriggerAnalysis={handleTriggerAnalysis}
+          />
+        </div>
+      )}
+
+      {/* TAB 4: TAILOR RESUME */}
+      {activeTab === "resume-tailor" && (
+        <div className="reveal reveal-3">
+          <ResumeTailorTab
+            resumeEdits={application.resume_edits}
             analyzing={analyzing}
             handleTriggerAnalysis={handleTriggerAnalysis}
           />
