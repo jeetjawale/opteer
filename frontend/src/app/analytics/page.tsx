@@ -434,8 +434,9 @@ export default function AnalyticsPage() {
                 No company data available.
               </div>
             ) : (
-              <div className="h-64 w-full">
-                <ResponsiveContainer width="100%" height="100%">
+              <div className="w-full flex flex-col min-w-0">
+                <div className="h-64 w-full min-h-[200px]">
+                  <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
                       data={topCompaniesData}
