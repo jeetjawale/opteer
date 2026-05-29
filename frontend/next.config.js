@@ -18,9 +18,9 @@ const isDev = process.env.NODE_ENV !== 'production';
 // In production, we remove it to harden the application.
 const ContentSecurityPolicy = `
   default-src 'self';
-  script-src 'self' ${isDev ? "'unsafe-eval'" : ""};
+  script-src 'self' 'unsafe-inline' ${isDev ? "'unsafe-eval'" : ""};
   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-  img-src 'self' data: blob:;
+  img-src 'self' data: blob: https://www.google.com;
   font-src 'self' https://fonts.gstatic.com;
   connect-src 'self' ${process.env.NEXT_PUBLIC_SUPABASE_URL || ''} ${process.env.NEXT_PUBLIC_API_URL || ''} http://localhost:8085 ws://localhost:* wss://*;
   frame-ancestors 'none';
