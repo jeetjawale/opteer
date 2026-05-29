@@ -7,7 +7,7 @@ on:
     branches: [ main, master ]
 
 jobs:
-  build-and-lint:
+  frontend:
     runs-on: ubuntu-latest
 
     defaults:
