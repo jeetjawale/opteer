@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, CheckCircle2, Clock3, Loader2, RotateCcw, Sparkles } from "lucide-react";
 import { updateApplication } from "@/lib/api";
 import { analysisTracker } from "@/lib/analysisTracker";
 import OverviewTab from "./OverviewTab";
@@ -24,6 +24,7 @@ interface Application {
   notes: string | null;
   analysis_status?: "idle" | "queued" | "processing" | "completed" | "failed";
   analysis_started_at?: string | null;
+  analyzed_at?: string | null;
   analysis_error?: string | null;
   company?: string | null;
   role?: string | null;
@@ -37,6 +38,10 @@ interface ApplicationDetailProps {
   onRefresh: () => void;
   defaultTab?: string;
 }
+
+type AnalysisStatus = NonNullable<Application["analysis_status"]>;
+
+const isAnalysisActive = (status?: AnalysisStatus) => status === "queued" || status === "processing";
 
 export default function ApplicationDetail({ application, onRefresh, defaultTab = "overview" }: ApplicationDetailProps) {
   const [activeTab, setActiveTab] = useState(defaultTab);
@@ -52,7 +57,7 @@ export default function ApplicationDetail({ application, onRefresh, defaultTab =
 
   // Sync initial state and subscribe to changes
   useEffect(() => {
-    setAnalyzing(application.analysis_status === "processing" || analysisTracker.isAnalyzing(application.id));
+    setAnalyzing(isAnalysisActive(application.analysis_status) || analysisTracker.isAnalyzing(application.id));
     setAnalysisError(application.analysis_status === "failed" ? (application.analysis_error || "Analysis failed.") : null);
 
     const unsubscribe = analysisTracker.subscribe((update) => {
@@ -102,7 +107,7 @@ export default function ApplicationDetail({ application, onRefresh, defaultTab =
 
   // Triggers AI Analysis inline if not yet run
   const handleTriggerAnalysis = async () => {
-    if (application.analysis_status === "processing" || analysisTracker.isAnalyzing(application.id)) {
+    if (isAnalysisActive(application.analysis_status) || analysisTracker.isAnalyzing(application.id)) {
       return;
     }
 
@@ -114,6 +119,38 @@ export default function ApplicationDetail({ application, onRefresh, defaultTab =
       // The user-facing error message will be set and displayed via the subscription listener.
     }
   };
+
+  const analysisStatus: AnalysisStatus = analyzing ? "processing" : (application.analysis_status || "idle");
+  const activeAnalysis = isAnalysisActive(analysisStatus);
+  const statusStyles = analysisStatus === "failed"
+    ? "border-red-800/50 bg-red-950/30 text-red-300"
+    : activeAnalysis
+      ? "border-blue-800/50 bg-blue-950/25 text-blue-300"
+      : analysisStatus === "completed" || application.fit_score !== null
+        ? "border-emerald-800/45 bg-emerald-950/25 text-emerald-300"
+        : "border-zinc-800 bg-zinc-900/60 text-zinc-300";
+  const StatusIcon = analysisStatus === "failed"
+    ? AlertCircle
+    : activeAnalysis
+      ? Loader2
+      : analysisStatus === "completed" || application.fit_score !== null
+        ? CheckCircle2
+        : Clock3;
+  const statusLabel = analysisStatus === "failed"
+    ? "Analysis failed"
+    : analysisStatus === "queued"
+      ? "Analysis queued"
+      : analysisStatus === "processing"
+        ? "Analysis processing"
+        : analysisStatus === "completed" || application.fit_score !== null
+          ? "Analysis completed"
+          : "Analyze later";
+  const actionLabel = analysisStatus === "failed"
+    ? "Retry analysis"
+    : application.fit_score !== null
+      ? "Re-run analysis"
+      : "Analyze now";
+  const showPanelAction = !activeAnalysis && activeTab !== "overview";
 
   return (
     <div className="space-y-6">
@@ -172,13 +209,39 @@ export default function ApplicationDetail({ application, onRefresh, defaultTab =
         </button>
       </div>
 
-      {/* Inline analysis error banner */}
-      {analysisError && (
-        <div className="p-4 bg-red-950/40 border border-red-800/50 rounded-xl text-red-300 text-sm flex items-center space-x-2">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          <span>{analysisError}</span>
+      {/* Durable analysis state */}
+      <div className={`p-4 rounded-xl border flex flex-col md:flex-row md:items-center md:justify-between gap-3 ${statusStyles}`}>
+        <div className="flex items-start gap-3 min-w-0">
+          <StatusIcon className={`w-4 h-4 mt-0.5 flex-shrink-0 ${activeAnalysis ? "animate-spin" : ""}`} />
+          <div className="min-w-0">
+            <p className="text-sm font-semibold">{statusLabel}</p>
+            {analysisError ? (
+              <p className="text-xs mt-1 text-red-200/80 truncate">{analysisError}</p>
+            ) : (
+              <p className="text-xs mt-1 text-zinc-400">
+                {activeAnalysis
+                  ? (application.analysis_started_at ? `Started ${new Date(application.analysis_started_at).toLocaleString()}` : "Analysis is in progress.")
+                  : application.fit_score !== null
+                    ? (application.analyzed_at ? `Completed ${new Date(application.analyzed_at).toLocaleString()}` : "Analysis results are available.")
+                    : "No analysis results yet."}
+              </p>
+            )}
+          </div>
         </div>
-      )}
+        {showPanelAction && (
+          <button
+            onClick={handleTriggerAnalysis}
+            className="px-3 py-2 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs transition-colors inline-flex items-center justify-center gap-1.5"
+          >
+            {analysisStatus === "failed" ? (
+              <RotateCcw className="w-3.5 h-3.5" />
+            ) : (
+              <Sparkles className="w-3.5 h-3.5" />
+            )}
+            <span>{actionLabel}</span>
+          </button>
+        )}
+      </div>
 
       {/* TAB 1: OVERVIEW */}
       {activeTab === "overview" && (

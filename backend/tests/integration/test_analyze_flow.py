@@ -169,6 +169,69 @@ class TestAnalyzeEndpoint:
         assert response.status_code == 409
         assert "already" in response.json()["detail"].lower()
 
+    def test_analyze_returns_409_when_already_queued(self):
+        """
+        POST /applications/{id}/analyze should reject duplicate analysis requests
+        while the same user's application is already queued for analysis.
+        """
+        with (
+            patch("app.routers.applications.supabase_service") as mock_supa,
+            patch("app.routers.applications.run_analysis", new_callable=AsyncMock) as mock_run,
+        ):
+            query = mock_supa.table.return_value.select.return_value
+            query.eq.return_value = query
+            query.execute.return_value = make_supabase_response([
+                {"user_id": USER_ID, "analysis_status": "queued"}
+            ])
+
+            response = client.post(
+                f"/applications/{APPLICATION_ID}/analyze",
+                headers={"Authorization": "Bearer fake-jwt-token"}
+            )
+
+        assert response.status_code == 409
+        assert "already" in response.json()["detail"].lower()
+        mock_run.assert_not_called()
+
+    def test_analyze_retry_from_failed_clears_previous_error(self):
+        """
+        POST /applications/{id}/analyze should allow retrying a failed analysis and
+        clear the previous analysis_error before running the pipeline again.
+        """
+        flat_app = {**MOCK_APPLICATION}
+
+        with (
+            patch("app.routers.applications.supabase_service") as mock_supa,
+            patch("app.routers.applications.run_analysis", new_callable=AsyncMock,
+                  return_value=SUCCESSFUL_GRAPH_STATE),
+        ):
+            query = mock_supa.table.return_value.select.return_value
+            query.eq.return_value = query
+            query.execute.side_effect = [
+                make_supabase_response([{"user_id": USER_ID, "analysis_status": "failed"}]),
+                make_supabase_response([]),
+                make_supabase_response([{**flat_app, "jobs": {
+                    "company": "Acme Corp",
+                    "role": "Backend Engineer",
+                    "url": "https://acme.com/jobs/123",
+                    "company_research": "Overview: A great company.\nWebsite: https://acme.com\nHeadquarters: San Francisco, CA\nCompany Size: 50-200\nIndustry: Tech\nWork Model: Remote",
+                    "scraped_jd": "We need a Python backend engineer."
+                }}]),
+            ]
+
+            response = client.post(
+                f"/applications/{APPLICATION_ID}/analyze",
+                headers={"Authorization": "Bearer fake-jwt-token"}
+            )
+
+        assert response.status_code == 200
+        update_calls = mock_supa.table.return_value.update.call_args_list
+        assert any(
+            call.args[0].get("analysis_status") == "processing"
+            and call.args[0].get("analysis_error") is None
+            for call in update_calls
+        )
+
     def test_analyze_returns_404_for_nonexistent_application(self):
         """
         POST /applications/{fake_id}/analyze should return 404
