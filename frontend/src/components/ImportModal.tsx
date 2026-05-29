@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import { X, CheckCircle2, Loader2, Import, Upload, XCircle, FilePlus2, Layers } from "lucide-react";
+import { toast } from "sonner";
 import { importJob, parseResume, getResumes, getResume, createResume } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 
@@ -265,11 +266,13 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
       setStep(4); // Success step
       
       if (!isBulkMode) {
+        toast.success("Import completed successfully!");
         setTimeout(() => {
           onRefresh();
           onClose();
         }, 800);
       } else {
+        toast.success(`Successfully imported ${bulkProgress.successful} jobs`);
         onRefresh();
         // Leave the modal open so user can see bulk results
       }
@@ -285,10 +288,11 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-      <div className="w-full max-w-2xl bg-surface border border-white/10 rounded-2xl p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_25px_50px_-12px_rgba(0,0,0,0.5)] relative flex flex-col max-h-[90vh]">
+      <div data-testid="import-modal" className="w-full max-w-2xl bg-surface border border-white/10 rounded-2xl p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_25px_50px_-12px_rgba(0,0,0,0.5)] relative flex flex-col max-h-[90vh]">
         
         {/* Close Button */}
         <button 
+          data-testid="close-import-modal-btn"
           onClick={loading && !isBulkMode ? handleCancel : () => { if(abortRef.current) abortRef.current.abort(); onClose(); }} 
           className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors"
         >
@@ -316,6 +320,7 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
               <div className="flex bg-zinc-900/50 rounded-xl p-1 border border-zinc-800">
                 <button
                   type="button"
+                  data-testid="single-import-tab"
                   onClick={() => setIsBulkMode(false)}
                   className={`flex-1 py-2 text-sm font-semibold rounded-lg flex items-center justify-center space-x-2 transition-all ${
                     !isBulkMode ? "bg-zinc-800 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-300"
@@ -326,6 +331,7 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
                 </button>
                 <button
                   type="button"
+                  data-testid="bulk-import-tab"
                   onClick={() => setIsBulkMode(true)}
                   className={`flex-1 py-2 text-sm font-semibold rounded-lg flex items-center justify-center space-x-2 transition-all ${
                     isBulkMode ? "bg-zinc-800 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-300"
@@ -366,6 +372,7 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
                   </div>
                   <textarea
                     id="job-urls"
+                    data-testid="bulk-textarea"
                     required
                     rows={6}
                     className="w-full px-4 py-3 rounded-xl bg-zinc-950 border border-zinc-800 text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-700 transition-colors text-sm resize-none custom-scrollbar"
@@ -540,7 +547,7 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
                 </div>
                 
                 {/* Progress Bar */}
-                <div className="w-full h-3 bg-zinc-900 rounded-full overflow-hidden">
+                <div data-testid="import-progress-bar" className="w-full h-3 bg-zinc-900 rounded-full overflow-hidden">
                   <div 
                     className="h-full bg-accent transition-all duration-300 ease-in-out" 
                     style={{ width: `${(bulkProgress.current / bulkProgress.total) * 100}%` }}
@@ -568,6 +575,7 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
                   <div className="pt-4 flex justify-center">
                     <button
                       type="button"
+                      data-testid="cancel-import-btn"
                       onClick={handleCancel}
                       className="flex items-center gap-2 px-4 py-2 rounded-xl border border-zinc-700 hover:border-rose-700 hover:bg-rose-950/30 text-zinc-400 hover:text-rose-300 font-semibold text-sm transition-all"
                     >
