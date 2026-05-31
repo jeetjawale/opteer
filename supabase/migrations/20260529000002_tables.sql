@@ -106,6 +106,7 @@ create table user_settings (
 -- ROW LEVEL SECURITY
 -- ============================================
 alter table jobs enable row level security;
+comment on table jobs is 'Backend-managed shared job cache. RLS intentionally enabled with no policies. Accessible only through service_role.';
 alter table applications enable row level security;
 alter table reminders enable row level security;
 alter table resumes enable row level security;

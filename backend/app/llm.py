@@ -52,9 +52,27 @@ def sanitize_llm_input(text: str | None, max_chars: int = 15000) -> str:
     text = text.replace("\x00", "")
     # Normalize horizontal whitespace but preserve newlines for structure
     text = re.sub(r'[ \t]+', ' ', text)
-    # Collapse excessive blank lines (3+ newlines → 2)
     text = re.sub(r'\n{3,}', '\n\n', text)
     return text.strip()
+
+def resolve_api_key(user_id: str | None, user_api_key: str | None = None) -> str | None:
+    """
+    Attempts to retrieve the user's encrypted API key from the database.
+    Falls back to the provided `user_api_key` (e.g. from an HTTP header).
+    """
+    db_api_key = None
+    if user_id:
+        from app.database import supabase_service
+        from app.encryption import decrypt_api_key
+        try:
+            resp = supabase_service.table("user_api_keys").select("encrypted_api_key").eq("user_id", user_id).execute()
+            if resp.data and len(resp.data) > 0:
+                db_api_key = decrypt_api_key(resp.data[0].get("encrypted_api_key"))
+        except Exception:
+            # Explicitly do NOT log key-related errors to prevent leaks in backend logs.
+            pass
+            
+    return db_api_key or user_api_key
 
 def get_llm(
     temperature: float = 0.0,

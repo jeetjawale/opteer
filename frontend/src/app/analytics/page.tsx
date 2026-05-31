@@ -8,6 +8,8 @@ import {
 } from "recharts";
 import { BarChart3, TrendingUp, Target, RefreshCw, Briefcase, ChevronDown, CheckCircle2, Inbox } from "lucide-react";
 import Link from "next/link";
+import SkeletonPulse from "@/components/motion/SkeletonPulse";
+import EmptyState from "@/components/EmptyState";
 
 interface Application {
   id: string;
@@ -188,9 +190,32 @@ export default function AnalyticsPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen text-zinc-400 space-y-4">
-        <RefreshCw className="w-8 h-8 animate-spin text-accent" />
-        <p className="font-medium">Crunching your data...</p>
+      <div className="p-8 max-w-7xl mx-auto min-h-screen space-y-8 pb-20">
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <SkeletonPulse className="w-64 h-8 mb-2" />
+            <SkeletonPulse className="w-96 h-5" />
+          </div>
+          <SkeletonPulse className="w-32 h-10 rounded-xl" />
+        </header>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="bg-surface border border-border-subtle rounded-3xl p-6 h-32 flex flex-col justify-center">
+              <SkeletonPulse className="w-1/2 h-4 mb-2" />
+              <SkeletonPulse className="w-1/3 h-10" />
+            </div>
+          ))}
+          <div className="bg-surface border border-border-subtle rounded-3xl p-6 col-span-1 md:col-span-3 h-72">
+            <SkeletonPulse className="w-48 h-6 mb-6" />
+            <SkeletonPulse className="w-full h-full" />
+          </div>
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="bg-surface border border-border-subtle rounded-3xl p-6 col-span-1 md:col-span-2 lg:col-span-1 h-64">
+              <SkeletonPulse className="w-48 h-6 mb-6" />
+              <SkeletonPulse className="w-full h-full" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -208,20 +233,14 @@ export default function AnalyticsPage() {
   // --- EMPTY STATES ---
   if (applications.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[80vh] px-4 text-center">
-        <div className="w-24 h-24 bg-surface border border-border-subtle rounded-3xl flex items-center justify-center shadow-2xl shadow-black/50 mb-6">
-          <BarChart3 className="w-10 h-10 text-accent/50" />
-        </div>
-        <h2 className="text-2xl font-bold text-white mb-3">No Analytics Yet</h2>
-        <p className="text-zinc-400 max-w-md mb-8">
-          Your dashboard will come alive once you start adding jobs. Import jobs to track your funnel, response rates, and application velocity.
-        </p>
-        <Link 
-          href="/applications"
-          className="bg-accent hover:bg-accent-hover text-white px-6 py-3 rounded-lg font-medium transition-colors shadow-lg shadow-accent/20"
-        >
-          Import your first job
-        </Link>
+      <div className="flex flex-col items-center justify-center min-h-[80vh] px-4">
+        <EmptyState 
+          icon={BarChart3}
+          title="No Analytics Yet"
+          description="Your dashboard will come alive once you start adding jobs. Import jobs to track your funnel, response rates, and application velocity."
+          actionLabel="Import your first job"
+          actionHref="/applications"
+        />
       </div>
     );
   }
@@ -253,10 +272,13 @@ export default function AnalyticsPage() {
       </header>
 
       {filteredApps.length === 0 ? (
-        <div className="bg-surface border border-border-subtle rounded-3xl p-12 text-center flex flex-col items-center">
-          <Inbox className="w-12 h-12 text-zinc-600 mb-4" />
-          <p className="text-zinc-400 font-medium">No applications found in this timeframe.</p>
-        </div>
+        <EmptyState 
+          icon={Inbox}
+          title="No applications in timeframe"
+          description="We couldn't find any applications in this timeframe."
+          actionLabel="View All Time"
+          onAction={() => setTimeWindow('all')}
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 reveal reveal-2">
           

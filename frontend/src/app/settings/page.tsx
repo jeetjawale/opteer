@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Settings as SettingsIcon, Save, Cpu, Eye, EyeOff, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
-import { testLlmConnection, getUserSettings, updateUserSettings } from "@/lib/api";
+import { testLlmConnection, getUserSettings, updateUserSettings, getApiKeyStatus, updateApiKey } from "@/lib/api";
 import { 
   PROVIDER_MODELS, 
   getProviderFromKey, 
@@ -34,9 +34,12 @@ export default function SettingsPage() {
 
 
   useEffect(() => {
-    const savedKey = localStorage.getItem("jobpilot_api_key") || "";
-    setUserApiKey(savedKey);
-    setIsSavedKey(!!savedKey);
+    getApiKeyStatus().then(data => {
+      if (data && data.has_saved_key) {
+        setIsSavedKey(true);
+        setUserApiKey("••••••••••••••••"); // visual placeholder
+      }
+    }).catch(err => console.error("Failed to fetch API key status", err));
     
     getUserSettings().then(data => {
       if (data) {
@@ -57,8 +60,11 @@ export default function SettingsPage() {
     const newProvider = getProviderFromKey(val);
     
     setUserApiKey(val);
-    const savedKey = localStorage.getItem("jobpilot_api_key") || "";
-    setIsSavedKey(val === savedKey && !!val);
+    
+    // If the user starts typing, it's no longer the saved placeholder
+    if (val !== "••••••••••••••••") {
+      setIsSavedKey(false);
+    }
     
     if (newProvider !== oldProvider) {
       const providerDefault = PROVIDER_DEFAULTS[newProvider] || PROVIDER_DEFAULTS["gemini"];
@@ -73,11 +79,13 @@ export default function SettingsPage() {
     setSaveSuccess(false);
   };
 
-  const handleClearKey = () => {
+  const handleClearKey = async () => {
     setUserApiKey("");
     setIsSavedKey(false);
-    localStorage.removeItem("jobpilot_api_key");
     setTestResult({ status: "idle", message: "" });
+    try {
+      await updateApiKey("");
+    } catch (e) {}
     
     // Switch to Gemini defaults on clear
     setModelDefault(PROVIDER_DEFAULTS["gemini"]);
@@ -88,15 +96,17 @@ export default function SettingsPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (userApiKey.trim()) {
-      localStorage.setItem("jobpilot_api_key", userApiKey.trim());
-      setIsSavedKey(true);
-    } else {
-      localStorage.removeItem("jobpilot_api_key");
-      setIsSavedKey(false);
-    }
     
     try {
+      if (userApiKey.trim() !== "••••••••••••••••") {
+        const detectedProvider = getProviderFromKey(userApiKey.trim());
+        await updateApiKey(userApiKey.trim(), detectedProvider);
+        setIsSavedKey(!!userApiKey.trim());
+        if (userApiKey.trim()) {
+           setUserApiKey("••••••••••••••••");
+        }
+      }
+      
       await updateUserSettings({
         model_default: modelDefault || null,
         model_fit: modelFit || null,
@@ -238,7 +248,7 @@ export default function SettingsPage() {
               </div>
               <p className="text-[10px] text-muted">
                 Pasting a custom API key configures JobPilot to execute your personal analysis pipelines using the detected provider. 
-                The key is saved locally in your browser and sent only for your runs, securely clearing from database caches once finished.
+                The key is saved securely encrypted in your backend database, and will never be exposed in the frontend.
               </p>
             </div>
             

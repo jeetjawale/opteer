@@ -10,7 +10,7 @@ def get_resume_tailoring_chain(user_api_key: str | None = None, model_override: 
     Outputs actionable suggestions for adding, removing, or modifying resume content.
     """
     parser = JsonOutputParser(pydantic_object=ResumeEditsResult)
-    llm = app.llm.get_llm(temperature=0.4, max_tokens=2000, model_override=model_override or settings.AI_MODEL_FIT, user_api_key=user_api_key)
+    llm = app.llm.get_llm(temperature=0.4, max_tokens=2000, model_override=model_override or settings.AI_MODEL_PREP, user_api_key=user_api_key)
 
     prompt = PromptTemplate(
         template="""You are an expert tech recruiter and resume writer. 

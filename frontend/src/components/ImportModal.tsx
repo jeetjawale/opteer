@@ -2,8 +2,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import { X, CheckCircle2, Loader2, Import, Upload, XCircle, FilePlus2, Layers } from "lucide-react";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 import { importJob, parseResume, getResumes, getResume, createResume } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
+import { importTracker } from "@/lib/importTracker";
 
 interface ImportModalProps {
   isOpen: boolean;
@@ -13,12 +15,13 @@ interface ImportModalProps {
 
 export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalProps) {
   const [isBulkMode, setIsBulkMode] = useState(false);
+  const [autoAnalyze, setAutoAnalyze] = useState(true);
   const [url, setUrl] = useState("");
+  const router = useRouter();
   const [bulkUrlsText, setBulkUrlsText] = useState("");
   const [resumeText, setResumeText] = useState("");
   const [manualJd, setManualJd] = useState("");
   const [showManualJd, setShowManualJd] = useState(false);
-  const [userApiKey, setUserApiKey] = useState("");
   
   interface SavedResume {
     id: string;
@@ -116,10 +119,10 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
       setSelectedFile(null);
       setSkippedCount(0);
       setBulkProgress({ current: 0, total: 0, successful: 0, failed: 0 });
+      setAutoAnalyze(true);
     } else {
-      const savedKey = localStorage.getItem("jobpilot_api_key") || "";
-      setUserApiKey(savedKey);
       loadResumes();
+      setAutoAnalyze(!isBulkMode);
     }
   }, [isOpen]);
 
@@ -215,72 +218,33 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
 
       const targetUrls = isBulkMode ? uniqueUrls : [url];
       
-      if (isBulkMode) {
-        setSkippedCount(currentDuplicates);
-        setBulkProgress({ total: targetUrls.length, current: 0, successful: 0, failed: 0 });
-      }
+      importTracker.setCount(targetUrls.length);
+      onClose(); // Close modal immediately for background processing
 
-      for (let i = 0; i < targetUrls.length; i++) {
-        if (controller.signal.aborted) break;
-
-        if (isBulkMode) {
-          setBulkProgress(prev => ({ ...prev, current: i + 1 }));
-        }
-
-        try {
-          await importJob(
-            targetUrls[i],
-            finalResumeText,
-            (!isBulkMode && showManualJd) ? manualJd : undefined,
-            userApiKey || undefined,
-            controller.signal
-          );
-          if (isBulkMode) {
-            setBulkProgress(prev => ({ ...prev, successful: prev.successful + 1 }));
-          }
-        } catch (err: any) {
-          if (controller.signal.aborted) break;
-          
-          if (isBulkMode) {
-            setBulkProgress(prev => ({ ...prev, failed: prev.failed + 1 }));
-            // continue loop on partial failure
-          } else {
-            // Single mode error handling
-            setError(err.message || "Failed to import job description.");
-            setLoading(false);
-            setStep(0);
-            if (err.message && err.message.toLowerCase().includes("scraping")) {
-              setShowManualJd(true);
-            }
-            return; // break out of the function completely
+      // Fire and forget background import
+      (async () => {
+        for (let i = 0; i < targetUrls.length; i++) {
+          try {
+            await importJob(
+              targetUrls[i],
+              finalResumeText,
+              (!isBulkMode && showManualJd) ? manualJd : undefined,
+              !isBulkMode ? autoAnalyze : false  // auto_analyze ON for single if checked, OFF for bulk
+            );
+          } catch (err: any) {
+            toast.error(`Failed to import ${targetUrls[i]}`);
+          } finally {
+            importTracker.decrementCount();
           }
         }
-      }
-
-      if (controller.signal.aborted) {
-        // Just stay on the screen so they can see what was successful before cancel
-        setStep(4); 
-        return; 
-      }
-
-      setStep(4); // Success step
-      
-      if (!isBulkMode) {
-        toast.success("Import completed successfully!");
-        setTimeout(() => {
-          onRefresh();
-          onClose();
-        }, 800);
-      } else {
-        toast.success(`Successfully imported ${bulkProgress.successful} jobs`);
+        // Force refresh table when done
         onRefresh();
-        // Leave the modal open so user can see bulk results
-      }
+      })();
+
     } catch (err: any) {
-      if (controller.signal.aborted) return;
-      setError(err.message || "An unexpected error occurred.");
+      setError(err.message || "Failed to process import.");
+    } finally {
       setLoading(false);
-      setStep(0);
     }
   };
 
@@ -312,8 +276,7 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
         )}
 
         {/* Input Form */}
-        {!loading && step === 0 ? (
-          <div className="overflow-y-auto pr-2 custom-scrollbar flex-1">
+        <div className="overflow-y-auto pr-2 custom-scrollbar flex-1">
             <form onSubmit={handleSubmit} className="space-y-4">
               
               {/* Toggle Single / Bulk */}
@@ -321,7 +284,7 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
                 <button
                   type="button"
                   data-testid="single-import-tab"
-                  onClick={() => setIsBulkMode(false)}
+                  onClick={() => { setIsBulkMode(false); setAutoAnalyze(true); }}
                   className={`flex-1 py-2 text-sm font-semibold rounded-lg flex items-center justify-center space-x-2 transition-all ${
                     !isBulkMode ? "bg-zinc-800 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-300"
                   }`}
@@ -332,7 +295,7 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
                 <button
                   type="button"
                   data-testid="bulk-import-tab"
-                  onClick={() => setIsBulkMode(true)}
+                  onClick={() => { setIsBulkMode(true); setAutoAnalyze(false); }}
                   className={`flex-1 py-2 text-sm font-semibold rounded-lg flex items-center justify-center space-x-2 transition-all ${
                     isBulkMode ? "bg-zinc-800 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-300"
                   }`}
@@ -511,6 +474,21 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
                 )}
               </div>
 
+              {/* Auto-Analyze checkbox (single mode only) */}
+              {!isBulkMode && (
+                <label className="flex items-center space-x-2.5 cursor-pointer select-none pt-1">
+                  <input
+                    type="checkbox"
+                    checked={autoAnalyze}
+                    onChange={(e) => setAutoAnalyze(e.target.checked)}
+                    className="w-4 h-4 rounded border-zinc-800 bg-zinc-950 focus:ring-0 focus:ring-offset-0 focus:outline-none accent-[#6C3CE1]"
+                  />
+                  <span className="text-zinc-400 text-xs font-semibold">
+                    Auto-analyze after import
+                  </span>
+                </label>
+              )}
+
               <div className="flex justify-end space-x-3 pt-2">
                 <button
                   type="button"
@@ -524,152 +502,18 @@ export default function ImportModal({ isOpen, onClose, onRefresh }: ImportModalP
                   disabled={isBulkMode && uniqueUrls.length === 0}
                   className="px-5 py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isBulkMode ? `Import ${uniqueUrls.length} Job${uniqueUrls.length !== 1 ? 's' : ''}` : 'Import Job'}
+                  {loading && !isBulkMode && autoAnalyze
+                    ? "Queueing Analysis..."
+                    : isBulkMode
+                    ? `Import ${uniqueUrls.length} Job${uniqueUrls.length !== 1 ? "s" : ""}`
+                    : autoAnalyze
+                    ? "Import & Analyze"
+                    : "Import Job"}
                 </button>
               </div>
             </form>
           </div>
-        ) : (
-          <div className="py-8 flex flex-col items-center justify-center">
-            
-            {/* BULK PROGRESS UI */}
-            {isBulkMode ? (
-              <div className="w-full max-w-md space-y-6">
-                <div className="text-center space-y-2">
-                  <h3 className="text-xl font-bold text-white">
-                    {step === 4 || cancelled ? "Import Complete" : "Processing Bulk Import"}
-                  </h3>
-                  <p className="text-zinc-400 text-sm">
-                    {cancelled 
-                      ? "Import was cancelled."
-                      : `Importing ${bulkProgress.current} of ${bulkProgress.total} URLs`}
-                  </p>
-                </div>
-                
-                {/* Progress Bar */}
-                <div data-testid="import-progress-bar" className="w-full h-3 bg-zinc-900 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-accent transition-all duration-300 ease-in-out" 
-                    style={{ width: `${(bulkProgress.current / bulkProgress.total) * 100}%` }}
-                  />
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4 pt-2">
-                  <div className="bg-emerald-950/20 border border-emerald-900/30 p-3 rounded-xl text-center">
-                    <p className="text-2xl font-bold text-emerald-400">{bulkProgress.successful}</p>
-                    <p className="text-xs text-emerald-500/70 uppercase tracking-wider font-semibold">Success</p>
-                  </div>
-                  <div className="bg-red-950/20 border border-red-900/30 p-3 rounded-xl text-center">
-                    <p className="text-2xl font-bold text-red-400">{bulkProgress.failed}</p>
-                    <p className="text-xs text-red-500/70 uppercase tracking-wider font-semibold">Failed</p>
-                  </div>
-                </div>
 
-                {skippedCount > 0 && (
-                  <div className="text-center text-xs text-amber-500 font-medium bg-amber-950/20 border border-amber-900/30 py-2 rounded-lg">
-                    Skipped {skippedCount} duplicate URL{skippedCount !== 1 ? 's' : ''} initially
-                  </div>
-                )}
-
-                {step !== 4 && !cancelled ? (
-                  <div className="pt-4 flex justify-center">
-                    <button
-                      type="button"
-                      data-testid="cancel-import-btn"
-                      onClick={handleCancel}
-                      className="flex items-center gap-2 px-4 py-2 rounded-xl border border-zinc-700 hover:border-rose-700 hover:bg-rose-950/30 text-zinc-400 hover:text-rose-300 font-semibold text-sm transition-all"
-                    >
-                      <XCircle className="w-4 h-4" />
-                      Stop Processing
-                    </button>
-                  </div>
-                ) : (
-                  <div className="pt-4 flex justify-center">
-                    <button
-                      type="button"
-                      onClick={() => onClose()}
-                      className="px-6 py-2 rounded-xl bg-white text-zinc-950 font-bold text-sm hover:bg-zinc-200 transition-colors"
-                    >
-                      Close & Refresh
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              /* SINGLE PROGRESS UI */
-              <div className="w-full max-w-sm space-y-4 relative pl-8">
-                
-                {/* Connecting progress line */}
-                <div className="absolute left-[15px] top-6 bottom-16 w-[1px] bg-border-default overflow-hidden">
-                  <div 
-                    className="w-full bg-accent transition-all duration-1000 ease-in-out" 
-                    style={{ height: step === 1 ? '30%' : step === 2 ? '60%' : step >= 3 ? '100%' : '0%' }}
-                  ></div>
-                </div>
-
-                {/* Step 1: Scraping */}
-                <div className={`flex items-center justify-between p-3 rounded-xl transition-all relative z-10 ${
-                  step === 1 ? 'bg-elevated border-accent-border shadow-[0_0_0_1px_var(--accent-border)] animate-pulse' :
-                  step > 1 ? 'bg-surface border-border-default border-l-[3px] border-l-green-500' :
-                  'bg-surface border-border-default'
-                }`}>
-                  <span className={`text-sm ${step >= 1 ? "text-primary" : "text-muted"}`}>
-                    Step 1: Scraping job posting...
-                  </span>
-                  {step === 1 && <Loader2 className="w-4 h-4 text-accent animate-spin" />}
-                  {step > 1 && <CheckCircle2 className="w-4 h-4 text-green-500" />}
-                </div>
-
-                {/* Step 2: Researching */}
-                <div className={`flex items-center justify-between p-3 rounded-xl transition-all relative z-10 ${
-                  step === 2 ? 'bg-elevated border-accent-border shadow-[0_0_0_1px_var(--accent-border)] animate-pulse' :
-                  step > 2 ? 'bg-surface border-border-default border-l-[3px] border-l-green-500' :
-                  'bg-surface border-border-default'
-                }`}>
-                  <span className={`text-sm ${step >= 2 ? "text-primary" : "text-muted"}`}>
-                    Step 2: Researching company...
-                  </span>
-                  {step === 2 && <Loader2 className="w-4 h-4 text-accent animate-spin" />}
-                  {step > 2 && <CheckCircle2 className="w-4 h-4 text-green-500" />}
-                </div>
-
-                {/* Step 3: Saving */}
-                <div className={`flex items-center justify-between p-3 rounded-xl transition-all relative z-10 ${
-                  step === 3 ? 'bg-elevated border-accent-border shadow-[0_0_0_1px_var(--accent-border)] animate-pulse' :
-                  step > 3 ? 'bg-surface border-border-default border-l-[3px] border-l-green-500' :
-                  'bg-surface border-border-default'
-                }`}>
-                  <span className={`text-sm ${step >= 3 ? "text-primary" : "text-muted"}`}>
-                    Step 3: Saving...
-                  </span>
-                  {step === 3 && <Loader2 className="w-4 h-4 text-accent animate-spin" />}
-                  {step > 3 && <CheckCircle2 className="w-4 h-4 text-green-500" />}
-                </div>
-
-                {/* Step 4: Success Message */}
-                {step === 4 && (
-                  <div className="text-center text-green-400 font-bold text-sm pt-2 animate-bounce">
-                    Import completed successfully!
-                  </div>
-                )}
-
-                {/* Cancel button during loading */}
-                {step !== 4 && (
-                  <div className="pt-2 flex justify-center">
-                    <button
-                      type="button"
-                      onClick={handleCancel}
-                      className="flex items-center gap-2 px-4 py-2 rounded-xl border border-zinc-700 hover:border-rose-700 hover:bg-rose-950/30 text-zinc-400 hover:text-rose-300 font-semibold text-sm transition-all"
-                    >
-                      <XCircle className="w-4 h-4" />
-                      Cancel Import
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
 
       </div>
     </div>

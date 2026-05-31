@@ -48,7 +48,8 @@ export async function middleware(request: NextRequest) {
   if (
     path.startsWith("/applications") ||
     path.startsWith("/resumes") ||
-    path.startsWith("/settings")
+    path.startsWith("/settings") ||
+    path.startsWith("/analytics")
   ) {
     if (!user) {
       return NextResponse.redirect(new URL("/login", request.url));
@@ -76,6 +77,7 @@ export const config = {
     "/applications/:path*",
     "/resumes/:path*",
     "/settings/:path*",
+    "/analytics/:path*",
     "/login",
     "/signup",
   ],

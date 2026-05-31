@@ -7,6 +7,7 @@ import { AlertCircle, ArrowRight, CheckCircle2, Clock3, ExternalLink, Loader2, R
 import CompanyLogo from "./CompanyLogo";
 import { updateApplication } from "@/lib/api";
 import { analysisTracker } from "@/lib/analysisTracker";
+import EmptyState from "./EmptyState";
 
 interface Application {
   id: string;
@@ -26,6 +27,7 @@ interface Application {
 interface ApplicationsTableProps {
   applications: Application[];
   onRefresh: () => void;
+  onImportAction?: () => void;
 }
 
 type AnalysisStatus = NonNullable<Application["analysis_status"]>;
@@ -68,7 +70,7 @@ const getAnalysisMeta = (status?: AnalysisStatus, hasScore?: boolean) => {
   };
 };
 
-export default function ApplicationsTable({ applications, onRefresh }: ApplicationsTableProps) {
+export default function ApplicationsTable({ applications, onRefresh, onImportAction }: ApplicationsTableProps) {
   const router = useRouter();
   const [localAnalyzingIds, setLocalAnalyzingIds] = useState<Set<string>>(new Set());
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -177,11 +179,13 @@ export default function ApplicationsTable({ applications, onRefresh }: Applicati
 
   if (applications.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 bg-zinc-900/50 border border-zinc-800 border-dashed rounded-2xl">
-        <ArrowRight className="w-10 h-10 text-zinc-500 mb-4 animate-pulse" />
-        <p className="text-zinc-400 font-medium mb-1">No applications yet</p>
-        <p className="text-zinc-600 text-xs">Import your first job to get started.</p>
-      </div>
+      <EmptyState 
+        icon={ArrowRight} 
+        title="No applications found" 
+        description="Import your first job to get started and track your applications."
+        actionLabel="Import Job"
+        onAction={onImportAction}
+      />
     );
   }
 

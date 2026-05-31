@@ -17,6 +17,24 @@ import {
 } from "lucide-react";
 import { getResumes, createResume, updateResume, deleteResume, parseResume, getResume, deleteResumeFile } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
+import EmptyState from "@/components/EmptyState";
+import { useSearchParams, useRouter } from "next/navigation";
+import { Suspense } from "react";
+
+function CommandListener({ onUpload }: { onUpload: () => void }) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  useEffect(() => {
+    const action = searchParams.get("action");
+    if (action === "upload") {
+      onUpload();
+      router.replace("/resumes", { scroll: false });
+    }
+  }, [searchParams, router, onUpload]);
+
+  return null;
+}
 
 interface ResumeListEntry {
   id: string;
@@ -579,12 +597,14 @@ export default function ResumesPage() {
               ))}
             </div>
           ) : resumes.length === 0 ? (
-            <div className="p-8 text-center bg-surface border border-border-default border-dashed rounded-2xl flex flex-col items-center">
-              <FileText className="w-8 h-8 text-secondary mb-2" />
-              <p className="text-primary font-medium text-xs">No saved resumes found</p>
-              <p className="text-[10px] text-muted mt-1 max-w-[180px]">
-                Create a resume profile or upload a file to get started.
-              </p>
+            <div className="pt-4">
+              <EmptyState 
+                icon={FileText}
+                title="No saved resumes found"
+                description="Create a resume profile or upload a file to get started."
+                actionLabel="Create Resume"
+                onAction={handleCreateTrigger}
+              />
             </div>
           ) : (
             <div className="space-y-4 max-h-[80vh] overflow-y-auto pr-1 pb-10">
@@ -746,6 +766,10 @@ export default function ResumesPage() {
           </div>
         )}
       </div>
+
+      <Suspense fallback={null}>
+        <CommandListener onUpload={handleCreateTrigger} />
+      </Suspense>
     </main>
   );
 }

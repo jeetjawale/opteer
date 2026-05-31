@@ -8,6 +8,7 @@ import { ArrowLeft, RefreshCw, Trash2, Loader2, ExternalLink } from "lucide-reac
 import { getApplication, deleteApplication } from "@/lib/api";
 import ApplicationDetail from "@/components/ApplicationDetail";
 import CompanyLogo from "@/components/CompanyLogo";
+import SkeletonPulse from "@/components/motion/SkeletonPulse";
 
 const formatImportedDate = (isoString: string) => {
   try {
@@ -97,6 +98,27 @@ function ApplicationDetailContent() {
     }
   }, [id, fetchApp]);
 
+  // Auto-poll while analysis is queued or processing (set by worker)
+  useEffect(() => {
+    if (!application) return;
+    const status = application.analysis_status;
+    if (status !== "queued" && status !== "processing") return;
+
+    const pollId = setInterval(async () => {
+      try {
+        const fresh = await getApplication(id);
+        setApplication(fresh);
+        if (fresh.analysis_status !== "queued" && fresh.analysis_status !== "processing") {
+          clearInterval(pollId);
+        }
+      } catch {
+        // silently ignore transient poll errors
+      }
+    }, 3000); // poll every 3 seconds
+
+    return () => clearInterval(pollId);
+  }, [application?.analysis_status, id]);
+
   const handleDelete = async () => {
     if (!window.confirm("Are you sure you want to delete this application?")) {
       return;
@@ -114,9 +136,40 @@ function ApplicationDetailContent() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] text-zinc-400 space-y-3 p-8">
-        <Loader2 className="w-8 h-8 animate-spin text-zinc-500" />
-        <span className="text-sm font-medium">Loading details...</span>
+      <div className="p-8 max-w-5xl mx-auto space-y-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="space-y-2 w-full max-w-md">
+            <SkeletonPulse className="w-24 h-4" />
+            <div className="flex items-center space-x-3">
+              <SkeletonPulse className="w-8 h-8 rounded-lg" />
+              <SkeletonPulse className="w-64 h-8" />
+            </div>
+            <SkeletonPulse className="w-48 h-4" />
+          </div>
+          <div className="flex items-center space-x-3">
+            <SkeletonPulse className="w-28 h-10 rounded-xl" />
+            <SkeletonPulse className="w-10 h-10 rounded-xl" />
+            <SkeletonPulse className="w-24 h-10 rounded-xl" />
+          </div>
+        </div>
+        <div className="space-y-6">
+          <div className="flex space-x-6 border-b border-zinc-800 pb-px">
+            <SkeletonPulse className="w-20 h-6 mb-2" />
+            <SkeletonPulse className="w-24 h-6 mb-2" />
+            <SkeletonPulse className="w-24 h-6 mb-2" />
+            <SkeletonPulse className="w-24 h-6 mb-2" />
+          </div>
+          <SkeletonPulse className="w-full h-16 rounded-xl" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="md:col-span-2 space-y-6">
+              <SkeletonPulse className="w-full h-64 rounded-3xl" />
+              <SkeletonPulse className="w-full h-48 rounded-3xl" />
+            </div>
+            <div className="space-y-6">
+              <SkeletonPulse className="w-full h-64 rounded-3xl" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -167,7 +220,7 @@ function ApplicationDetailContent() {
                 {formatRelativeTime(application.analyzed_at, now)}
               </span>
             ) : (
-              <span className="text-zinc-500 opacity-0">Loading times...</span>
+              <SkeletonPulse className="w-48 h-4" />
             )}
           </div>
         </div>
@@ -223,9 +276,40 @@ export default function ApplicationDetailPage() {
   return (
     <Suspense 
       fallback={
-        <div className="flex flex-col items-center justify-center min-h-[50vh] text-zinc-400 space-y-3 p-8">
-          <Loader2 className="w-8 h-8 animate-spin text-zinc-500" />
-          <span className="text-sm font-medium">Loading details...</span>
+        <div className="p-8 max-w-5xl mx-auto space-y-6">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="space-y-2 w-full max-w-md">
+              <SkeletonPulse className="w-24 h-4" />
+              <div className="flex items-center space-x-3">
+                <SkeletonPulse className="w-8 h-8 rounded-lg" />
+                <SkeletonPulse className="w-64 h-8" />
+              </div>
+              <SkeletonPulse className="w-48 h-4" />
+            </div>
+            <div className="flex items-center space-x-3">
+              <SkeletonPulse className="w-28 h-10 rounded-xl" />
+              <SkeletonPulse className="w-10 h-10 rounded-xl" />
+              <SkeletonPulse className="w-24 h-10 rounded-xl" />
+            </div>
+          </div>
+          <div className="space-y-6">
+            <div className="flex space-x-6 border-b border-zinc-800 pb-px">
+              <SkeletonPulse className="w-20 h-6 mb-2" />
+              <SkeletonPulse className="w-24 h-6 mb-2" />
+              <SkeletonPulse className="w-24 h-6 mb-2" />
+              <SkeletonPulse className="w-24 h-6 mb-2" />
+            </div>
+            <SkeletonPulse className="w-full h-16 rounded-xl" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="md:col-span-2 space-y-6">
+                <SkeletonPulse className="w-full h-64 rounded-3xl" />
+                <SkeletonPulse className="w-full h-48 rounded-3xl" />
+              </div>
+              <div className="space-y-6">
+                <SkeletonPulse className="w-full h-64 rounded-3xl" />
+              </div>
+            </div>
+          </div>
         </div>
       }
     >
