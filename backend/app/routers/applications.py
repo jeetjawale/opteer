@@ -1,3 +1,4 @@
+import asyncio
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Header
 from uuid import UUID
@@ -36,7 +37,7 @@ async def list_applications(
         if status_filter:
             query = query.eq("status", status_filter)
             
-        response = query.execute()
+        response = await asyncio.to_thread(query.execute)
         
         # Flatten the nested jobs relationship and redact user_api_key
         records = response.data or []
@@ -65,11 +66,13 @@ async def get_application(
     Returns 404 if not found or if the application belongs to another user.
     """
     try:
-        response = supabase_service.table("applications") \
-            .select("*, jobs(company, role, url, company_research, scraped_jd)") \
-            .eq("id", str(application_id)) \
-            .eq("user_id", str(current_user.id)) \
-            .execute()
+        response = await asyncio.to_thread(
+            lambda: supabase_service.table("applications")
+                .select("*, jobs(company, role, url, company_research, scraped_jd)")
+                .eq("id", str(application_id))
+                .eq("user_id", str(current_user.id))
+                .execute()
+        )
             
         if not response.data or len(response.data) == 0:
             raise HTTPException(
@@ -108,11 +111,13 @@ async def analyze_application(
     """
     # 1. Verify existence and ownership of application
     try:
-        check_response = supabase_service.table("applications") \
-            .select("user_id, analysis_status") \
-            .eq("id", str(application_id)) \
-            .eq("user_id", str(current_user.id)) \
-            .execute()
+        check_response = await asyncio.to_thread(
+            lambda: supabase_service.table("applications")
+                .select("user_id, analysis_status")
+                .eq("id", str(application_id))
+                .eq("user_id", str(current_user.id))
+                .execute()
+        )
             
         if not check_response.data or len(check_response.data) == 0:
             raise HTTPException(
@@ -127,10 +132,12 @@ async def analyze_application(
             )
             
         # Fetch user settings for model overrides
-        settings_response = supabase_service.table("user_settings") \
-            .select("model_default, model_fit, model_letter, model_prep") \
-            .eq("user_id", str(current_user.id)) \
-            .execute()
+        settings_response = await asyncio.to_thread(
+            lambda: supabase_service.table("user_settings")
+                .select("model_default, model_fit, model_letter, model_prep")
+                .eq("user_id", str(current_user.id))
+                .execute()
+        )
         user_settings = settings_response.data[0] if settings_response.data else {}
             
     except HTTPException:
@@ -142,16 +149,18 @@ async def analyze_application(
         )
 
     try:
-        processing_response = supabase_service.table("applications") \
-            .update({
-                "analysis_status": "processing",
-                "analysis_started_at": datetime.now(timezone.utc).isoformat(),
-                "analysis_error": None,
-            }) \
-            .eq("id", str(application_id)) \
-            .eq("user_id", str(current_user.id)) \
-            .neq("analysis_status", "processing") \
-            .execute()
+        processing_response = await asyncio.to_thread(
+            lambda: supabase_service.table("applications")
+                .update({
+                    "analysis_status": "processing",
+                    "analysis_started_at": datetime.now(timezone.utc).isoformat(),
+                    "analysis_error": None,
+                })
+                .eq("id", str(application_id))
+                .eq("user_id", str(current_user.id))
+                .neq("analysis_status", "processing")
+                .execute()
+        )
         if getattr(processing_response, "data", None) == []:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -179,14 +188,16 @@ async def analyze_application(
     if final_state.get("error") is not None:
         error_msg = sanitize_error(final_state["error"], x_user_api_key)
         try:
-            supabase_service.table("applications") \
-                .update({
-                    "analysis_status": "failed",
-                    "analysis_error": f"AI analysis pipeline failed: {error_msg}",
-                }) \
-                .eq("id", str(application_id)) \
-                .eq("user_id", str(current_user.id)) \
-                .execute()
+            await asyncio.to_thread(
+                lambda: supabase_service.table("applications")
+                    .update({
+                        "analysis_status": "failed",
+                        "analysis_error": f"AI analysis pipeline failed: {error_msg}",
+                    })
+                    .eq("id", str(application_id))
+                    .eq("user_id", str(current_user.id))
+                    .execute()
+            )
         except Exception:
             pass
         raise HTTPException(
@@ -195,14 +206,16 @@ async def analyze_application(
         )
 
     try:
-        supabase_service.table("applications") \
-            .update({
-                "analysis_status": "completed",
-                "analysis_error": None,
-            }) \
-            .eq("id", str(application_id)) \
-            .eq("user_id", str(current_user.id)) \
-            .execute()
+        await asyncio.to_thread(
+            lambda: supabase_service.table("applications")
+                .update({
+                    "analysis_status": "completed",
+                    "analysis_error": None,
+                })
+                .eq("id", str(application_id))
+                .eq("user_id", str(current_user.id))
+                .execute()
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -211,11 +224,13 @@ async def analyze_application(
         
     # 3. Retrieve the updated application payload
     try:
-        response = supabase_service.table("applications") \
-            .select("*, jobs(company, role, url)") \
-            .eq("id", str(application_id)) \
-            .eq("user_id", str(current_user.id)) \
-            .execute()
+        response = await asyncio.to_thread(
+            lambda: supabase_service.table("applications")
+                .select("*, jobs(company, role, url, company_research, scraped_jd)")
+                .eq("id", str(application_id))
+                .eq("user_id", str(current_user.id))
+                .execute()
+        )
             
         if not response.data or len(response.data) == 0:
             raise HTTPException(
@@ -251,11 +266,13 @@ async def update_application(
     """
     # 1. Verify existence and ownership
     try:
-        check_response = supabase_service.table("applications") \
-            .select("user_id") \
-            .eq("id", str(application_id)) \
-            .eq("user_id", str(current_user.id)) \
-            .execute()
+        check_response = await asyncio.to_thread(
+            lambda: supabase_service.table("applications")
+                .select("user_id")
+                .eq("id", str(application_id))
+                .eq("user_id", str(current_user.id))
+                .execute()
+        )
             
         if not check_response.data or len(check_response.data) == 0:
             raise HTTPException(
@@ -286,18 +303,22 @@ async def update_application(
         
     try:
         if update_data:
-            supabase_service.table("applications") \
-                .update(update_data) \
-                .eq("id", str(application_id)) \
-                .eq("user_id", str(current_user.id)) \
-                .execute()
+            await asyncio.to_thread(
+                lambda: supabase_service.table("applications")
+                    .update(update_data)
+                    .eq("id", str(application_id))
+                    .eq("user_id", str(current_user.id))
+                    .execute()
+            )
                 
         # 3. Retrieve and return the updated application record
-        response = supabase_service.table("applications") \
-            .select("*, jobs(company, role, url, company_research, scraped_jd)") \
-            .eq("id", str(application_id)) \
-            .eq("user_id", str(current_user.id)) \
-            .execute()
+        response = await asyncio.to_thread(
+            lambda: supabase_service.table("applications")
+                .select("*, jobs(company, role, url, company_research, scraped_jd)")
+                .eq("id", str(application_id))
+                .eq("user_id", str(current_user.id))
+                .execute()
+        )
             
         row = response.data[0]
         row.pop("user_api_key", None)  # Security rule
@@ -325,11 +346,13 @@ async def delete_application(
     """
     # 1. Verify existence and ownership
     try:
-        check_response = supabase_service.table("applications") \
-            .select("user_id, job_id") \
-            .eq("id", str(application_id)) \
-            .eq("user_id", str(current_user.id)) \
-            .execute()
+        check_response = await asyncio.to_thread(
+            lambda: supabase_service.table("applications")
+                .select("user_id, job_id")
+                .eq("id", str(application_id))
+                .eq("user_id", str(current_user.id))
+                .execute()
+        )
             
         if not check_response.data or len(check_response.data) == 0:
             raise HTTPException(
@@ -349,23 +372,29 @@ async def delete_application(
         
     # 2. Perform the deletion
     try:
-        supabase_service.table("applications") \
-            .delete() \
-            .eq("id", str(application_id)) \
-            .eq("user_id", str(current_user.id)) \
-            .execute()
+        await asyncio.to_thread(
+            lambda: supabase_service.table("applications")
+                .delete()
+                .eq("id", str(application_id))
+                .eq("user_id", str(current_user.id))
+                .execute()
+        )
             
         # Clean up the corresponding job if it is now orphaned
         if job_id:
-            count_response = supabase_service.table("applications") \
-                .select("id") \
-                .eq("job_id", str(job_id)) \
-                .execute()
-            if not count_response.data or len(count_response.data) == 0:
-                supabase_service.table("jobs") \
-                    .delete() \
-                    .eq("id", str(job_id)) \
+            count_response = await asyncio.to_thread(
+                lambda: supabase_service.table("applications")
+                    .select("id")
+                    .eq("job_id", str(job_id))
                     .execute()
+            )
+            if not count_response.data or len(count_response.data) == 0:
+                await asyncio.to_thread(
+                    lambda: supabase_service.table("jobs")
+                        .delete()
+                        .eq("id", str(job_id))
+                        .execute()
+                )
             
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     except Exception as e:

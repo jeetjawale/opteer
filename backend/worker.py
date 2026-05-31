@@ -26,13 +26,15 @@ MAX_STALE_MINUTES = 30   # reset stuck 'processing' records after this long
 async def process_one() -> None:
     """Claim and process one queued application, if any."""
     # 1. Find the oldest queued application
-    queued = (
-        supabase_service.table("applications")
-        .select("id, user_id")
-        .eq("analysis_status", "queued")
-        .order("created_at", desc=False)
-        .limit(1)
-        .execute()
+    queued = await asyncio.to_thread(
+        lambda: (
+            supabase_service.table("applications")
+            .select("id, user_id")
+            .eq("analysis_status", "queued")
+            .order("created_at", desc=False)
+            .limit(1)
+            .execute()
+        )
     )
     if not queued.data:
         return
@@ -41,18 +43,20 @@ async def process_one() -> None:
     user_id = queued.data[0]["user_id"]
 
     # 2. Atomically claim it (only succeeds if still 'queued')
-    claimed = (
-        supabase_service.table("applications")
-        .update(
-            {
-                "analysis_status": "processing",
-                "analysis_started_at": datetime.now(timezone.utc).isoformat(),
-                "analysis_error": None,
-            }
+    claimed = await asyncio.to_thread(
+        lambda: (
+            supabase_service.table("applications")
+            .update(
+                {
+                    "analysis_status": "processing",
+                    "analysis_started_at": datetime.now(timezone.utc).isoformat(),
+                    "analysis_error": None,
+                }
+            )
+            .eq("id", app_id)
+            .eq("analysis_status", "queued")
+            .execute()
         )
-        .eq("id", app_id)
-        .eq("analysis_status", "queued")   # guard: another worker may have claimed it
-        .execute()
     )
     if not claimed.data:
         return  # lost the race — skip
@@ -62,11 +66,13 @@ async def process_one() -> None:
     # 3. Fetch user model settings
     user_settings: dict = {}
     try:
-        settings_resp = (
-            supabase_service.table("user_settings")
-            .select("model_default, model_fit, model_letter, model_prep")
-            .eq("user_id", user_id)
-            .execute()
+        settings_resp = await asyncio.to_thread(
+            lambda: (
+                supabase_service.table("user_settings")
+                .select("model_default, model_fit, model_letter, model_prep")
+                .eq("user_id", user_id)
+                .execute()
+            )
         )
         if settings_resp.data:
             user_settings = settings_resp.data[0]
@@ -86,42 +92,50 @@ async def process_one() -> None:
 
         if final_state.get("error") is not None:
             error_msg = f"Analysis pipeline failed: {final_state['error']}"
-            supabase_service.table("applications").update(
-                {"analysis_status": "failed", "analysis_error": error_msg}
-            ).eq("id", app_id).execute()
+            await asyncio.to_thread(
+                lambda: supabase_service.table("applications").update(
+                    {"analysis_status": "failed", "analysis_error": error_msg}
+                ).eq("id", app_id).execute()
+            )
             print(f"[worker] Failed  {app_id}: {error_msg}")
         else:
-            supabase_service.table("applications").update(
-                {"analysis_status": "completed", "analysis_error": None}
-            ).eq("id", app_id).execute()
+            await asyncio.to_thread(
+                lambda: supabase_service.table("applications").update(
+                    {"analysis_status": "completed", "analysis_error": None}
+                ).eq("id", app_id).execute()
+            )
             print(f"[worker] Completed {app_id}")
 
     except Exception as exc:
         error_msg = f"Analysis pipeline exception: {exc}"
         try:
-            supabase_service.table("applications").update(
-                {"analysis_status": "failed", "analysis_error": error_msg}
-            ).eq("id", app_id).execute()
+            await asyncio.to_thread(
+                lambda: supabase_service.table("applications").update(
+                    {"analysis_status": "failed", "analysis_error": error_msg}
+                ).eq("id", app_id).execute()
+            )
         except Exception:
             pass
         print(f"[worker] Exception {app_id}: {exc}")
 
 
-def recover_stale() -> None:
+async def recover_stale() -> None:
     """Reset applications stuck in 'processing' back to 'queued' for retry."""
     cutoff = (datetime.now(timezone.utc) - timedelta(minutes=MAX_STALE_MINUTES)).isoformat()
     try:
-        result = (
-            supabase_service.table("applications")
-            .update(
-                {
-                    "analysis_status": "queued",
-                    "analysis_error": "Reset by worker after timeout — will retry.",
-                }
+        result = await asyncio.to_thread(
+            lambda: (
+                supabase_service.table("applications")
+                .update(
+                    {
+                        "analysis_status": "queued",
+                        "analysis_error": "Reset by worker after timeout — will retry.",
+                    }
+                )
+                .eq("analysis_status", "processing")
+                .lt("analysis_started_at", cutoff)
+                .execute()
             )
-            .eq("analysis_status", "processing")
-            .lt("analysis_started_at", cutoff)
-            .execute()
         )
         if result.data:
             print(f"[worker] Reset {len(result.data)} stale record(s) to 'queued'")
@@ -137,7 +151,7 @@ async def main() -> None:
             # Run stale recovery every ~5 minutes (60 ticks × 5 s)
             recovery_tick += 1
             if recovery_tick >= 60:
-                recover_stale()
+                await recover_stale()
                 recovery_tick = 0
 
             await process_one()

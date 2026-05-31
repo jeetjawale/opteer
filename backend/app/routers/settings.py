@@ -1,3 +1,4 @@
+import asyncio
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -23,10 +24,12 @@ async def get_settings(current_user = Depends(get_current_user)):
     so the frontend always shows the true active model.
     """
     try:
-        response = supabase_service.table("user_settings") \
-            .select("*") \
-            .eq("user_id", str(current_user.id)) \
-            .execute()
+        response = await asyncio.to_thread(
+            lambda: supabase_service.table("user_settings")
+                .select("*")
+                .eq("user_id", str(current_user.id))
+                .execute()
+        )
             
         if not response.data or len(response.data) == 0:
             # No user row yet — return the .env defaults so the UI reflects reality
@@ -71,10 +74,12 @@ async def update_settings(
     
     try:
         # Use Supabase upsert with on_conflict
-        response = supabase_service.table("user_settings") \
-            .upsert(update_data, on_conflict="user_id") \
-            .select("*") \
-            .execute()
+        response = await asyncio.to_thread(
+            lambda: supabase_service.table("user_settings")
+                .upsert(update_data, on_conflict="user_id")
+                .select("*")
+                .execute()
+        )
             
         if not response.data or len(response.data) == 0:
             raise HTTPException(
@@ -100,10 +105,12 @@ class ApiKeyResponse(BaseModel):
 @router.get("/api-key", response_model=ApiKeyResponse)
 async def get_api_key_status(current_user = Depends(get_current_user)):
     """Check if the user has an encrypted API key stored."""
-    response = supabase_service.table("user_api_keys") \
-        .select("provider") \
-        .eq("user_id", str(current_user.id)) \
-        .execute()
+    response = await asyncio.to_thread(
+        lambda: supabase_service.table("user_api_keys")
+            .select("provider")
+            .eq("user_id", str(current_user.id))
+            .execute()
+    )
         
     if response.data and len(response.data) > 0:
         return {"has_saved_key": True, "provider": response.data[0].get("provider")}
@@ -117,10 +124,12 @@ async def update_api_key(
     """Upsert or delete the user's encrypted API key."""
     if not payload.api_key or payload.api_key.strip() == "" or "••••" in payload.api_key:
         # Delete the key if empty or placeholder is submitted
-        supabase_service.table("user_api_keys") \
-            .delete() \
-            .eq("user_id", str(current_user.id)) \
-            .execute()
+        await asyncio.to_thread(
+            lambda: supabase_service.table("user_api_keys")
+                .delete()
+                .eq("user_id", str(current_user.id))
+                .execute()
+        )
         return {"has_saved_key": False, "provider": None}
         
     # Encrypt and save
@@ -135,8 +144,10 @@ async def update_api_key(
         "updated_at": datetime.now(timezone.utc).isoformat()
     }
     
-    supabase_service.table("user_api_keys") \
-        .upsert(update_data, on_conflict="user_id") \
-        .execute()
+    await asyncio.to_thread(
+        lambda: supabase_service.table("user_api_keys")
+            .upsert(update_data, on_conflict="user_id")
+            .execute()
+    )
         
     return {"has_saved_key": True, "provider": provider}

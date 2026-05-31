@@ -1,3 +1,4 @@
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Header
 from typing import Optional
 from datetime import datetime, timezone
@@ -31,20 +32,22 @@ async def parse_resume(
     
     try:
         if filename.endswith(".pdf"):
-            pdf_reader = pypdf.PdfReader(io.BytesIO(content))
-            text_parts = []
-            for page in pdf_reader.pages:
-                page_text = page.extract_text()
-                if page_text:
-                    text_parts.append(page_text)
-            extracted_text = "\n".join(text_parts)
+            def _parse_pdf():
+                pdf_reader = pypdf.PdfReader(io.BytesIO(content))
+                text_parts = []
+                for page in pdf_reader.pages:
+                    page_text = page.extract_text()
+                    if page_text:
+                        text_parts.append(page_text)
+                return "\n".join(text_parts)
+            extracted_text = await asyncio.to_thread(_parse_pdf)
             
         elif filename.endswith((".docx", ".doc")):
-            # docx library supports reading docx streams. doc format is not directly docx, 
-            # but users often name docx as doc, so we attempt to read it.
-            doc = docx.Document(io.BytesIO(content))
-            text_parts = [para.text for para in doc.paragraphs]
-            extracted_text = "\n".join(text_parts)
+            def _parse_docx():
+                doc = docx.Document(io.BytesIO(content))
+                text_parts = [para.text for para in doc.paragraphs]
+                return "\n".join(text_parts)
+            extracted_text = await asyncio.to_thread(_parse_docx)
             
         elif filename.endswith((".txt", ".tex", ".latex")):
             extracted_text = content.decode("utf-8", errors="ignore")
@@ -205,11 +208,13 @@ async def analyze_imported_application(
     Runs analysis after import while preserving the imported application if AI fails.
     """
     try:
-        check_response = supabase_service.table("applications") \
-            .select("analysis_status") \
-            .eq("id", str(application_id)) \
-            .eq("user_id", str(user_id)) \
-            .execute()
+        check_response = await asyncio.to_thread(
+            lambda: supabase_service.table("applications")
+                .select("analysis_status")
+                .eq("id", str(application_id))
+                .eq("user_id", str(user_id))
+                .execute()
+        )
         if not check_response.data:
             return "failed", "Imported application was not found for analysis."
 
@@ -217,16 +222,18 @@ async def analyze_imported_application(
         if current_status in {"processing", "completed"}:
             return current_status, None
 
-        processing_response = supabase_service.table("applications") \
-            .update({
-                "analysis_status": "processing",
-                "analysis_started_at": datetime.now(timezone.utc).isoformat(),
-                "analysis_error": None,
-            }) \
-            .eq("id", str(application_id)) \
-            .eq("user_id", str(user_id)) \
-            .neq("analysis_status", "processing") \
-            .execute()
+        processing_response = await asyncio.to_thread(
+            lambda: supabase_service.table("applications")
+                .update({
+                    "analysis_status": "processing",
+                    "analysis_started_at": datetime.now(timezone.utc).isoformat(),
+                    "analysis_error": None,
+                })
+                .eq("id", str(application_id))
+                .eq("user_id", str(user_id))
+                .neq("analysis_status", "processing")
+                .execute()
+        )
         if getattr(processing_response, "data", None) == []:
             return "processing", None
 
@@ -241,36 +248,42 @@ async def analyze_imported_application(
 
         if final_state.get("error") is not None:
             error_msg = f"AI analysis pipeline failed: {sanitize_error(final_state['error'], user_api_key)}"
-            supabase_service.table("applications") \
-                .update({
-                    "analysis_status": "failed",
-                    "analysis_error": error_msg,
-                }) \
-                .eq("id", str(application_id)) \
-                .eq("user_id", str(user_id)) \
-                .execute()
+            await asyncio.to_thread(
+                lambda: supabase_service.table("applications")
+                    .update({
+                        "analysis_status": "failed",
+                        "analysis_error": error_msg,
+                    })
+                    .eq("id", str(application_id))
+                    .eq("user_id", str(user_id))
+                    .execute()
+            )
             return "failed", error_msg
 
-        supabase_service.table("applications") \
-            .update({
-                "analysis_status": "completed",
-                "analysis_error": None,
-            }) \
-            .eq("id", str(application_id)) \
-            .eq("user_id", str(user_id)) \
-            .execute()
+        await asyncio.to_thread(
+            lambda: supabase_service.table("applications")
+                .update({
+                    "analysis_status": "completed",
+                    "analysis_error": None,
+                })
+                .eq("id", str(application_id))
+                .eq("user_id", str(user_id))
+                .execute()
+        )
         return "completed", None
     except Exception as e:
         error_msg = f"AI analysis pipeline failed: {sanitize_error(str(e), user_api_key)}"
         try:
-            supabase_service.table("applications") \
-                .update({
-                    "analysis_status": "failed",
-                    "analysis_error": error_msg,
-                }) \
-                .eq("id", str(application_id)) \
-                .eq("user_id", str(user_id)) \
-                .execute()
+            await asyncio.to_thread(
+                lambda: supabase_service.table("applications")
+                    .update({
+                        "analysis_status": "failed",
+                        "analysis_error": error_msg,
+                    })
+                    .eq("id", str(application_id))
+                    .eq("user_id", str(user_id))
+                    .execute()
+            )
         except Exception:
             pass
         return "failed", error_msg
@@ -286,7 +299,7 @@ async def import_job(
     background research, and registers the job and application records in Supabase.
     """
     from app.llm import sanitize_llm_input
-    url = validate_public_http_url(payload.url.strip())
+    url = await asyncio.to_thread(validate_public_http_url, payload.url.strip())
     resume_text = sanitize_llm_input(payload.resume_text, max_chars=15000)
     
     # 1. Scrape URL using direct HTTP first (best for JSON-LD), then fallback to Firecrawl
@@ -309,26 +322,29 @@ async def import_job(
                 hostname = hostname.lower()
                 return hostname == base_domain or hostname.endswith(f".{base_domain}")
 
-            with httpx.Client(follow_redirects=False, headers=headers, timeout=10.0) as client:
+            async with httpx.AsyncClient(follow_redirects=False, headers=headers, timeout=10.0) as client:
                 parsed_url = urllib.parse.urlparse(url)
                 
                 # Workday API Fast Path (bypasses unformatted JSON-LD and cookie banners)
                 if is_safe_domain(parsed_url.hostname, "myworkdayjobs.com"):
                     # Use parsed_url.hostname here to avoid credentials/ports interfering with tenant parsing
                     tenant = parsed_url.hostname.split(".")[0]
-                    api_url = validate_public_http_url(f"{parsed_url.scheme}://{parsed_url.netloc}/wday/cxs/{tenant}{parsed_url.path}")
-                    api_resp = client.get(api_url)
+                    api_url = await asyncio.to_thread(
+                        validate_public_http_url,
+                        f"{parsed_url.scheme}://{parsed_url.netloc}/wday/cxs/{tenant}{parsed_url.path}"
+                    )
+                    api_resp = await client.get(api_url)
                     if api_resp.status_code == 200:
                         job_data = api_resp.json()
                         raw_html = job_data.get("jobPostingInfo", {}).get("jobDescription", "")
                         if raw_html:
-                            direct_scraped = clean_html(raw_html)
+                            direct_scraped = await asyncio.to_thread(clean_html, raw_html)
                 
                 # Default Fast Path
                 if not direct_scraped:
-                    resp = client.get(url)
+                    resp = await client.get(url)
                     if resp.status_code == 200:
-                        direct_scraped = clean_html(resp.text)
+                        direct_scraped = await asyncio.to_thread(clean_html, resp.text)
                         
                 # If it's robust and not a generic cookie/JS banner, use it immediately
                 if direct_scraped and len(direct_scraped) > 500 and not ("uses cookies" in direct_scraped.lower() and len(direct_scraped) < 1500) and not "enable javascript" in direct_scraped.lower() and not ("{{" in direct_scraped and "}}" in direct_scraped):
@@ -339,8 +355,10 @@ async def import_job(
 
         if not scraped_jd:
             try:
-                firecrawl_app = FirecrawlApp(api_key=settings.FIRECRAWL_API_KEY)
-                scrape_result = firecrawl_app.scrape_url(url, formats=["markdown"])
+                def _scrape_firecrawl():
+                    app = FirecrawlApp(api_key=settings.FIRECRAWL_API_KEY)
+                    return app.scrape_url(url, formats=["markdown"])
+                scrape_result = await asyncio.to_thread(_scrape_firecrawl)
                 scraped_jd = (
                     scrape_result.markdown 
                     if hasattr(scrape_result, "markdown") 
@@ -362,10 +380,12 @@ async def import_job(
     # Fetch user settings to respect the default model override for utility tasks
     user_settings = {}
     try:
-        settings_response = supabase_service.table("user_settings") \
-            .select("model_default, model_fit, model_letter, model_prep") \
-            .eq("user_id", str(current_user.id)) \
-            .execute()
+        settings_response = await asyncio.to_thread(
+            lambda: supabase_service.table("user_settings")
+                .select("model_default, model_fit, model_letter, model_prep")
+                .eq("user_id", str(current_user.id))
+                .execute()
+        )
         if settings_response.data:
             user_settings = settings_response.data[0]
     except Exception as e:
@@ -395,7 +415,7 @@ async def import_job(
             "Do not include markdown code block formatting (like ```json).\n\n"
             f"Job Description:\n{scraped_jd}"
         )
-        llm_response = llm.invoke(prompt)
+        llm_response = await asyncio.to_thread(llm.invoke, prompt)
         raw_text = extract_text_content(llm_response.content)
         
         import re
@@ -452,9 +472,10 @@ async def import_job(
         
     # 3. Research company using Tavily
     try:
-        tavily_client = TavilyClient(api_key=settings.TAVILY_API_KEY)
-        search_query = f"{company_name} company overview website industry founded"
-        results = tavily_client.search(query=search_query, max_results=3)
+        def _search_tavily():
+            client = TavilyClient(api_key=settings.TAVILY_API_KEY)
+            return client.search(query=f"{company_name} company overview website industry founded", max_results=3)
+        results = await asyncio.to_thread(_search_tavily)
         raw_results = results.get("results", [])
         raw_research = " ".join([r.get("content", "") for r in raw_results])
         
@@ -471,7 +492,7 @@ async def import_job(
                 "Work Model: [Work model (e.g. Remote, Hybrid, On-site) if available or known, else N/A]\n\n"
                 f"Raw search results:\n{raw_research[:3000]}"
             )
-            llm_research_resp = llm.invoke(research_prompt)
+            llm_research_resp = await asyncio.to_thread(llm.invoke, research_prompt)
             company_research = extract_text_content(llm_research_resp.content).strip()
         else:
             company_research = "No additional research available."
@@ -482,7 +503,9 @@ async def import_job(
     # 4. Insert into jobs table using supabase_service or reuse existing
     try:
         # Check if the job already exists by URL
-        existing_job = supabase_service.table("jobs").select("id").eq("url", url).execute()
+        existing_job = await asyncio.to_thread(
+            lambda: supabase_service.table("jobs").select("id").eq("url", url).execute()
+        )
         if existing_job.data and len(existing_job.data) > 0:
             job_id = existing_job.data[0]["id"]
         else:
@@ -493,7 +516,9 @@ async def import_job(
                 "scraped_jd": scraped_jd,
                 "company_research": company_research
             }
-            job_response = supabase_service.table("jobs").insert(job_payload).execute()
+            job_response = await asyncio.to_thread(
+                lambda: supabase_service.table("jobs").insert(job_payload).execute()
+            )
             if not job_response.data or len(job_response.data) == 0:
                 raise ValueError("Failed to create job record in database.")
             job_id = job_response.data[0]["id"]
@@ -504,11 +529,13 @@ async def import_job(
         )
         
     # Check if the user already has an application for this job
-    existing_app = supabase_service.table("applications") \
-        .select("id, status, analysis_status, analysis_error") \
-        .eq("user_id", str(current_user.id)) \
-        .eq("job_id", str(job_id)) \
-        .execute()
+    existing_app = await asyncio.to_thread(
+        lambda: supabase_service.table("applications")
+            .select("id, status, analysis_status, analysis_error")
+            .eq("user_id", str(current_user.id))
+            .eq("job_id", str(job_id))
+            .execute()
+    )
 
     if existing_app.data and len(existing_app.data) > 0:
         # Return the existing application instead of creating a duplicate
@@ -519,10 +546,12 @@ async def import_job(
         # If auto-analyze is requested and it's not already processing/completed, queue it
         final_analysis_status = current_analysis_status
         if payload.auto_analyze and current_analysis_status in ["idle", "failed"]:
-            supabase_service.table("applications").update({
-                "analysis_status": "queued",
-                "analysis_error": None
-            }).eq("id", existing_id).execute()
+            await asyncio.to_thread(
+                lambda: supabase_service.table("applications").update({
+                    "analysis_status": "queued",
+                    "analysis_error": None
+                }).eq("id", existing_id).execute()
+            )
             final_analysis_status = "queued"
 
         return JobImportResponse(
@@ -545,7 +574,9 @@ async def import_job(
             "analysis_status": "queued" if payload.auto_analyze else "idle",
             "analysis_error": None
         }
-        app_response = supabase_service.table("applications").insert(app_payload).execute()
+        app_response = await asyncio.to_thread(
+            lambda: supabase_service.table("applications").insert(app_payload).execute()
+        )
         if not app_response.data or len(app_response.data) == 0:
             raise ValueError("Failed to create application record in database.")
         application_id = app_response.data[0]["id"]

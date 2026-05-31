@@ -1,3 +1,4 @@
+import asyncio
 from typing import TypedDict, Optional
 from datetime import datetime, timezone
 from langgraph.graph import StateGraph, END, START
@@ -40,10 +41,12 @@ async def fetch_context(state: AnalysisState) -> dict:
     """
     app_id = state.get("application_id")
     try:
-        response = supabase_service.table("applications") \
-            .select("resume_text, jobs(scraped_jd, company_research)") \
-            .eq("id", app_id) \
-            .execute()
+        response = await asyncio.to_thread(
+            lambda: supabase_service.table("applications")
+                .select("resume_text, jobs(scraped_jd, company_research)")
+                .eq("id", app_id)
+                .execute()
+        )
             
         if not response.data or len(response.data) == 0:
             return {"error": f"Application with ID {app_id} was not found."}
@@ -180,10 +183,12 @@ async def save_results(state: AnalysisState) -> dict:
             "resume_edits": resume_edits.model_dump(),
             "analyzed_at": datetime.now(timezone.utc).isoformat()
         }
-        supabase_service.table("applications") \
-            .update(update_data) \
-            .eq("id", app_id) \
-            .execute()
+        await asyncio.to_thread(
+            lambda: supabase_service.table("applications")
+                .update(update_data)
+                .eq("id", app_id)
+                .execute()
+        )
             
         return {}
     except Exception as e:

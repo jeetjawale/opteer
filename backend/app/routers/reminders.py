@@ -1,3 +1,4 @@
+import asyncio
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Response
 from uuid import UUID
@@ -24,7 +25,7 @@ async def list_reminders(
         if application_id:
             query = query.eq("application_id", str(application_id))
             
-        response = query.execute()
+        response = await asyncio.to_thread(query.execute)
         return response.data or []
     except Exception as e:
         raise HTTPException(
@@ -44,11 +45,13 @@ async def create_reminder(
     """
     # 1. Verify target application ownership
     try:
-        app_response = supabase_service.table("applications") \
-            .select("user_id") \
-            .eq("id", str(payload.application_id)) \
-            .eq("user_id", str(current_user.id)) \
-            .execute()
+        app_response = await asyncio.to_thread(
+            lambda: supabase_service.table("applications")
+                .select("user_id")
+                .eq("id", str(payload.application_id))
+                .eq("user_id", str(current_user.id))
+                .execute()
+        )
             
         if not app_response.data or len(app_response.data) == 0:
             raise HTTPException(
@@ -72,7 +75,9 @@ async def create_reminder(
         reminder_data["is_sent"] = False
         reminder_data["is_completed"] = False
         
-        response = supabase_service.table("reminders").insert(reminder_data).execute()
+        response = await asyncio.to_thread(
+            lambda: supabase_service.table("reminders").insert(reminder_data).execute()
+        )
         if not response.data or len(response.data) == 0:
             raise ValueError("Database insertion failed.")
             
@@ -96,11 +101,13 @@ async def update_reminder(
     """
     # 1. Verify existence and ownership
     try:
-        check_response = supabase_service.table("reminders") \
-            .select("user_id") \
-            .eq("id", str(reminder_id)) \
-            .eq("user_id", str(current_user.id)) \
-            .execute()
+        check_response = await asyncio.to_thread(
+            lambda: supabase_service.table("reminders")
+                .select("user_id")
+                .eq("id", str(reminder_id))
+                .eq("user_id", str(current_user.id))
+                .execute()
+        )
             
         if not check_response.data or len(check_response.data) == 0:
             raise HTTPException(
@@ -128,18 +135,22 @@ async def update_reminder(
             update_data["due_at"] = update_data["due_at"].isoformat()
             
         if update_data:
-            supabase_service.table("reminders") \
-                .update(update_data) \
-                .eq("id", str(reminder_id)) \
-                .eq("user_id", str(current_user.id)) \
-                .execute()
+            await asyncio.to_thread(
+                lambda: supabase_service.table("reminders")
+                    .update(update_data)
+                    .eq("id", str(reminder_id))
+                    .eq("user_id", str(current_user.id))
+                    .execute()
+            )
                 
         # 3. Retrieve updated row
-        response = supabase_service.table("reminders") \
-            .select("*") \
-            .eq("id", str(reminder_id)) \
-            .eq("user_id", str(current_user.id)) \
-            .execute()
+        response = await asyncio.to_thread(
+            lambda: supabase_service.table("reminders")
+                .select("*")
+                .eq("id", str(reminder_id))
+                .eq("user_id", str(current_user.id))
+                .execute()
+        )
             
         return response.data[0]
     except Exception as e:
@@ -160,11 +171,13 @@ async def delete_reminder(
     """
     # 1. Verify ownership
     try:
-        check_response = supabase_service.table("reminders") \
-            .select("user_id") \
-            .eq("id", str(reminder_id)) \
-            .eq("user_id", str(current_user.id)) \
-            .execute()
+        check_response = await asyncio.to_thread(
+            lambda: supabase_service.table("reminders")
+                .select("user_id")
+                .eq("id", str(reminder_id))
+                .eq("user_id", str(current_user.id))
+                .execute()
+        )
             
         if not check_response.data or len(check_response.data) == 0:
             raise HTTPException(
@@ -182,11 +195,13 @@ async def delete_reminder(
         
     # 2. Perform deletion
     try:
-        supabase_service.table("reminders") \
-            .delete() \
-            .eq("id", str(reminder_id)) \
-            .eq("user_id", str(current_user.id)) \
-            .execute()
+        await asyncio.to_thread(
+            lambda: supabase_service.table("reminders")
+                .delete()
+                .eq("id", str(reminder_id))
+                .eq("user_id", str(current_user.id))
+                .execute()
+        )
             
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     except Exception as e:
