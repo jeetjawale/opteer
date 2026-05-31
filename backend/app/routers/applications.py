@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from app.database import supabase_service, get_current_user
 from app.schemas import ApplicationResponse, ApplicationUpdate, ApplicationStatus
 from app.graphs.analysis_graph import run_analysis
+from app.llm import resolve_api_key, get_llm
 
 router = APIRouter(prefix="/applications", tags=["applications"])
 ACTIVE_ANALYSIS_STATUSES = {"queued", "processing"}
@@ -165,9 +166,11 @@ async def analyze_application(
         )
         
     # 2. Run the async graph analysis using the key passed via header
+    effective_api_key = resolve_api_key(str(current_user.id), x_user_api_key)
+
     final_state = await run_analysis(
         str(application_id), 
-        user_api_key=x_user_api_key,
+        user_api_key=effective_api_key,
         model_default=user_settings.get("model_default"),
         model_fit=user_settings.get("model_fit"),
         model_letter=user_settings.get("model_letter"),

@@ -1,0 +1,23 @@
+fastapi
+uvicorn[standard]
+supabase
+python-dotenv
+pydantic-settings
+httpx
+langchain
+langchain-core
+langchain-google-genai
+langchain-anthropic
+langchain-openai
+langgraph
+firecrawl-py
+tavily-python
+pypdf
+python-docx
+python-multipart>=0.0.18
+
+# Security
+cryptography>=42.0.0
+pytest
+pytest-asyncio
+pytest-mock

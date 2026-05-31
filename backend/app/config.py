@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     SUPABASE_KEY: str
     SUPABASE_SERVICE_KEY: str
     
+    # Security
+    API_KEY_ENCRYPTION_KEY: str
+    
     # CORS Origins (contains http://localhost:3000 by default)
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
     
@@ -76,6 +79,10 @@ class Settings(BaseSettings):
             raise ValueError("ANTHROPIC_API_KEY is required when AI_PROVIDER=anthropic")
         if provider == "xai" and not self.XAI_API_KEY:
             raise ValueError("XAI_API_KEY is required when AI_PROVIDER=xai")
+            
+        if not self.API_KEY_ENCRYPTION_KEY:
+            raise ValueError("API_KEY_ENCRYPTION_KEY is required. Must be a 32 url-safe base64-encoded string.")
+            
         return self
 
 settings = Settings()

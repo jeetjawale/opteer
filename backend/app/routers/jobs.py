@@ -164,21 +164,34 @@ def validate_public_http_url(url: str) -> str:
 
     try:
         ip = ipaddress.ip_address(hostname)
+        ips_to_check = [ip]
     except ValueError:
-        return url
+        # Resolve hostname to IPs to prevent DNS-based SSRF
+        import socket
+        try:
+            # getaddrinfo returns a list of tuples: (family, type, proto, canonname, sockaddr)
+            # sockaddr is (IP, port) for IPv4 or (IP, port, flowinfo, scopeid) for IPv6
+            resolved = socket.getaddrinfo(hostname, None)
+            ips_to_check = [ipaddress.ip_address(info[4][0]) for info in resolved]
+        except socket.gaierror:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Job URL host could not be resolved."
+            )
 
-    if (
-        ip.is_private
-        or ip.is_loopback
-        or ip.is_link_local
-        or ip.is_multicast
-        or ip.is_reserved
-        or ip.is_unspecified
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Job URL host is not allowed."
-        )
+    for ip in ips_to_check:
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_multicast
+            or ip.is_reserved
+            or ip.is_unspecified
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Job URL host resolves to a disallowed IP address."
+            )
 
     return url
 
@@ -290,12 +303,19 @@ async def import_job(
                 ),
                 "Accept": "application/json, text/html"
             }
+            def is_safe_domain(hostname: str | None, base_domain: str) -> bool:
+                if not hostname:
+                    return False
+                hostname = hostname.lower()
+                return hostname == base_domain or hostname.endswith(f".{base_domain}")
+
             with httpx.Client(follow_redirects=False, headers=headers, timeout=10.0) as client:
                 parsed_url = urllib.parse.urlparse(url)
                 
                 # Workday API Fast Path (bypasses unformatted JSON-LD and cookie banners)
-                if "myworkdayjobs.com" in parsed_url.netloc:
-                    tenant = parsed_url.netloc.split(".")[0]
+                if is_safe_domain(parsed_url.hostname, "myworkdayjobs.com"):
+                    # Use parsed_url.hostname here to avoid credentials/ports interfering with tenant parsing
+                    tenant = parsed_url.hostname.split(".")[0]
                     api_url = validate_public_http_url(f"{parsed_url.scheme}://{parsed_url.netloc}/wday/cxs/{tenant}{parsed_url.path}")
                     api_resp = client.get(api_url)
                     if api_resp.status_code == 200:
@@ -354,11 +374,15 @@ async def import_job(
     # Ensure scraped content is sanitized and truncated
     scraped_jd = sanitize_llm_input(scraped_jd, max_chars=20000)
         
+    # Resolve the API key from DB or headers
+    from app.llm import resolve_api_key
+    effective_api_key = resolve_api_key(str(current_user.id), x_user_api_key)
+        
     # 2. Extract company name, job title, and a cleaned JD using a single JSON LLM call
     llm = get_llm(
         temperature=0.0, 
         max_tokens=4000, 
-        user_api_key=x_user_api_key,
+        user_api_key=effective_api_key,
         model_override=user_settings.get("model_default")
     )
     company_name = None
@@ -490,13 +514,25 @@ async def import_job(
         # Return the existing application instead of creating a duplicate
         existing_id = existing_app.data[0]["id"]
         existing_status = existing_app.data[0]["status"]
+        current_analysis_status = existing_app.data[0].get("analysis_status") or "idle"
+        
+        # If auto-analyze is requested and it's not already processing/completed, queue it
+        final_analysis_status = current_analysis_status
+        if payload.auto_analyze and current_analysis_status in ["idle", "failed"]:
+            supabase_service.table("applications").update({
+                "analysis_status": "queued",
+                "analysis_error": None
+            }).eq("id", existing_id).execute()
+            final_analysis_status = "queued"
+
         return JobImportResponse(
             application_id=existing_id,
             job_id=job_id,
             company=company_name,
             status=existing_status,
-            analysis_status=existing_app.data[0].get("analysis_status") or "idle",
-            analysis_error=existing_app.data[0].get("analysis_error"),
+            analysis_status=final_analysis_status,
+            analysis_error=existing_app.data[0].get("analysis_error") if final_analysis_status != "queued" else None,
+            auto_analyze=payload.auto_analyze if final_analysis_status == "queued" else False,
         )
         
     # 5. Insert into applications table using supabase_service
@@ -506,7 +542,7 @@ async def import_job(
             "job_id": job_id,
             "resume_text": resume_text,
             "status": "saved",
-            "analysis_status": "idle",
+            "analysis_status": "queued" if payload.auto_analyze else "idle",
             "analysis_error": None
         }
         app_response = supabase_service.table("applications").insert(app_payload).execute()
@@ -526,6 +562,7 @@ async def import_job(
         job_id=job_id,
         company=company_name,
         status=status_val,
-        analysis_status="idle",
+        analysis_status="queued" if payload.auto_analyze else "idle",
         analysis_error=None,
+        auto_analyze=payload.auto_analyze,
     )

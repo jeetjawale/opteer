@@ -79,6 +79,7 @@ class ImportJobRequest(BaseModel):
     url: str = Field(..., description="The URL of the job posting to import")
     resume_text: str = Field(..., description="The candidate's resume text to associate with this application")
     scraped_jd: Optional[str] = Field(None, description="Optional manually pasted job description text to bypass scraping")
+    auto_analyze: bool = Field(False, description="When true, enqueue AI analysis immediately after import")
 
 
 class JobImportResponse(BaseModel):
@@ -88,6 +89,7 @@ class JobImportResponse(BaseModel):
     status: str = Field(..., description="Status of the application (e.g. 'saved')")
     analysis_status: AnalysisStatus = Field(AnalysisStatus.IDLE, description="Durable AI analysis state")
     analysis_error: Optional[str] = Field(None, description="Last analysis error, when analysis failed")
+    auto_analyze: bool = Field(False, description="Whether auto-analysis was requested for this import")
 
 # ============================================
 # APPLICATION SCHEMAS
@@ -250,10 +252,20 @@ class UserSettingsUpdate(BaseModel):
     model_fit: Optional[str] = None
     model_letter: Optional[str] = None
     model_prep: Optional[str] = None
+    onboarding_completed: Optional[bool] = None
+    onboarding_step: Optional[str] = None
+    api_key: Optional[str] = Field(None, description="Custom API key (will be encrypted and stored securely)")
 
-class UserSettingsResponse(UserSettingsUpdate):
+class UserSettingsResponse(BaseModel):
     id: UUID
     user_id: UUID
+    model_default: Optional[str] = None
+    model_fit: Optional[str] = None
+    model_letter: Optional[str] = None
+    model_prep: Optional[str] = None
+    onboarding_completed: Optional[bool] = None
+    onboarding_step: Optional[str] = None
     updated_at: datetime
-
+    has_saved_key: bool = Field(False, description="True if an encrypted API key is stored on the backend")
+    
     model_config = ConfigDict(from_attributes=True)

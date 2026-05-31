@@ -68,17 +68,10 @@ export async function importJob(
   url: string,
   resumeText: string,
   scrapedJd?: string,
-  userApiKey?: string,
+  autoAnalyze: boolean = false,
   signal?: AbortSignal
 ) {
-  // Fallback to localStorage saved key if not provided dynamically
-  const savedKey = typeof window !== "undefined" ? window.localStorage.getItem("jobpilot_api_key") : null;
-  const activeKey = userApiKey !== undefined ? userApiKey : (savedKey || undefined);
-
   const headers: Record<string, string> = {};
-  if (activeKey) {
-    headers["X-User-Api-Key"] = activeKey;
-  }
 
   const response = await fetchWithAuth(`${API_BASE_URL}/jobs/import`, {
     method: "POST",
@@ -87,7 +80,8 @@ export async function importJob(
     body: JSON.stringify({ 
       url, 
       resume_text: resumeText, 
-      scraped_jd: scrapedJd
+      scraped_jd: scrapedJd,
+      auto_analyze: autoAnalyze
     })
   });
   
@@ -114,15 +108,8 @@ export async function testLlmConnection(key: string) {
 }
 
 
-export async function analyzeApplication(id: string, userApiKey?: string, signal?: AbortSignal) {
-  // Fallback to localStorage saved key if not provided dynamically
-  const savedKey = typeof window !== "undefined" ? window.localStorage.getItem("jobpilot_api_key") : null;
-  const activeKey = userApiKey !== undefined ? userApiKey : (savedKey || undefined);
-
+export async function analyzeApplication(id: string, signal?: AbortSignal) {
   const headers: Record<string, string> = {};
-  if (activeKey) {
-    headers["X-User-Api-Key"] = activeKey;
-  }
 
   const response = await fetchWithAuth(`${API_BASE_URL}/applications/${id}/analyze`, {
     method: "POST",
@@ -306,6 +293,8 @@ export interface UserSettingsResponse {
   model_fit?: string;
   model_letter?: string;
   model_prep?: string;
+  onboarding_completed?: boolean;
+  onboarding_step?: string;
 }
 
 export async function getUserSettings(): Promise<UserSettingsResponse> {
@@ -324,6 +313,28 @@ export async function updateUserSettings(data: any) {
   });
   if (!response.ok) {
     throw new Error(`Failed to update settings: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function getApiKeyStatus() {
+  const response = await fetchWithAuth(`${API_BASE_URL}/settings/api-key`, { cache: "no-store" });
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({ detail: "Request failed" }));
+    throw new Error(errData.detail || `HTTP error ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function updateApiKey(apiKey: string, provider?: string) {
+  const response = await fetchWithAuth(`${API_BASE_URL}/settings/api-key`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ api_key: apiKey, provider }),
+  });
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({ detail: "Request failed" }));
+    throw new Error(errData.detail || `HTTP error ${response.status}`);
   }
   return response.json();
 }

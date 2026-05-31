@@ -1,12 +1,42 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Plus, Download, MoreHorizontal, Search, RefreshCw, Sparkles } from "lucide-react";
+import { Plus, Download, MoreHorizontal, Search, RefreshCw, Sparkles, PlayCircle } from "lucide-react";
 
 import { getApplications } from "@/lib/api";
 import StatsRow from "@/components/StatsRow";
 import ApplicationsTable from "@/components/ApplicationsTable";
 import ImportModal from "@/components/ImportModal";
+import SkeletonPulse from "@/components/motion/SkeletonPulse";
+import { useSearchParams, useRouter } from "next/navigation";
+import { Suspense } from "react";
+import OnboardingGate from "@/components/onboarding/OnboardingGate";
+import AsyncActivityPanel from "@/components/AsyncActivityPanel";
+
+function CommandListener({ setIsImportOpen }: { setIsImportOpen: (v: boolean) => void }) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  useEffect(() => {
+    const action = searchParams.get("action");
+    const focus = searchParams.get("focus");
+    
+    if (action === "import") {
+      setIsImportOpen(true);
+      router.replace("/applications", { scroll: false });
+    }
+    
+    if (focus === "search") {
+      const searchInput = document.getElementById("job-search-input");
+      if (searchInput) {
+        searchInput.focus();
+      }
+      router.replace("/applications", { scroll: false });
+    }
+  }, [searchParams, router, setIsImportOpen]);
+
+  return null;
+}
 
 export default function ApplicationsPage() {
   const [applications, setApplications] = useState([]);
@@ -50,9 +80,15 @@ export default function ApplicationsPage() {
       fetchApps();
     }, 300000); // auto-refresh every 5 minutes
 
+    const handleOnboardingComplete = () => {
+      fetchApps();
+    };
+    window.addEventListener("onboarding_completed", handleOnboardingComplete);
+
     return () => {
       clearInterval(minuteTimer);
       clearInterval(refreshTimer);
+      window.removeEventListener("onboarding_completed", handleOnboardingComplete);
     };
   }, [fetchApps]);
 
@@ -105,7 +141,8 @@ export default function ApplicationsPage() {
   });
 
   return (
-    <div className="p-8 max-w-7xl mx-auto min-h-screen">
+    <OnboardingGate>
+      <div className="p-8 max-w-7xl mx-auto min-h-screen">
       
       {/* Top Header Bar */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 reveal reveal-1">
@@ -135,6 +172,20 @@ export default function ApplicationsPage() {
           </button>
 
           <button 
+            onClick={() => {
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('restart_demo'));
+              }
+            }}
+            className="px-4 py-2.5 rounded-xl border border-zinc-800 hover:bg-zinc-900 text-zinc-400 hover:text-white font-semibold text-sm transition-colors flex items-center space-x-2"
+            title="Restart Onboarding Demo"
+          >
+            <PlayCircle className="w-4 h-4" />
+            <span>Restart Demo</span>
+          </button>
+
+          <button 
+            data-demo-id="import-job-btn"
             onClick={() => setIsImportOpen(true)}
             className="px-4 py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 font-bold text-sm transition-colors flex items-center space-x-2"
           >
@@ -148,8 +199,11 @@ export default function ApplicationsPage() {
         </div>
       </header>
 
+      {/* Async Activity Panel */}
+      <AsyncActivityPanel applications={applications} />
+
       {/* Render KPI Stats */}
-      <div className="reveal reveal-2">
+      <div className="reveal reveal-2" data-demo-id="dashboard-stats">
         <StatsRow applications={applications} />
       </div>
 
@@ -255,6 +309,7 @@ export default function ApplicationsPage() {
         <div className="relative flex-1 md:max-w-xs">
           <Search className="w-4 h-4 text-zinc-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
+            id="job-search-input"
             type="text"
             className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-700 transition-colors text-sm"
             placeholder="Search jobs..."
@@ -268,9 +323,28 @@ export default function ApplicationsPage() {
       {/* Main CRM Table list */}
       <div className="reveal reveal-4">
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 text-zinc-400 space-y-3">
-            <RefreshCw className="w-8 h-8 animate-spin text-zinc-500" />
-            <span className="text-sm font-medium">Loading applications...</span>
+          <div className="bg-surface border border-border-default rounded-xl overflow-hidden shadow-xl">
+            <div className="border-b border-white/5 bg-surface px-6 py-4">
+              <SkeletonPulse className="w-1/3 h-4" />
+            </div>
+            <div className="divide-y divide-border-default">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="px-6 py-4 flex items-center justify-between">
+                  <div className="flex items-center space-x-3 w-1/4">
+                    <SkeletonPulse className="w-10 h-10 rounded-lg flex-shrink-0" />
+                    <div className="space-y-2 w-full">
+                      <SkeletonPulse className="w-3/4 h-4" />
+                      <SkeletonPulse className="w-1/2 h-3" />
+                    </div>
+                  </div>
+                  <SkeletonPulse className="w-24 h-8 rounded-full" />
+                  <SkeletonPulse className="w-32 h-2 rounded-full" />
+                  <SkeletonPulse className="w-24 h-6 rounded-full" />
+                  <SkeletonPulse className="w-20 h-4" />
+                  <SkeletonPulse className="w-8 h-8 rounded-lg" />
+                </div>
+              ))}
+            </div>
           </div>
         ) : error ? (
           <div className="p-5 rounded-2xl bg-red-950/40 border border-red-800/50 text-red-300 text-sm">
@@ -280,6 +354,7 @@ export default function ApplicationsPage() {
           <ApplicationsTable 
             applications={filteredApplications} 
             onRefresh={fetchApps} 
+            onImportAction={() => setIsImportOpen(true)}
           />
         )}
       </div>
@@ -291,6 +366,11 @@ export default function ApplicationsPage() {
         onRefresh={fetchApps}
       />
 
-    </div>
+      <Suspense fallback={null}>
+        <CommandListener setIsImportOpen={setIsImportOpen} />
+      </Suspense>
+
+      </div>
+    </OnboardingGate>
   );
 }
