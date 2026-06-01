@@ -1,226 +1,182 @@
-# ✈️ JobPilot
+# JobPilot — AI-powered job application helper
 
-JobPilot is a premium, AI-powered job application management platform (CRM) designed to assist job seekers in matching their profiles to job descriptions, performing automated company research, and generating personalized application assets (cover letters and interview prep guides).
+![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
 
-It combines a **Next.js App Router** frontend with a **FastAPI** backend, orchestrated using **LangChain** and **LangGraph** to process candidate resumes and job postings through stateful multi-step pipelines.
+*(Placeholder: UI Screenshot or Demo GIF)*
 
----
+## What is JobPilot?
 
-## 🚀 Key Features
+JobPilot is a premium, AI-powered CRM designed to assist job seekers in organizing their job search and tailoring their applications. Instead of manually writing custom cover letters or researching company backgrounds, JobPilot completely automates the heavy lifting. It ingests public job descriptions, scores your resume against the requirements, and generates personalized application assets instantly.
 
-* **Stepped Job Importing**: Scrapes raw job postings via **Firecrawl** and conducts automated search queries using **Tavily** to build comprehensive company overview notes.
-* **Stateful Analysis Pipelines**: Employs **LangGraph** to run three specialized LLM chains sequentially:
-  1. **Fit Scoring**: Benchmarks candidate skills and experience against job requirements, returning matched skills, missing skills, and a suitability score (0-100%).
-  2. **Cover Letter Generator**: Generates a tailored 3-paragraph cover letter using details from the scraped job description, resume, and Tavily company research.
-  3. **Interview Prep Guide**: Compiles a customized prep sheet containing customized behavioral and technical questions, paired with specific answering strategies.
-* **CRM Applications Dashboard**: A dark-themed Next.js CRM table displaying job status badges (saved, applied, interview, offer, closed, rejected), KPI cards, search controls, and live fit score progress bars.
-* **Dynamic Tab Detail Views**: Inspect fit analytics, copy cover letters to the clipboard, study prep materials with interactive accordion lists, and manage application reminders.
-* **Secure Session Auth**: End-to-end user authentication powered by **Supabase Auth** and Next.js SSR middleware.
-* **Dynamic API Key Settings & Security**: Configure personal LLM API keys securely in the Settings panel. Stored locally in the browser (`localStorage`), the key is loaded in memory and sent via headers for analysis runs. It is never stored in the database, preventing leaks and preserving user privacy.
-* **Resume Management**: A dedicated page for listing, uploading, parsing, updating, and deleting multiple saved resumes. Users select from their saved resume profiles directly inside the job import modal, streamlining job tracking.
+This project is built for developers and job seekers who want a highly customizable, private, and localized tool to manage their careers. Whether you are mass-applying or targeting a few niche roles, JobPilot scales to meet your workflow.
 
----
+What makes JobPilot different from standard wrappers is its stateful AI orchestration. By leveraging LangGraph, it runs multi-step pipelines that fetch context, score fit, draft cover letters, and build interview prep guides in isolated, reliable steps. Furthermore, it strictly prioritizes security—user API keys are stored fully encrypted in the database and only decrypted in-memory during execution.
 
-## 🛠️ Tech Stack
+## Features
 
-### Frontend
-* **Core**: Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS
-* **Auth**: `@supabase/ssr` (Server-side session validation & route protection middleware)
-* **Icons**: `lucide-react`
+- **Stepped Job Importing**: Scrapes raw job postings via Firecrawl and conducts automated search queries using Tavily.
+- **Stateful Analysis Pipelines**: Employs LangGraph to run sequential LLM chains for fit scoring, cover letter generation, and interview prep.
+- **Secure API Key Management**: User API keys are mathematically encrypted at rest and dynamically decrypted in-memory during pipeline execution.
+- **Quota & Rate Limiting**: Dedicated application-layer usage limits and worker-enforced analysis quotas prevent runaway LLM costs.
+- **Background Task Processing**: Heavy AI tasks are offloaded to a resilient, asynchronous polling worker (`worker.py`).
+- **End-to-End Auth**: Complete session management and route protection via Supabase SSR Auth.
+- **Dynamic File Storage**: Handles PDF resume uploads via Supabase Storage, serving short-lived, on-demand signed URLs.
 
-### Backend
-* **API Framework**: FastAPI, Pydantic v2 (Settings validation)
-* **Orchestration**: LangGraph (StateGraph workflows), LangChain (LCEL chains)
-* **AI Provider**: Google Gemini, OpenAI, Anthropic, Groq, local/VPS OpenAI-compatible runners (Ollama, vLLM, LM Studio), or local **mock** provider for sandbox/visual testing.
-* **Integrations**: Firecrawl (Markdown scraping), Tavily API (Company research search queries)
-* **Database**: Supabase Python Client (anon key validation + bypass RLS service role transactions)
+## Tech Stack
 
----
+| Layer | Technology | Version |
+| :--- | :--- | :--- |
+| **Frontend Framework** | Next.js | ^15.5.18 |
+| **UI Library** | React | 18.3.1 |
+| **Styling** | Tailwind CSS | 3.4.3 |
+| **Backend API** | FastAPI | 0.136.3 |
+| **AI Orchestration** | LangGraph & LangChain | 0.3.15 & 1.3.2 |
+| **Database & Auth** | Supabase | 2.30.1 |
+| **Web Scraping** | firecrawl-py | 4.28.2 |
+| **Search Engine API** | tavily-python | 0.7.25 |
 
-## 📊 Technical Architecture
+## Prerequisites
 
-```mermaid
-graph TD
-    User([Candidate Browser]) -->|Next.js Client| FE[Next.js App Server]
-    FE -->|Bearer Token + X-User-Api-Key| BE[FastAPI Backend Server]
-    BE -->|1. Scrape URL| Firecrawl[Firecrawl API]
-    BE -->|2. Search Company| Tavily[Tavily API]
-    BE -->|3. Run Stateful Analysis| LangGraph[LangGraph StateGraph]
-    
-    subgraph LangGraph Graph Flow
-        LangGraph --> Fetch[1. fetch_context]
-        Fetch --> Fit[2. run_fit_scoring]
-        Fit --> CL[3. run_cover_letter]
-        CL --> Prep[4. run_interview_prep]
-        Prep --> Save[5. save_results]
-    end
-    
-    Fetch -->|Reads Job/Resume| Supabase[(Supabase Database)]
-    Save -->|Writes AI Results| Supabase
-    
-    Fit -->|LLM API| LLM[LLM Provider]
-    CL -->|LLM API| LLM
-    Prep -->|LLM API| LLM
-```
+- Node.js >= 20.0.0
+- Python >= 3.11
+- Supabase CLI
+- Docker & Docker Compose (optional, for self-hosted container deployment)
 
----
+## Installation & Setup
 
-## 📁 Repository Structure
+1. **Clone the repository:**
+   ```bash
+   git clone <your-repo-url>
+   cd jobpilot
+   ```
+
+2. **Install Backend Dependencies:**
+   ```bash
+   cd backend
+   python3 -m venv .venv
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   ```
+
+3. **Install Frontend Dependencies:**
+   ```bash
+   cd ../frontend
+   npm ci
+   ```
+
+4. **Environment Setup:**
+   Create a `.env` file at the root of the project by copying `.env.example`:
+   ```bash
+   cp .env.example .env
+   ```
+   *Required Variables:*
+   - `AI_PROVIDER`: The active LLM provider (e.g., `gemini`, `openai`, `anthropic`).
+   - `AI_MODEL`: The default model string (e.g., `gemini-2.0-flash`).
+   - `API_KEY_ENCRYPTION_KEY`: A 32 url-safe base64-encoded byte string for securing user API keys. Generate via: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`.
+   - `SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_URL`: Your Supabase project URL (Get from Supabase Dashboard).
+   - `SUPABASE_KEY` / `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Your Supabase anonymous public key (Get from Supabase Dashboard).
+   - `SUPABASE_SERVICE_KEY`: Your Supabase service role key (Get from Supabase Dashboard).
+   - `NEXT_PUBLIC_API_URL`: Backend URL (defaults to `http://localhost:8080`).
+
+   *Optional Variables:*
+   - `FIRECRAWL_API_KEY`: For scraping job links (Get from firecrawl.dev).
+   - `TAVILY_API_KEY`: For company research (Get from tavily.com).
+   - `GOOGLE_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, etc.: Platform-level LLM fallbacks.
+
+5. **Database Setup:**
+   Apply the migrations to your Supabase project to generate the schema, quotas, and RLS policies:
+   ```bash
+   npx supabase db push
+   ```
+
+6. **Start the Application (Manual Method):**
+   You will need three terminal tabs:
+   
+   *Tab 1 (API Server):*
+   ```bash
+   cd backend
+   source .venv/bin/activate
+   uvicorn app.main:app --port 8080 --reload
+   ```
+   *Tab 2 (Background Worker):*
+   ```bash
+   cd backend
+   source .venv/bin/activate
+   python worker.py
+   ```
+   *Tab 3 (Frontend):*
+   ```bash
+   cd frontend
+   npm run dev
+   ```
+
+   **Alternatively, start via Docker:**
+   ```bash
+   docker-compose up -d --build
+   ```
+
+## Usage
+
+1. **Sign Up / Login:** Open `http://localhost:3000` and create a user account.
+2. **Configure Settings:** Navigate to the Settings page to input your preferred LLM API key. This key will be encrypted and saved securely.
+3. **Upload a Resume:** Go to the Resumes tab and upload a PDF of your base resume.
+4. **Import a Job:** Paste a job posting URL. The backend will use Firecrawl to scrape the description and Tavily to research the company.
+5. **Run Analysis:** Click "Analyze". The background worker will pick up the task, score your resume against the job description, draft a custom cover letter, and generate a tailored interview prep guide.
+
+## Project Structure
 
 ```text
 jobpilot/
-├── backend/                  # FastAPI Backend Code
-│   ├── app/
-│   │   ├── chains/           # Individual LangChain LLM prompts
-│   │   │   ├── cover_letter.py
-│   │   │   ├── fit_scoring.py
-│   │   │   └── interview_prep.py
-│   │   ├── graphs/           # LangGraph StateGraph implementation
-│   │   │   └── analysis_graph.py
-│   │   ├── routers/          # API resource routes (jobs, applications, reminders, resumes)
-│   │   │   ├── applications.py
-│   │   │   ├── jobs.py
-│   │   │   ├── reminders.py
-│   │   │   └── resumes.py
-│   │   ├── config.py         # App environment variables & settings validation
-│   │   ├── database.py       # Supabase client setup & auth dependencies
-│   │   ├── llm.py            # LLM provider factory, key validator & sanitizer
-│   │   ├── rate_limiter.py   # IP-based rate limiter dependency
-│   │   ├── schemas.py        # Pydantic v2 schemas for request/response serialization
-│   │   └── main.py           # FastAPI app entry point
-│   ├── tests/                # Automated pytest modules
-│   │   ├── conftest.py
-│   │   ├── integration/      # Integration test flows (analyze, import, reminders)
-│   │   └── unit/             # Unit tests (chains, resume parser, status check)
-│   └── requirements.txt      # Python backend dependencies
-│
-├── frontend/                 # Next.js Frontend App
-│   ├── src/
-│   │   ├── app/              # Router paths (login, signup, settings, applications, resumes)
-│   │   ├── components/       # UI elements (Sidebar, stats, tables, tabs, modals)
-│   │   └── lib/              # Client utilities (supabase, api client, analysisTracker)
-│   ├── next.config.js        # Root env mapping configuration
-│   ├── package.json          # Node dependencies & scripts
-│   └── tailwind.config.js    # Styling configuration
-│
-├── schema.sql                # Supabase database table definitions
-└── .env.example              # Central configuration environment variables template
+├── backend/                  # FastAPI Application & Background Worker
+│   ├── app/                  # API routers, chains, graph orchestration, and schemas
+│   └── tests/                # Pytest suites for unit and integration testing
+├── frontend/                 # Next.js App Router Application
+│   ├── public/               # Static assets
+│   └── src/                  # React components, pages, and client API lib
+├── supabase/
+│   └── migrations/           # SQL definitions for schema, RLS, and RPC functions
+├── docker-compose.yml        # Multi-container orchestration config
+├── LICENSE                   # MIT License
+└── README.md                 # Project documentation
 ```
 
----
+## API Reference
 
-## ⚙️ Configuration & Setup
+The backend exposes several modular routers. Here are the core health and validation endpoints defined in `main.py`:
 
-### 1. Database Setup
-Create tables in your Supabase project using `schema.sql`. You can execute these definitions in the Supabase SQL editor. The schema file automatically configures:
-- Row-Level Security (RLS) policies for user data isolation
-- Necessary indices for quick sorting and querying
-- Schema permission grants and cache reload notifications
+**`GET /health`**
+- **Description:** Verifies service uptime and returns basic project metadata.
+- **Response:** `{"status": "healthy", "project": "JobPilot"}`
 
-### 2. Environment Setup
-Create a single `.env` file at the **project root** directory.
-```bash
-cp .env.example .env
-```
-Fill in the credentials:
-```ini
-# LLM Provider (options: gemini, openai, anthropic, groq, local, mock)
-AI_PROVIDER=gemini
-AI_MODEL=gemini-2.0-flash
+**`POST /health/llm`**
+- **Description:** Validates user-provided LLM credentials by invoking a minimal test prompt. Protected by a rate limiter (5 requests / 60 seconds).
+- **Headers:** `X-User-Api-Key` (Optional string).
+- **Response (Success):** `{"status": "ok", "provider": "gemini"}`
+- **Response (Error):** `{"status": "error", "detail": "Invalid authentication credentials"}`
 
-# (Optional) If using a local or VPS-hosted OpenAI-compatible runner (e.g., Ollama, vLLM, LM Studio)
-# AI_PROVIDER=local
-# LOCAL_LLM_BASE_URL=http://localhost:11434/v1
-# AI_MODEL=qwen2.5-coder:7b
+*(Note: `jobs`, `applications`, `reminders`, `resumes`, and `settings` routers are fully implemented and interact directly with Supabase and the LangGraph worker.)*
 
-# Task-specific Model Overrides (Optional)
-# AI_MODEL_FIT=
-# AI_MODEL_LETTER=
-# AI_MODEL_PREP=
+## Configuration
 
-# Default LLM Provider API Keys
-GOOGLE_API_KEY=your-google-api-key
-# OPENAI_API_KEY=
-# ANTHROPIC_API_KEY=
-# GROQ_API_KEY=
+Behavior is controlled via the `.env` file at the root. 
+- **AI Targeting:** `AI_MODEL_FIT`, `AI_MODEL_LETTER`, and `AI_MODEL_PREP` allow you to map specific models to distinct phases of the LangGraph pipeline (e.g., routing cheap models to scoring, and powerful models to cover letter drafting).
+- **Local Fallbacks:** By setting `AI_PROVIDER=local` and configuring `LOCAL_LLM_BASE_URL`, you can completely bypass cloud providers and run analysis against a local Ollama or vLLM instance.
 
-# Scraping & Search APIs
-FIRECRAWL_API_KEY=your-firecrawl-api-key
-TAVILY_API_KEY=your-tavily-api-key
+## Contributing
 
-# Supabase Credentials
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_KEY=your-anon-public-key
-SUPABASE_SERVICE_KEY=your-service-role-key
-
-# Next.js Frontend Configuration (Exposed to Browser)
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-public-key
-```
-
-### 3. Backend Installation
-Navigate to the `backend` folder, set up a virtual environment, and install dependencies:
-```bash
-cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-To launch the FastAPI dev server:
-```bash
-uvicorn app.main:app --port 8080 --reload
-```
-
-### 4. Frontend Installation
-Navigate to the `frontend` folder, install dependencies, and start the development server:
-```bash
-cd frontend
-npm install
-npm run dev
-```
-Open `http://localhost:3000` in your browser.
-
----
-
-## 🔒 Security & Privacy Model
-
-To keep user keys fully confidential, JobPilot uses an **in-memory transaction flow**:
-1. User API keys are configured and stored only in browser `localStorage`.
-2. When performing analysis, keys are sent directly via the `X-User-Api-Key` request header.
-3. FastAPI receives the header, validates the prefix format, sanitizes inputs, and passes it directly to LangChain chat models in memory.
-4. No API keys are written to the database, ensuring zero footprint on persistent logs or third-party storage.
-
----
-
-## 🚦 API Rate Limiting
-
-The backend implements zero-dependency IP-based rate limiting on sensitive actions:
-* `POST /api/jobs/import`: **10 requests per minute** (throttles crawler and company search queries).
-* `POST /api/applications/{id}/analyze`: **5 requests per minute** (throttles model tokens usage).
-* General retrieval and utility routes are throttled at standard caps (e.g. 30 requests/minute).
-
----
-
-## 🧪 Running Verification Tests
-
-### 1. Pytest Test Suite
-To run the automated unit and integration tests (which mock external dependencies like LLMs, databases, and scrapers):
+**Running Tests:**
+The backend uses Pytest for unit and integration testing.
 ```bash
 cd backend
 source .venv/bin/activate
 python -m pytest
 ```
 
-### 2. Live Graph Verification (Developer Sandbox)
-To run a graph execution script with live APIs and DB connection:
-```bash
-cd backend
-source .venv/bin/activate
-# Setup TEST_APPLICATION_ID in environment
-python scratch/test_graph.py
-```
+**Branch Naming & PRs:**
+- Please use descriptive branch names (e.g., `feature/add-new-provider` or `fix/rate-limiter-race-condition`).
+- Ensure all tests pass and that your dependencies are pinned securely before submitting a Pull Request.
 
----
+## License
 
-## 📄 License
-This project is licensed under the MIT License - see the LICENSE file for details.
+MIT License

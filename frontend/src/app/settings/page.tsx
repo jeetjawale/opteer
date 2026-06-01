@@ -108,10 +108,10 @@ export default function SettingsPage() {
       }
       
       await updateUserSettings({
-        model_default: modelDefault || null,
-        model_fit: modelFit || null,
-        model_letter: modelLetter || null,
-        model_prep: modelPrep || null
+        model_default: modelDefault || undefined,
+        model_fit: modelFit || undefined,
+        model_letter: modelLetter || undefined,
+        model_prep: modelPrep || undefined
       });
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2500);

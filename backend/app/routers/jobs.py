@@ -30,6 +30,11 @@ async def parse_resume(
     async with log_duration("PARSE_RESUME"):
         filename = file.filename.lower()
         content = await file.read()
+        
+        MAX_RESUME_SIZE = 5 * 1024 * 1024  # 5 MB
+        if len(content) > MAX_RESUME_SIZE:
+            raise HTTPException(status_code=413, detail="File too large. Maximum size is 5MB.")
+            
         extracted_text = ""
 
         try:
@@ -73,75 +78,13 @@ async def parse_resume(
                 detail=f"Failed to parse resume file: {str(e)}"
             )
 
-def extract_text_content(content) -> str:
-    if isinstance(content, str):
-        return content.strip()
-    elif isinstance(content, list):
-        text_parts = []
-        for part in content:
-            if isinstance(part, dict) and "text" in part:
-                text_parts.append(part["text"])
-            elif isinstance(part, str):
-                text_parts.append(part)
-        return "".join(text_parts).strip()
-    return str(content).strip()
-
-def clean_html(html_content: str) -> str:
-    import re
-    import json
-    import html
-    
-    # 1. Try to extract JobPosting from JSON-LD first (common in modern ATS like Phenom People)
-    jd = ""
-    json_ld_matches = re.finditer(r'<script\s+type=[\"\']application/ld\+json[\"\'][^>]*>([\s\S]*?)</script>', html_content, re.IGNORECASE)
-    for match in json_ld_matches:
-        try:
-            data = json.loads(match.group(1).strip())
-            if isinstance(data, dict):
-                data = [data]
-            for item in data:
-                if item.get('@type') == 'JobPosting':
-                    title = item.get('title', '')
-                    description = item.get('description', '')
-                    if description:
-                        jd = f"{title}\n\n{description}"
-                        break
-        except Exception:
-            continue
-        if jd: break
-        
-    text_to_clean = jd if jd else html_content
-    
-    # Unescape HTML entities (e.g. &lt; to <)
-    text_to_clean = html.unescape(text_to_clean)
-    
-    # Remove script and style elements
-    text_to_clean = re.sub(r'<(script|style)\b[^>]*>([\s\S]*?)<\/\1>', ' ', text_to_clean, flags=re.IGNORECASE)
-    
-    # Preserve block elements and line breaks
-    text_to_clean = re.sub(r'<br\s*/?>', '\n', text_to_clean, flags=re.IGNORECASE)
-    text_to_clean = re.sub(r'</(p|div|h[1-6]|li)>', '\n', text_to_clean, flags=re.IGNORECASE)
-    text_to_clean = re.sub(r'<li>', '• ', text_to_clean, flags=re.IGNORECASE)
-    
-    # Strip remaining HTML tags
-    text_to_clean = re.sub(r'<[^>]+>', '', text_to_clean)
-    
-    # Clean up spaces but preserve newlines
-    text_to_clean = re.sub(r'[ \t]+', ' ', text_to_clean)
-    
-    # Clean up excessive newlines
-    text_to_clean = re.sub(r'\n\s*\n+', '\n\n', text_to_clean).strip()
-    
-    return text_to_clean
+from app.utils.text import extract_text_content, clean_html
 
 from app.rate_limiter import rate_limiter
 
 BLOCKED_HOSTNAMES = {"localhost", "metadata.google.internal"}
 
-def sanitize_error(error: str, api_key: str | None) -> str:
-    if api_key and len(api_key) > 8:
-        return error.replace(api_key, "[REDACTED]")
-    return error
+from app.utils.security import sanitize_error
 
 def validate_public_http_url(url: str) -> str:
     """
@@ -217,7 +160,27 @@ async def import_job(
         url = await asyncio.to_thread(validate_public_http_url, payload.url.strip())
         resume_text = sanitize_llm_input(payload.resume_text, max_chars=15000)
 
+
+        if payload.auto_analyze:
+            try:
+                quota_response = await asyncio.to_thread(
+                    lambda: supabase_service.rpc("consume_analysis_credit", {"target_user_id": str(current_user.id)}).execute()
+                )
+                if not quota_response.data:
+                    raise HTTPException(
+                        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                        detail="Daily analysis quota exceeded."
+                    )
+            except HTTPException:
+                raise
+            except Exception as e:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to verify quota: {sanitize_error(str(e), x_user_api_key)}"
+                )
+
         # 1. Scrape URL using direct HTTP first (best for JSON-LD), then fallback to Firecrawl
+
         scraped_jd = payload.scraped_jd
         if not scraped_jd:
             direct_scraped = None
@@ -403,6 +366,9 @@ async def import_job(
             company_research = f"No additional research available. Search failed: {str(e)}"
 
         # 4. Insert into jobs table using supabase_service or reuse existing
+        # Note: The jobs table is intentionally shared across all users (caching). 
+        # If User B imports the same URL as User A, they reuse the scraped JD.
+        # This could lead to stale data if the job was updated after User A scraped it.
         try:
             existing_job = await asyncio.to_thread(
                 lambda: supabase_service.table("jobs").select("id").eq("url", url).execute()

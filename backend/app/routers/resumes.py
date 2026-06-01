@@ -8,6 +8,16 @@ from app.database import supabase_service, get_current_user
 from app.schemas import ResumeResponse, ResumeCreate, ResumeUpdate, ResumeListResponse
 from app.utils.timing import log_duration
 
+def _get_signed_url(path: str) -> str:
+    if not path or path.startswith("http"):
+        return path
+    try:
+        res = supabase_service.storage.from_("resumes").create_signed_url(path, 3600)
+        return res.get("signedURL") or path
+    except Exception:
+        return path
+
+
 router = APIRouter(prefix="/resumes", tags=["resumes"])
 
 @router.get("", response_model=List[ResumeListResponse])
@@ -37,7 +47,7 @@ async def list_resumes(
                     "id": record["id"],
                     "name": record["name"],
                     "preview": preview,
-                    "file_url": record.get("file_url"),
+                    "file_url": _get_signed_url(record.get("file_url")),
                     "file_name": record.get("file_name"),
                     "created_at": record["created_at"],
                     "updated_at": record["updated_at"]
@@ -68,7 +78,9 @@ async def create_resume(
             if not response.data or len(response.data) == 0:
                 raise ValueError("Database insertion failed.")
 
-            return response.data[0]
+            row = response.data[0]
+            row["file_url"] = _get_signed_url(row.get("file_url"))
+            return row
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -99,7 +111,9 @@ async def get_resume(
                     detail="Resume not found"
                 )
 
-            return response.data[0]
+            row = response.data[0]
+            row["file_url"] = _get_signed_url(row.get("file_url"))
+            return row
         except HTTPException:
             raise
         except Exception as e:
@@ -168,7 +182,9 @@ async def update_resume(
                     .execute()
             )
 
-            return response.data[0]
+            row = response.data[0]
+            row["file_url"] = _get_signed_url(row.get("file_url"))
+            return row
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -264,7 +280,9 @@ async def delete_resume_file(
                     .eq("user_id", str(current_user.id))
                     .execute()
             )
-            return response.data[0]
+            row = response.data[0]
+            row["file_url"] = _get_signed_url(row.get("file_url"))
+            return row
         except HTTPException:
             raise
         except Exception as e:

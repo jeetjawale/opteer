@@ -41,8 +41,6 @@ async def health_check():
     return {
         "status": "healthy",
         "project": settings.PROJECT_NAME,
-        "ai_provider": settings.AI_PROVIDER,
-        "ai_model": settings.AI_MODEL,
     }
 
 

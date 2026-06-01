@@ -257,7 +257,7 @@ class UserSettingsUpdate(BaseModel):
     api_key: Optional[str] = Field(None, description="Custom API key (will be encrypted and stored securely)")
 
 class UserSettingsResponse(BaseModel):
-    id: UUID
+    id: Optional[UUID] = None
     user_id: UUID
     model_default: Optional[str] = None
     model_fit: Optional[str] = None
@@ -265,6 +265,9 @@ class UserSettingsResponse(BaseModel):
     model_prep: Optional[str] = None
     onboarding_completed: Optional[bool] = None
     onboarding_step: Optional[str] = None
+    daily_analysis_credits: Optional[int] = None
+    max_daily_credits: Optional[int] = None
+    last_credit_reset: Optional[datetime] = None
     updated_at: datetime
     has_saved_key: bool = Field(False, description="True if an encrypted API key is stored on the backend")
     

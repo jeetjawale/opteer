@@ -87,10 +87,10 @@ def get_llm(
     Otherwise, it defaults to the global settings AI provider and model.
     
     Default models when user_api_key is provided:
-      - anthropic -> claude-sonnet-4-5
+      - anthropic -> claude-3-5-sonnet-20241022
       - openai    -> gpt-4o-mini
-      - xai       -> grok-3
-      - gemini    -> gemini-2.5-flash
+      - xai       -> grok-2-1212
+      - gemini    -> gemini-2.0-flash
     """
     if user_api_key:
         provider = detect_provider(user_api_key)
@@ -106,17 +106,17 @@ def get_llm(
         # Otherwise fall back to sensible defaults per provider
         else:
             if provider == "anthropic":
-                model_name = "claude-sonnet-4-5"
+                model_name = "claude-3-5-sonnet-20241022"
             elif provider == "openai":
                 model_name = "gpt-4o-mini"
             elif provider == "xai":
-                model_name = "grok-3-beta"
+                model_name = "grok-2-1212-beta"
             elif provider == "minimax":
                 model_name = "minimax/m2-7-highspeed"
             elif provider == "moonshot":
                 model_name = "moonshot/kimi-k2-6"
             else:
-                model_name = "gemini-2.5-flash"
+                model_name = "gemini-2.0-flash"
         api_key = user_api_key
     else:
         provider = settings.AI_PROVIDER.lower()
