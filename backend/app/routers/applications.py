@@ -102,7 +102,7 @@ async def get_application(
 
 from app.rate_limiter import rate_limiter
 
-@router.post("/{application_id}/analyze", dependencies=[Depends(rate_limiter(limit=5, window_seconds=60))])
+@router.post("/{application_id}/analyze", status_code=status.HTTP_202_ACCEPTED, dependencies=[Depends(rate_limiter(limit=5, window_seconds=60))])
 async def analyze_application(
     application_id: UUID,
     current_user = Depends(get_current_user),
@@ -153,110 +153,32 @@ async def analyze_application(
             )
 
         try:
-            processing_response = await asyncio.to_thread(
+            queue_response = await asyncio.to_thread(
                 lambda: supabase_service.table("applications")
                     .update({
-                        "analysis_status": "processing",
-                        "analysis_started_at": datetime.now(timezone.utc).isoformat(),
+                        "analysis_status": "queued",
                         "analysis_error": None,
                     })
                     .eq("id", str(application_id))
                     .eq("user_id", str(current_user.id))
+                    .neq("analysis_status", "queued")
                     .neq("analysis_status", "processing")
                     .execute()
             )
-            if getattr(processing_response, "data", None) == []:
+            if getattr(queue_response, "data", None) == []:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail="Analysis is already processing for this application"
+                    detail="Analysis is already processing or queued for this application"
                 )
         except Exception as e:
             if isinstance(e, HTTPException):
                 raise
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to mark analysis as processing: {sanitize_error(str(e), x_user_api_key)}"
+                detail=f"Failed to queue analysis: {sanitize_error(str(e), x_user_api_key)}"
             )
 
-        # 2. Run the async graph analysis using the key passed via header
-        effective_api_key = resolve_api_key(str(current_user.id), x_user_api_key)
-
-        final_state = await run_analysis(
-            str(application_id),
-            user_api_key=effective_api_key,
-            model_default=user_settings.get("model_default"),
-            model_fit=user_settings.get("model_fit"),
-            model_letter=user_settings.get("model_letter"),
-            model_prep=user_settings.get("model_prep")
-        )
-        if final_state.get("error") is not None:
-            error_msg = sanitize_error(final_state["error"], x_user_api_key)
-            try:
-                await asyncio.to_thread(
-                    lambda: supabase_service.table("applications")
-                        .update({
-                            "analysis_status": "failed",
-                            "analysis_error": f"AI analysis pipeline failed: {error_msg}",
-                        })
-                        .eq("id", str(application_id))
-                        .eq("user_id", str(current_user.id))
-                        .execute()
-                )
-            except Exception:
-                pass
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"AI analysis pipeline failed: {error_msg}"
-            )
-
-        try:
-            await asyncio.to_thread(
-                lambda: supabase_service.table("applications")
-                    .update({
-                        "analysis_status": "completed",
-                        "analysis_error": None,
-                    })
-                    .eq("id", str(application_id))
-                    .eq("user_id", str(current_user.id))
-                    .execute()
-            )
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to mark analysis as completed: {sanitize_error(str(e), x_user_api_key)}"
-            )
-
-        # 3. Retrieve the updated application payload
-        try:
-            response = await asyncio.to_thread(
-                lambda: supabase_service.table("applications")
-                    .select("*, jobs(company, role, url, company_research, scraped_jd)")
-                    .eq("id", str(application_id))
-                    .eq("user_id", str(current_user.id))
-                    .execute()
-            )
-
-            if not response.data or len(response.data) == 0:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Application not found after analysis update"
-                )
-
-            row = response.data[0]
-            row.pop("user_api_key", None)  # Security rule
-            job_data = row.pop("jobs", {}) or {}
-            if isinstance(job_data, list):
-                job_data = job_data[0] if len(job_data) > 0 else {}
-            row.update(job_data)
-
-            return row
-        except HTTPException:
-            raise
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to fetch updated application details: {sanitize_error(str(e), x_user_api_key)}"
-            )
+        return {"message": "Analysis queued", "analysis_status": "queued"}
 
 
 @router.patch("/{application_id}", response_model=ApplicationResponse)
