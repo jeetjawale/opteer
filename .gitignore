@@ -49,3 +49,4 @@ yarn-error.log*
 GEMINI.md
 .codex
 supabase/.temp
+*.tsbuildinfo
