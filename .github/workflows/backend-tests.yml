@@ -43,6 +43,7 @@ jobs:
         SUPABASE_URL: http://mockdb.supabase.co
         SUPABASE_KEY: mockkey
         SUPABASE_SERVICE_KEY: mockservice
+        API_KEY_ENCRYPTION_KEY: Z_ILOz5AOX7jBQ3cIveKBpeaAxB-pOlmixGsxuy-ii8=
       run: |
         # Run pytest on the tests directory
         python -m pytest
