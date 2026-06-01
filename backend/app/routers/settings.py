@@ -36,13 +36,18 @@ async def get_settings(current_user = Depends(get_current_user)):
             if not response.data or len(response.data) == 0:
                 saved_default = None
                 return {
-                    "id": str(uuid.uuid4()),
+                    "id": None,
                     "user_id": str(current_user.id),
                     "updated_at": datetime.now(timezone.utc).isoformat(),
                     "model_default": settings.AI_MODEL,
                     "model_fit":    _resolve(None, settings.AI_MODEL_FIT, saved_default),
                     "model_letter": _resolve(None, settings.AI_MODEL_LETTER, saved_default),
                     "model_prep":   _resolve(None, settings.AI_MODEL_PREP, saved_default),
+                    "onboarding_completed": False,
+                    "onboarding_step": None,
+                    "daily_analysis_credits": 50,
+                    "max_daily_credits": 50,
+                    "last_credit_reset": datetime.now(timezone.utc).isoformat(),
                 }
 
             row = response.data[0]

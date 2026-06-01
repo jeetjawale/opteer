@@ -44,23 +44,18 @@ export async function middleware(request: NextRequest) {
   const { data: { user }, error } = await supabase.auth.getUser();
   const path = request.nextUrl.pathname;
 
-  // Protect authenticated application areas and sub-routes
-  if (
-    path.startsWith("/applications") ||
-    path.startsWith("/resumes") ||
-    path.startsWith("/settings") ||
-    path.startsWith("/analytics")
-  ) {
-    if (!user) {
-      return NextResponse.redirect(new URL("/login", request.url));
-    }
+  // Define explicitly public routes that do NOT require authentication
+  const publicRoutes = ["/login", "/signup"];
+  const isPublicRoute = publicRoutes.some(route => path === route || path.startsWith(`${route}/`));
+
+  // Redirect unauthenticated users to /login for all protected routes
+  if (!user && !isPublicRoute) {
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 
   // Prevent logged-in users from visiting auth pages
-  if (path === "/login" || path === "/signup") {
-    if (user) {
-      return NextResponse.redirect(new URL("/applications", request.url));
-    }
+  if (user && isPublicRoute) {
+    return NextResponse.redirect(new URL("/applications", request.url));
   }
 
   // Redirect root page to applications
@@ -73,12 +68,13 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/",
-    "/applications/:path*",
-    "/resumes/:path*",
-    "/settings/:path*",
-    "/analytics/:path*",
-    "/login",
-    "/signup",
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - Any file with an extension (e.g., .svg, .png)
+     */
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };

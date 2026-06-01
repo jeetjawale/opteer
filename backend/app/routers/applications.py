@@ -2,7 +2,7 @@ import asyncio
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Header
 from uuid import UUID
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 
 from app.database import supabase_service, get_current_user
 from app.schemas import ApplicationResponse, ApplicationUpdate, ApplicationStatus
@@ -13,13 +13,7 @@ from app.utils.timing import log_duration
 router = APIRouter(prefix="/applications", tags=["applications"])
 ACTIVE_ANALYSIS_STATUSES = {"queued", "processing"}
 
-def sanitize_error(error: str, api_key: str | None) -> str:
-    """
-    Strips the API key pattern from error messages to prevent credential leaks.
-    """
-    if api_key and len(api_key) > 8:
-        return error.replace(api_key, "[REDACTED]")
-    return error
+from app.utils.security import sanitize_error
 
 @router.get("", response_model=List[ApplicationResponse])
 async def list_applications(
@@ -44,7 +38,6 @@ async def list_applications(
             # Flatten the nested jobs relationship and redact user_api_key
             records = response.data or []
             for row in records:
-                row.pop("user_api_key", None)  # Security rule
                 job_data = row.pop("jobs", {}) or {}
                 if isinstance(job_data, list):
                     job_data = job_data[0] if len(job_data) > 0 else {}
@@ -84,7 +77,6 @@ async def get_application(
                 )
 
             row = response.data[0]
-            row.pop("user_api_key", None)  # Security rule
             job_data = row.pop("jobs", {}) or {}
             if isinstance(job_data, list):
                 job_data = job_data[0] if len(job_data) > 0 else {}
@@ -152,8 +144,27 @@ async def analyze_application(
                 detail=f"Database verification check failed: {sanitize_error(str(e), x_user_api_key)}"
             )
 
+
+        try:
+            quota_response = await asyncio.to_thread(
+                lambda: supabase_service.rpc("consume_analysis_credit", {"target_user_id": str(current_user.id)}).execute()
+            )
+            if not quota_response.data:
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail="Daily analysis quota exceeded."
+                )
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to verify quota: {str(e)}"
+            )
+
         try:
             queue_response = await asyncio.to_thread(
+
                 lambda: supabase_service.table("applications")
                     .update({
                         "analysis_status": "queued",
@@ -225,7 +236,6 @@ async def update_application(
 
         # Automatically set applied_at to today's date when status is changed to 'applied'
         if update_data.get("status") == "applied" and "applied_at" not in update_data:
-            from datetime import date
             update_data["applied_at"] = date.today().isoformat()
 
         try:
@@ -248,7 +258,6 @@ async def update_application(
             )
 
             row = response.data[0]
-            row.pop("user_api_key", None)  # Security rule
             job_data = row.pop("jobs", {}) or {}
             if isinstance(job_data, list):
                 job_data = job_data[0] if len(job_data) > 0 else {}
@@ -308,21 +317,11 @@ async def delete_application(
                     .execute()
             )
 
-            # Clean up the corresponding job if it is now orphaned
+            # Clean up the corresponding job if it is now orphaned (Fixed TOCTOU)
             if job_id:
-                count_response = await asyncio.to_thread(
-                    lambda: supabase_service.table("applications")
-                        .select("id")
-                        .eq("job_id", str(job_id))
-                        .execute()
+                await asyncio.to_thread(
+                    lambda: supabase_service.rpc("delete_job_if_orphaned", {"target_job_id": str(job_id)}).execute()
                 )
-                if not count_response.data or len(count_response.data) == 0:
-                    await asyncio.to_thread(
-                        lambda: supabase_service.table("jobs")
-                            .delete()
-                            .eq("id", str(job_id))
-                            .execute()
-                    )
 
             return Response(status_code=status.HTTP_204_NO_CONTENT)
         except Exception as e:

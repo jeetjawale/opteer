@@ -29,8 +29,11 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
             )
         return response.user
     except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error("Authentication error: %s", e)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Authentication failed: {str(e)}",
+            detail="Invalid or expired authentication token",
             headers={"WWW-Authenticate": "Bearer"},
         )

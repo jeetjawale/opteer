@@ -69,6 +69,27 @@ export default function ResumesPage() {
   const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"preview" | "text">("preview");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadPreview() {
+      const path = fileUrl || selectedResume?.file_url;
+      if (!path) {
+        setPreviewUrl(null);
+        return;
+      }
+      if (path.startsWith("http")) {
+        setPreviewUrl(path);
+        return;
+      }
+      const { data, error } = await supabase.storage.from("resumes").createSignedUrl(path, 3600);
+      if (data) {
+        setPreviewUrl(data.signedUrl);
+      }
+    }
+    loadPreview();
+  }, [fileUrl, selectedResume]);
+
   
   // UI States
   const [saving, setSaving] = useState(false);
@@ -182,42 +203,34 @@ export default function ResumesPage() {
             
           if (uploadError) throw uploadError;
           
-          const { data: urlData, error: urlError } = await supabase.storage
-            .from('resumes')
-            .createSignedUrl(path, 60 * 60 * 24 * 365);
-            
-          if (urlError) throw urlError;
-          if (urlData) {
-             setFileUrl(urlData.signedUrl);
-             setFileName(file.name);
-             setActiveTab("preview");
-             
-             // AUTO-SAVE logic
-             const currentName = (forceCreate ? "" : name) || (file.name.substring(0, file.name.lastIndexOf(".")) || file.name);
-             
-             if (forceCreate || editorMode === "create") {
-               const newResume = await createResume({
-                 name: currentName,
-                 content: response.text,
-                 file_url: urlData.signedUrl,
-                 file_name: file.name
-               });
-               setSuccess("Resume parsed, uploaded, and saved automatically!");
-               // Use setTimeout to allow state to settle before fetching
-               setTimeout(() => fetchResumesList(newResume.id), 50);
-             } else if (editorMode === "view-edit" && selectedResume) {
-               const updated = await updateResume(selectedResume.id, {
-                 name: currentName,
-                 content: response.text,
-                 file_url: urlData.signedUrl,
-                 file_name: file.name
-               });
-               setSuccess("Resume updated with new file automatically!");
-               setSelectedResume(updated);
-               setTimeout(() => fetchResumesList(updated.id), 50);
-             } else {
-               setSuccess("Resume parsed and file securely uploaded!");
-             }
+          setFileUrl(path);
+          setFileName(file.name);
+          setActiveTab("preview");
+          
+          // AUTO-SAVE logic
+          const currentName = (forceCreate ? "" : name) || (file.name.substring(0, file.name.lastIndexOf(".")) || file.name);
+          
+          if (forceCreate || editorMode === "create") {
+            const newResume = await createResume({
+              name: currentName,
+              content: response.text,
+              file_url: path,
+              file_name: file.name
+            });
+            setSuccess("Resume parsed, uploaded, and saved automatically!");
+            setTimeout(() => fetchResumesList(newResume.id), 50);
+          } else if (editorMode === "view-edit" && selectedResume) {
+            const updated = await updateResume(selectedResume.id, {
+              name: currentName,
+              content: response.text,
+              file_url: path,
+              file_name: file.name
+            });
+            setSuccess("Resume updated with new file automatically!");
+            setSelectedResume(updated);
+            setTimeout(() => fetchResumesList(updated.id), 50);
+          } else {
+            setSuccess("Resume parsed and file securely uploaded!");
           }
         }
       } catch (uploadErr: any) {
@@ -419,9 +432,9 @@ export default function ResumesPage() {
 
   const renderPreviewTab = () => {
     const currentFileName = fileName || selectedResume?.file_name;
-    const currentFileUrl = fileUrl || selectedResume?.file_url;
+    
   
-    if (!currentFileUrl) {
+    if (!previewUrl) {
       return (
         <div className="w-full flex flex-col items-center justify-center p-8 border border-dashed border-border-default rounded-xl bg-elevated/50 text-center mt-2">
           <FileText className="w-8 h-8 text-secondary mb-3" />
@@ -453,7 +466,7 @@ export default function ResumesPage() {
         <>
           <iframe 
             data-testid="resume-preview"
-            src={currentFileUrl}
+            src={previewUrl}
             className="w-full h-[600px] rounded-xl border border-border-default bg-zinc-900/50 mt-2"
             title="Resume PDF Preview"
           />
@@ -482,7 +495,7 @@ export default function ResumesPage() {
               <p className="text-secondary text-xs mt-1">Word documents cannot be previewed in browser</p>
             </div>
             <a 
-              href={currentFileUrl} 
+              href={previewUrl} 
               download={currentFileName || "resume.docx"}
               className="px-4 py-2 rounded-lg bg-elevated border border-border-default text-sm text-primary hover:border-accent/50 transition-colors flex items-center gap-2"
             >

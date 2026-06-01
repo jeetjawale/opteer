@@ -75,7 +75,7 @@ function FakeImportModal({ active, statePayload }: { active: boolean; statePaylo
                 key={importState.isBulk ? 'bulk-active' : 'bulk-inactive'}
                 rows={6}
                 className="w-full px-4 py-3 rounded-xl bg-zinc-950 border border-zinc-800 text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-700 transition-colors text-sm resize-none custom-scrollbar"
-                placeholder="https://company.com/job/1&#10;https://company.com/job/2&#10;https://company.com/job/3"
+                placeholder={"https://company.com/job/1\nhttps://company.com/job/2\nhttps://company.com/job/3"}
                 defaultValue=""
               />
               <p className="text-xs text-zinc-500">
@@ -294,20 +294,32 @@ export default function DemoSequenceEngine({ onComplete, onSkip }: DemoSequenceE
           break;
         case 'typeText':
           if (action.targetDemoId && action.text) {
-            const el = document.querySelector(`[data-demo-id="${action.targetDemoId}"]`) as HTMLInputElement;
+            const el = document.querySelector(`[data-demo-id="${action.targetDemoId}"]`) as HTMLInputElement | HTMLTextAreaElement;
             if (el) {
+              const setNativeValue = (element: any, value: string) => {
+                const valueSetter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(element), 'value')?.set;
+                if (valueSetter) {
+                  valueSetter.call(element, value);
+                } else {
+                  element.value = value;
+                }
+                element.dispatchEvent(new Event('input', { bubbles: true }));
+              };
+
               if (shouldReduceMotion) {
-                el.value = action.text;
+                setNativeValue(el, action.text);
               } else {
+                let currentText = '';
                 let charIdx = 0;
                 const typeChar = () => {
                   if (charIdx < action.text!.length) {
-                    el.value += action.text![charIdx];
+                    currentText += action.text![charIdx];
+                    setNativeValue(el, currentText);
                     charIdx++;
                     setTimeout(typeChar, duration / action.text!.length);
                   }
                 };
-                el.value = '';
+                setNativeValue(el, '');
                 typeChar();
               }
             }

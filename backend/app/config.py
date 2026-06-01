@@ -1,5 +1,8 @@
 import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
+import logging
+
+logger = logging.getLogger(__name__)
 from pydantic import field_validator, model_validator
 
 class Settings(BaseSettings):
@@ -48,6 +51,19 @@ class Settings(BaseSettings):
         case_sensitive=True
     )
     
+    
+    # Environment
+    ENVIRONMENT: str = "development"
+    
+    @field_validator("CORS_ORIGINS")
+    @classmethod
+    def validate_cors(cls, v: list[str], info: any) -> list[str]:
+        env = info.data.get("ENVIRONMENT", "development")
+        if env == "production":
+            if len(v) == 1 and v[0] == "http://localhost:3000":
+                raise ValueError("CORS_ORIGINS must be configured for production (cannot be just localhost:3000)")
+        return v
+    
     @field_validator("AI_PROVIDER")
     @classmethod
     def validate_ai_provider(cls, v: str) -> str:
@@ -88,11 +104,8 @@ class Settings(BaseSettings):
 settings = Settings()
 
 # Startup Config Banner
-print("\n" + "="*50)
-print("🚀 STARTING JOBPILOT BACKEND")
-print("="*50)
-print(f"[CONFIG] provider={settings.AI_PROVIDER}")
-print(f"[CONFIG] model={settings.AI_MODEL}")
-print(f"[CONFIG] supabase_url={settings.SUPABASE_URL}")
-print("="*50 + "\n")
+logger.debug("STARTING JOBPILOT BACKEND")
+logger.debug(f"provider={settings.AI_PROVIDER}")
+logger.debug(f"model={settings.AI_MODEL}")
+logger.debug(f"supabase_url={settings.SUPABASE_URL}")
 
