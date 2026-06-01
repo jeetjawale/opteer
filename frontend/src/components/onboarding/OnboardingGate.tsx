@@ -53,7 +53,7 @@ export default function OnboardingGate({ children }: OnboardingGateProps) {
   // We always render the real application underneath.
   // The DemoSequenceEngine overlays on top if onboarding is incomplete.
   
-  const showDemo = !loading && settings && !settings.onboarding_completed;
+  const showDemo = !loading && (!settings || !settings.onboarding_completed);
 
   const handleDemoComplete = async () => {
     try {

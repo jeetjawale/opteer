@@ -1,36 +1,49 @@
-import time
 import os
 import sys
+import asyncio
 from fastapi import Request, HTTPException, status
-from collections import defaultdict
-from typing import Dict
-
-# Simple in-memory rate limiter: client_ip -> list of timestamps
-rate_limit_records: Dict[str, list[float]] = defaultdict(list)
+from app.database import supabase_service
 
 def rate_limiter(limit: int, window_seconds: int):
     """
-    FastAPI dependency for IP-based in-memory rate limiting.
+    FastAPI dependency for IP-based rate limiting via Supabase RPC.
     Disables itself when running pytest to prevent test suite failures.
     """
-    def dependency(request: Request):
+    async def dependency(request: Request):
         # Disable rate limiting in testing mode
         if "pytest" in sys.modules or os.environ.get("TESTING") == "true":
             return
 
         client_ip = request.client.host if request.client else "unknown"
-        now = time.time()
-        
-        # Filter out timestamps older than the window
-        timestamps = [t for t in rate_limit_records[client_ip] if now - t < window_seconds]
-        
-        if len(timestamps) >= limit:
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Too many requests. Please try again later."
+        path = request.url.path
+        rate_key = f"rate_limit:{client_ip}:{path}"
+
+        try:
+            response = await asyncio.to_thread(
+                lambda: supabase_service.rpc(
+                    "check_and_increment_rate_limit",
+                    {
+                        "rate_key": rate_key,
+                        "limit_count": limit,
+                        "window_seconds": window_seconds
+                    }
+                ).execute()
             )
+
+            # The RPC returns true if allowed, false if exceeded
+            allowed = response.data if response and hasattr(response, "data") else True
             
-        timestamps.append(now)
-        rate_limit_records[client_ip] = timestamps
-        
+            if not allowed:
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail="Too many requests. Please try again later."
+                )
+        except Exception as e:
+            if isinstance(e, HTTPException):
+                raise
+            import logging
+            logger = logging.getLogger(__name__)
+            # Fail open if Supabase RPC fails (e.g. timeout) to avoid blocking users
+            logger.error("Rate limit RPC error: %s", e)
+
     return dependency

@@ -76,3 +76,15 @@ def test_parse_unsupported_format():
     )
     assert response.status_code == 400
     assert "Unsupported file format" in response.json()["detail"]
+
+def test_parse_resume_rejects_large_file():
+    # 5MB + 1 byte
+    large_content = b"a" * (5 * 1024 * 1024 + 1)
+    
+    response = client.post(
+        "/jobs/parse-resume",
+        files={"file": ("large_resume.txt", large_content, "text/plain")}
+    )
+    
+    assert response.status_code == 413
+    assert "File too large" in response.json()["detail"]

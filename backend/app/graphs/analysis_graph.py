@@ -1,7 +1,10 @@
 import asyncio
+import logging
 from typing import TypedDict, Optional
 from datetime import datetime, timezone
 from langgraph.graph import StateGraph, END, START
+
+logger = logging.getLogger(__name__)
 
 from app.chains.fit_scoring import get_fit_scoring_chain
 from app.chains.cover_letter import get_cover_letter_chain
@@ -96,7 +99,8 @@ async def run_fit_scoring(state: AnalysisState) -> dict:
         })
         return {"fit_result": result}
     except Exception as e:
-        return {"error": f"fit_scoring failed: {str(e)}"}
+        logger.error("fit_scoring failed: %s", str(e))
+        return {"fit_result": {}}
 
 
 async def run_cover_letter(state: AnalysisState) -> dict:
@@ -116,7 +120,8 @@ async def run_cover_letter(state: AnalysisState) -> dict:
         })
         return {"cover_letter": result}
     except Exception as e:
-        return {"error": f"cover_letter failed: {str(e)}"}
+        logger.error("cover_letter failed: %s", str(e))
+        return {"cover_letter": None}
 
 
 async def run_interview_prep(state: AnalysisState) -> dict:
@@ -135,7 +140,8 @@ async def run_interview_prep(state: AnalysisState) -> dict:
         })
         return {"interview_prep": result}
     except Exception as e:
-        return {"error": f"interview_prep failed: {str(e)}"}
+        logger.error("interview_prep failed: %s", str(e))
+        return {"interview_prep": {}}
 
 
 async def run_resume_tailoring(state: AnalysisState) -> dict:
@@ -154,35 +160,35 @@ async def run_resume_tailoring(state: AnalysisState) -> dict:
         })
         return {"resume_edits": result}
     except Exception as e:
-        return {"error": f"resume_tailoring failed: {str(e)}"}
+        logger.error("resume_tailoring failed: %s", str(e))
+        return {"resume_edits": {}}
 
 
 async def save_results(state: AnalysisState) -> dict:
     """
     Saves the aggregated analysis outputs back to the application record in Supabase.
+    Tolerates partial failures by saving whatever fields are populated.
     """
     app_id = state.get("application_id")
     fit = state.get("fit_result") or {}
 
     try:
-        fit_result = FitScoreResult.model_validate(fit)
-        interview_prep = InterviewPrepResult.model_validate(state.get("interview_prep") or {})
-        resume_edits = ResumeEditsResult.model_validate(state.get("resume_edits") or {})
-        cover_letter = state.get("cover_letter")
-        if not isinstance(cover_letter, str) or not cover_letter.strip():
-            raise ValueError("cover_letter must be a non-empty string")
-
         update_data = {
-            "fit_score": fit_result.fit_score,
-            "matched_skills": fit_result.matched_skills,
-            "missing_skills": fit_result.missing_skills,
-            "key_requirements": fit_result.key_requirements,
-            "summary": fit_result.summary,
-            "cover_letter": cover_letter,
-            "interview_prep": interview_prep.model_dump(),
-            "resume_edits": resume_edits.model_dump(),
+            "fit_score": fit.get("fit_score"),
+            "matched_skills": fit.get("matched_skills"),
+            "missing_skills": fit.get("missing_skills"),
+            "key_requirements": fit.get("key_requirements"),
+            "summary": fit.get("summary"),
+            "cover_letter": state.get("cover_letter"),
+            "interview_prep": state.get("interview_prep"),
+            "resume_edits": state.get("resume_edits"),
             "analyzed_at": datetime.now(timezone.utc).isoformat()
         }
+        
+        # Remove None values so we don't accidentally overwrite existing data with null
+        # if this is a retry or partial update, though typically it's all empty initially.
+        # Actually, it's safer to just let them be null if they failed, which is the default DB state.
+        
         await asyncio.to_thread(
             lambda: supabase_service.table("applications")
                 .update(update_data)
@@ -200,8 +206,11 @@ async def save_results(state: AnalysisState) -> dict:
 
 def route_after_node(state: AnalysisState, next_node: str) -> str:
     """
-    Conditional routing helper. If 'error' is set in state,
-    redirects execution immediately to the END node, skipping subsequent nodes.
+    Conditional routing helper.
+    Only short-circuits to END if a fatal error occurred (e.g. fetch_context failed).
+    Intermediate LLM step errors do not populate state['error'], they just return 
+    the error in their respective keys or leave the result None, allowing the graph 
+    to continue with partial results.
     """
     if state.get("error") is not None:
         return END
@@ -295,5 +304,5 @@ async def run_analysis(
         final_state = await graph.ainvoke(initial_state)
         return final_state
     except Exception as e:
-        print("Error invoking analysis graph:", str(e))
+        logger.error("Error invoking analysis graph: %s", str(e))
         return {**initial_state, "error": str(e)}

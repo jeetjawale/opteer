@@ -39,6 +39,18 @@ async function fetchWithAuth(url: string, init?: RequestInit): Promise<Response>
 
 export interface ApplicationUpdatePayload {
   status?: string;
+  applied_at?: string;
+  resume_text?: string;
+  resume_file_url?: string;
+  resume_file_name?: string;
+  fit_score?: number;
+  matched_skills?: string[];
+  missing_skills?: string[];
+  key_requirements?: string[];
+  summary?: string;
+  cover_letter?: string;
+  interview_prep?: any;
+  resume_edits?: any;
   notes?: string;
 }
 
@@ -305,7 +317,7 @@ export async function getUserSettings(): Promise<UserSettingsResponse> {
   return response.json();
 }
 
-export async function updateUserSettings(data: any) {
+export async function updateUserSettings(data: Partial<Omit<UserSettingsResponse, 'id' | 'user_id' | 'updated_at'>>) {
   const response = await fetchWithAuth(`${API_BASE_URL}/settings`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },

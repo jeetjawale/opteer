@@ -63,6 +63,7 @@ def test_upsert_settings():
         response = client.get("/settings")
         assert response.status_code == 200
         data = response.json()
+        assert data["id"] is None
         # Empty DB state — should return resolved .env defaults, not None
         expected_fit = settings.AI_MODEL_FIT or settings.AI_MODEL
         assert data["model_fit"] == expected_fit
