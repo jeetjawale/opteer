@@ -54,11 +54,22 @@ export interface ApplicationUpdatePayload {
   notes?: string;
 }
 
-export async function getApplications(status?: string) {
-  const url = status 
-    ? `${API_BASE_URL}/applications?status=${encodeURIComponent(status)}` 
-    : `${API_BASE_URL}/applications`;
+export async function getApplications(status?: string, page: number = 1, perPage: number = 50) {
+  let url = `${API_BASE_URL}/applications?page=${page}&per_page=${perPage}`;
+  if (status && status !== "all") {
+    url += `&status=${encodeURIComponent(status)}`;
+  }
     
+  const response = await fetchWithAuth(url, { cache: "no-store" });
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({ detail: "Request failed" }));
+    throw new Error(errData.detail || `HTTP error ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function getApplicationStats(timeWindow: string) {
+  const url = `${API_BASE_URL}/applications/stats?time_window=${encodeURIComponent(timeWindow)}`;
   const response = await fetchWithAuth(url, { cache: "no-store" });
   if (!response.ok) {
     const errData = await response.json().catch(() => ({ detail: "Request failed" }));
@@ -305,6 +316,7 @@ export interface UserSettingsResponse {
   model_fit?: string;
   model_letter?: string;
   model_prep?: string;
+  model_tailor?: string;
   onboarding_completed?: boolean;
   onboarding_step?: string;
   has_saved_key: boolean;

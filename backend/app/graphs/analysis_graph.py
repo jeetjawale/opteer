@@ -31,6 +31,7 @@ class AnalysisState(TypedDict):
     model_fit: Optional[str]
     model_letter: Optional[str]
     model_prep: Optional[str]
+    model_tailor: Optional[str]
     error: Optional[str]
 
 # ============================================
@@ -83,85 +84,78 @@ async def fetch_context(state: AnalysisState) -> dict:
         return {"error": f"fetch_context failed: {str(e)}"}
 
 
-async def run_fit_scoring(state: AnalysisState) -> dict:
+async def run_all_analyses(state: AnalysisState) -> dict:
     """
-    Invokes the Fit Scoring Chain using candidate's resume and job description.
+    Invokes all analysis chains (fit, cover letter, prep, tailoring) in parallel.
     """
+    async def _fit():
+        try:
+            model_override = state.get("model_fit") or state.get("model_default") or None
+            fit_chain = get_fit_scoring_chain(user_api_key=state.get("user_api_key"), model_override=model_override)
+            result = await fit_chain.ainvoke({
+                "resume_text": state["resume_text"],
+                "scraped_jd": state["scraped_jd"]
+            })
+            return {"fit_result": result}
+        except Exception as e:
+            logger.error("fit_scoring failed: %s", str(e))
+            return {"fit_result": {}}
+
+    async def _letter():
+        try:
+            model_override = state.get("model_letter") or state.get("model_default") or None
+            cover_letter_chain = get_cover_letter_chain(user_api_key=state.get("user_api_key"), model_override=model_override)
+            result = await cover_letter_chain.ainvoke({
+                "resume_text": state["resume_text"],
+                "scraped_jd": state["scraped_jd"],
+                "company_research": state["company_research"]
+            })
+            return {"cover_letter": result}
+        except Exception as e:
+            logger.error("cover_letter failed: %s", str(e))
+            return {"cover_letter": None}
+
+    async def _prep():
+        try:
+            model_override = state.get("model_prep") or state.get("model_default") or None
+            prep_chain = get_interview_prep_chain(user_api_key=state.get("user_api_key"), model_override=model_override)
+            result = await prep_chain.ainvoke({
+                "resume_text": state["resume_text"],
+                "scraped_jd": state["scraped_jd"]
+            })
+            return {"interview_prep": result}
+        except Exception as e:
+            logger.error("interview_prep failed: %s", str(e))
+            return {"interview_prep": {}}
+
+    async def _tailor():
+        try:
+            model_override = state.get("model_tailor") or state.get("model_default") or None
+            tailor_chain = get_resume_tailoring_chain(user_api_key=state.get("user_api_key"), model_override=model_override)
+            result = await tailor_chain.ainvoke({
+                "resume_text": state["resume_text"],
+                "scraped_jd": state["scraped_jd"]
+            })
+            return {"resume_edits": result}
+        except Exception as e:
+            logger.error("resume_tailoring failed: %s", str(e))
+            return {"resume_edits": {}}
+
     try:
-        model_override = state.get("model_fit") or state.get("model_default") or None
-        fit_chain = get_fit_scoring_chain(
-            user_api_key=state.get("user_api_key"),
-            model_override=model_override
-        )
-        result = await fit_chain.ainvoke({
-            "resume_text": state["resume_text"],
-            "scraped_jd": state["scraped_jd"]
-        })
-        return {"fit_result": result}
+        results = await asyncio.gather(_fit(), _letter(), _prep(), _tailor())
+        merged = {}
+        for res in results:
+            merged.update(res)
+        return merged
     except Exception as e:
-        logger.error("fit_scoring failed: %s", str(e))
-        return {"fit_result": {}}
-
-
-async def run_cover_letter(state: AnalysisState) -> dict:
-    """
-    Invokes the Cover Letter Chain using resume, job description, and company research.
-    """
-    try:
-        model_override = state.get("model_letter") or state.get("model_default") or None
-        cover_letter_chain = get_cover_letter_chain(
-            user_api_key=state.get("user_api_key"),
-            model_override=model_override
-        )
-        result = await cover_letter_chain.ainvoke({
-            "resume_text": state["resume_text"],
-            "scraped_jd": state["scraped_jd"],
-            "company_research": state["company_research"]
-        })
-        return {"cover_letter": result}
-    except Exception as e:
-        logger.error("cover_letter failed: %s", str(e))
-        return {"cover_letter": None}
-
-
-async def run_interview_prep(state: AnalysisState) -> dict:
-    """
-    Invokes the Interview Prep Chain using resume and job description.
-    """
-    try:
-        model_override = state.get("model_prep") or state.get("model_default") or None
-        prep_chain = get_interview_prep_chain(
-            user_api_key=state.get("user_api_key"),
-            model_override=model_override
-        )
-        result = await prep_chain.ainvoke({
-            "resume_text": state["resume_text"],
-            "scraped_jd": state["scraped_jd"]
-        })
-        return {"interview_prep": result}
-    except Exception as e:
-        logger.error("interview_prep failed: %s", str(e))
-        return {"interview_prep": {}}
-
-
-async def run_resume_tailoring(state: AnalysisState) -> dict:
-    """
-    Invokes the Resume Tailoring Chain using resume and job description.
-    """
-    try:
-        model_override = state.get("model_prep") or state.get("model_default") or None
-        tailor_chain = get_resume_tailoring_chain(
-            user_api_key=state.get("user_api_key"),
-            model_override=model_override
-        )
-        result = await tailor_chain.ainvoke({
-            "resume_text": state["resume_text"],
-            "scraped_jd": state["scraped_jd"]
-        })
-        return {"resume_edits": result}
-    except Exception as e:
-        logger.error("resume_tailoring failed: %s", str(e))
-        return {"resume_edits": {}}
+        logger.error("run_all_analyses failed unexpectedly: %s", str(e))
+        return {
+            "error": f"Failed to run parallel analyses: {str(e)}",
+            "fit_result": {},
+            "cover_letter": None,
+            "interview_prep": {},
+            "resume_edits": {}
+        }
 
 
 async def save_results(state: AnalysisState) -> dict:
@@ -221,10 +215,7 @@ workflow = StateGraph(AnalysisState)
 
 # Register Nodes
 workflow.add_node("fetch_context", fetch_context)
-workflow.add_node("run_fit_scoring", run_fit_scoring)
-workflow.add_node("run_cover_letter", run_cover_letter)
-workflow.add_node("run_interview_prep", run_interview_prep)
-workflow.add_node("run_resume_tailoring", run_resume_tailoring)
+workflow.add_node("run_all_analyses", run_all_analyses)
 workflow.add_node("save_results", save_results)
 
 # Build Graph Edges with error-routing checks
@@ -232,30 +223,12 @@ workflow.add_edge(START, "fetch_context")
 
 workflow.add_conditional_edges(
     "fetch_context",
-    lambda state: route_after_node(state, "run_fit_scoring"),
-    {"run_fit_scoring": "run_fit_scoring", END: END}
+    lambda state: route_after_node(state, "run_all_analyses"),
+    {"run_all_analyses": "run_all_analyses", END: END}
 )
 
 workflow.add_conditional_edges(
-    "run_fit_scoring",
-    lambda state: route_after_node(state, "run_cover_letter"),
-    {"run_cover_letter": "run_cover_letter", END: END}
-)
-
-workflow.add_conditional_edges(
-    "run_cover_letter",
-    lambda state: route_after_node(state, "run_interview_prep"),
-    {"run_interview_prep": "run_interview_prep", END: END}
-)
-
-workflow.add_conditional_edges(
-    "run_interview_prep",
-    lambda state: route_after_node(state, "run_resume_tailoring"),
-    {"run_resume_tailoring": "run_resume_tailoring", END: END}
-)
-
-workflow.add_conditional_edges(
-    "run_resume_tailoring",
+    "run_all_analyses",
     lambda state: route_after_node(state, "save_results"),
     {"save_results": "save_results", END: END}
 )
@@ -275,7 +248,8 @@ async def run_analysis(
     model_default: Optional[str] = None,
     model_fit: Optional[str] = None,
     model_letter: Optional[str] = None,
-    model_prep: Optional[str] = None
+    model_prep: Optional[str] = None,
+    model_tailor: Optional[str] = None
 ) -> dict:
     """
     Compiles and invokes the state graph asynchronously to run the full AI analysis 
@@ -297,6 +271,7 @@ async def run_analysis(
         "model_fit": model_fit,
         "model_letter": model_letter,
         "model_prep": model_prep,
+        "model_tailor": model_tailor,
         "error": None
     }
     

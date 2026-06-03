@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { getApplications } from "@/lib/api";
+import { getApplicationStats } from "@/lib/api";
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   AreaChart, Area, Cell, PieChart, Pie
@@ -11,30 +11,20 @@ import Link from "next/link";
 import SkeletonPulse from "@/components/motion/SkeletonPulse";
 import EmptyState from "@/components/EmptyState";
 
-interface Application {
-  id: string;
-  user_id: string;
-  job_id: string;
-  status: string;
-  applied_at: string | null;
-  fit_score: number | null;
-  company?: string | null;
-  role?: string | null;
-  url?: string | null;
-  created_at: string;
-}
 
 export default function AnalyticsPage() {
-  const [applications, setApplications] = useState<Application[]>([]);
+  const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [timeWindow, setTimeWindow] = useState<number | "all">(30);
 
   useEffect(() => {
     async function fetchData() {
+      setLoading(true);
+      setError(null);
       try {
-        const data = await getApplications();
-        setApplications(data || []);
+        const data = await getApplicationStats(timeWindow.toString());
+        setStats(data);
       } catch (err: any) {
         setError(err.message || "Failed to load analytics data.");
       } finally {
@@ -42,126 +32,31 @@ export default function AnalyticsPage() {
       }
     }
     fetchData();
-  }, []);
+  }, [timeWindow]);
 
-  // Filter applications by Time Window
-  const filteredApps = useMemo(() => {
-    if (timeWindow === "all") return applications;
-    
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - timeWindow);
-    
-    return applications.filter(app => {
-      const date = new Date(app.created_at);
-      return date >= cutoff;
-    });
-  }, [applications, timeWindow]);
+  const timelineData = (stats?.timeline_data || []).map((item: any) => ({
+    date: new Date(item.date).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }),
+    count: item.count
+  }));
 
-  // Funnel Data (Strict definitions)
-  const funnelData = useMemo(() => {
-    const counts = { saved: 0, applied: 0, interview: 0, offer: 0, rejected: 0 };
-    filteredApps.forEach(app => {
-      if (counts[app.status as keyof typeof counts] !== undefined) {
-        counts[app.status as keyof typeof counts]++;
-      }
-    });
+  const funnelColors: Record<string, string> = {
+    "Saved": "#71717a",
+    "Applied": "#3b82f6",
+    "Interviewing": "#f59e0b",
+    "Offer": "#22c55e",
+    "Rejected": "#ef4444"
+  };
 
-    return [
-      { name: "Saved", value: counts.saved, color: "#71717a" },
-      { name: "Applied", value: counts.applied, color: "#3b82f6" },
-      { name: "Interviewing", value: counts.interview, color: "#f59e0b" },
-      { name: "Offer", value: counts.offer, color: "#22c55e" },
-      { name: "Rejected", value: counts.rejected, color: "#ef4444" }
-    ];
-  }, [filteredApps]);
+  const funnelData = (stats?.funnel_data || []).map((item: any) => ({
+    ...item,
+    color: funnelColors[item.name] || "#71717a"
+  }));
 
-  // Compute KPIs
-  const { responseRate, interviewConversion, totalActive } = useMemo(() => {
-    const counts = { saved: 0, applied: 0, interview: 0, offer: 0, rejected: 0 };
-    filteredApps.forEach(app => {
-      if (counts[app.status as keyof typeof counts] !== undefined) {
-        counts[app.status as keyof typeof counts]++;
-      }
-    });
-
-    // Active applications (exclude saved/not applied yet)
-    const active = counts.applied + counts.interview + counts.offer + counts.rejected;
-    
-    // Response Rate: Interviews + Offers + Rejections / Total Active
-    // (Essentially: what % of submitted apps got some sort of non-ghost response? But typically Response = Interviews / Active)
-    const responses = counts.interview + counts.offer;
-    const respRate = active > 0 ? Math.round((responses / active) * 100) : 0;
-
-    // Interview Conversion: Offers / Interviews
-    const totalInterviews = counts.interview + counts.offer; // assuming offers came from interviews
-    const convRate = totalInterviews > 0 ? Math.round((counts.offer / totalInterviews) * 100) : 0;
-
-    return { responseRate: respRate, interviewConversion: convRate, totalActive: active };
-  }, [filteredApps]);
-
-  // Compute Fit Score Distribution
-  const fitScoreData = useMemo(() => {
-    const buckets = [
-      { range: "0-50", count: 0 },
-      { range: "51-70", count: 0 },
-      { range: "71-85", count: 0 },
-      { range: "86-100", count: 0 },
-    ];
-    
-    filteredApps.forEach(app => {
-      const score = app.fit_score;
-      if (score === null || score === undefined) return;
-      
-      if (score <= 50) buckets[0].count++;
-      else if (score <= 70) buckets[1].count++;
-      else if (score <= 85) buckets[2].count++;
-      else buckets[3].count++;
-    });
-    
-    return buckets;
-  }, [filteredApps]);
-
-  // Compute Timeline Data
-  const timelineData = useMemo(() => {
-    const days = timeWindow === "all" ? 90 : timeWindow; // cap at 90 for 'all' to prevent chart crowding
-    const data: Record<string, number> = {};
-    
-    // Initialize days
-    for (let i = days - 1; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const dateString = d.toISOString().split("T")[0];
-      data[dateString] = 0;
-    }
-    
-    filteredApps.forEach(app => {
-      if (!app.created_at) return;
-      const dateString = new Date(app.created_at).toISOString().split("T")[0];
-      if (data[dateString] !== undefined) {
-        data[dateString]++;
-      }
-    });
-    
-    return Object.keys(data).map(date => ({
-      date: new Date(date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-      count: data[date]
-    }));
-  }, [filteredApps, timeWindow]);
-
-  // Top Companies
-  const topCompaniesData = useMemo(() => {
-    const companies: Record<string, number> = {};
-    filteredApps.forEach(app => {
-      if (app.company) {
-        companies[app.company] = (companies[app.company] || 0) + 1;
-      }
-    });
-
-    return Object.entries(companies)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 5); // top 5
-  }, [filteredApps]);
+  const fitScoreData = stats?.fit_score_data || [];
+  const topCompaniesData = (stats?.top_companies_data || []).filter((c: any) => c.name !== "Unknown");
+  const totalActive = stats?.total_active || 0;
+  const responseRate = stats?.response_rate || 0;
+  const interviewConversion = stats?.interview_conversion || 0;
 
   // Custom Tooltips
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -231,7 +126,7 @@ export default function AnalyticsPage() {
   }
 
   // --- EMPTY STATES ---
-  if (applications.length === 0) {
+  if (!stats) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] px-4">
         <EmptyState 
@@ -271,12 +166,13 @@ export default function AnalyticsPage() {
         </div>
       </header>
 
-      {filteredApps.length === 0 ? (
+      {stats.total_active === 0 && stats.funnel_data?.every((d: any) => d.value === 0) ? (
         <EmptyState 
           icon={Inbox}
           title="No applications in timeframe"
           description="We couldn't find any applications in this timeframe."
           actionLabel="View All Time"
+          actionHref=""
           onAction={() => setTimeWindow('all')}
         />
       ) : (
@@ -382,7 +278,7 @@ export default function AnalyticsPage() {
                     }}
                   />
                   <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={28}>
-                    {funnelData.map((entry, index) => (
+                    {funnelData.map((entry: any, index: number) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Bar>
@@ -402,7 +298,7 @@ export default function AnalyticsPage() {
                 <BarChart data={fitScoreData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
                   <XAxis 
-                    dataKey="range" 
+                    dataKey="label" 
                     stroke="var(--text-muted)" 
                     fontSize={12} 
                     tickLine={false}
@@ -431,7 +327,7 @@ export default function AnalyticsPage() {
                     }}
                   />
                   <Bar dataKey="count" fill="var(--accent)" radius={[4, 4, 0, 0]} maxBarSize={40}>
-                    {fitScoreData.map((entry, index) => (
+                    {fitScoreData.map((entry: any, index: number) => (
                       <Cell key={`cell-${index}`} fill={
                         index === 0 ? "#ef4444" : // Red for low
                         index === 1 ? "#f59e0b" : // Amber
@@ -469,7 +365,7 @@ export default function AnalyticsPage() {
                       paddingAngle={5}
                       dataKey="value"
                     >
-                      {topCompaniesData.map((entry, index) => (
+                      {topCompaniesData.map((entry: any, index: number) => (
                         <Cell key={`cell-${index}`} fill={`hsl(${220 + (index * 40)}, 70%, 60%)`} />
                       ))}
                     </Pie>
@@ -479,7 +375,7 @@ export default function AnalyticsPage() {
                 </div>
                 {/* Custom Legend */}
                 <div className="mt-4 flex flex-col space-y-2">
-                  {topCompaniesData.map((entry, index) => (
+                  {topCompaniesData.map((entry: any, index: number) => (
                     <div key={index} className="flex justify-between items-center text-sm">
                       <div className="flex items-center space-x-2">
                         <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: `hsl(${220 + (index * 40)}, 70%, 60%)` }} />

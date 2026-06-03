@@ -9,7 +9,8 @@ export const PROVIDER_MODELS: Record<string, ModelOption[]> = {
 
   // ── Google Gemini ───────────────────────────────────────────────────────────
   gemini: [
-    { value: "gemini-2.0-flash",                label: "Gemini 2.0 Flash",                tier: "fast",     context: "1M" },
+    { value: "gemini-3.1-flash-lite",           label: "Gemini 3.1 Flash Lite",           tier: "fast",     context: "1M" },
+    { value: "gemini-2.0-flash",                label: "Gemini 2.0 Flash",                tier: "balanced",     context: "1M" },
     { value: "gemini-1.5-pro",                  label: "Gemini 1.5 Pro",                  tier: "powerful", context: "2M" },
     { value: "gemini-1.5-flash",                label: "Gemini 1.5 Flash",                tier: "fast",     context: "1M" },
   ],
@@ -49,7 +50,7 @@ export const PROVIDER_MODELS: Record<string, ModelOption[]> = {
 };
 
 export const PROVIDER_DEFAULTS: Record<string, string> = {
-  gemini:    "gemini-2.0-flash",
+  gemini:    "gemini-3.1-flash-lite",
   anthropic: "claude-3-5-sonnet-20241022",
   openai:    "gpt-4o-mini",
   xai:       "grok-2-1212",
@@ -62,6 +63,7 @@ export const TASK_TIER_PREFERENCE: Record<string, "fast" | "balanced" | "powerfu
   fit:    "fast",
   letter: "powerful",
   prep:   "balanced",
+  tailor: "balanced",
 };
 
 /**
@@ -71,7 +73,7 @@ export const TASK_TIER_PREFERENCE: Record<string, "fast" | "balanced" | "powerfu
  */
 export function getRecommendedModelForTask(
   apiKey: string | null,
-  task: "fit" | "letter" | "prep"
+  task: "fit" | "letter" | "prep" | "tailor"
 ): string {
   const provider = getProviderFromKey(apiKey);
   const preferredTier = Object.prototype.hasOwnProperty.call(TASK_TIER_PREFERENCE, task) ? TASK_TIER_PREFERENCE[task] : "balanced";

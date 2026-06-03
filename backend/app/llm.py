@@ -90,7 +90,7 @@ def get_llm(
       - anthropic -> claude-3-5-sonnet-20241022
       - openai    -> gpt-4o-mini
       - xai       -> grok-2-1212
-      - gemini    -> gemini-2.0-flash
+      - gemini    -> gemini-3.1-flash-lite
     """
     if user_api_key:
         provider = detect_provider(user_api_key)
@@ -116,7 +116,7 @@ def get_llm(
             elif provider == "moonshot":
                 model_name = "moonshot/kimi-k2-6"
             else:
-                model_name = "gemini-2.0-flash"
+                model_name = "gemini-3.1-flash-lite"
         api_key = user_api_key
     else:
         provider = settings.AI_PROVIDER.lower()
