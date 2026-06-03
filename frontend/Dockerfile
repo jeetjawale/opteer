@@ -14,6 +14,9 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 # Disable telemetry during the build
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV NEXT_PUBLIC_SUPABASE_URL="https://mock.supabase.co"
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY="mock"
+ENV NEXT_PUBLIC_API_URL="http://mock:8080"
 RUN npm run build
 
 # Production image, copy all the files and run next

@@ -5,7 +5,7 @@ ALTER TABLE public.applications DROP COLUMN IF EXISTS user_api_key;
 CREATE OR REPLACE FUNCTION delete_job_if_orphaned(target_job_id uuid)
 RETURNS void
 LANGUAGE plpgsql
-SECURITY DEFINER
+SECURITY DEFINER SET search_path = public
 AS $$
 BEGIN
     -- Delete the job only if no applications are currently referencing it

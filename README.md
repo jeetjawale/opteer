@@ -72,7 +72,7 @@ What makes JobPilot different from standard wrappers is its stateful AI orchestr
    ```
    *Required Variables:*
    - `AI_PROVIDER`: The active LLM provider (e.g., `gemini`, `openai`, `anthropic`).
-   - `AI_MODEL`: The default model string (e.g., `gemini-2.0-flash`).
+   - `AI_MODEL`: The default model string (e.g., `gemini-3.1-flash-lite`).
    - `API_KEY_ENCRYPTION_KEY`: A 32 url-safe base64-encoded byte string for securing user API keys. Generate via: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`.
    - `SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_URL`: Your Supabase project URL (Get from Supabase Dashboard).
    - `SUPABASE_KEY` / `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Your Supabase anonymous public key (Get from Supabase Dashboard).

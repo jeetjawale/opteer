@@ -10,13 +10,14 @@ class Settings(BaseSettings):
     
     # LLM Settings
     AI_PROVIDER: str = "gemini"
-    AI_MODEL: str = "gemini-2.0-flash"
+    AI_MODEL: str = "gemini-3.1-flash-lite"
     LOCAL_LLM_BASE_URL: str | None = None
     
     # Modular Model Routing Overrides (fallback to AI_MODEL if None)
     AI_MODEL_FIT: str | None = None
     AI_MODEL_LETTER: str | None = None
     AI_MODEL_PREP: str | None = None
+    AI_MODEL_TAILOR: str | None = None
     
     # API Keys
     GOOGLE_API_KEY: str | None = None

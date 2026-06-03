@@ -252,6 +252,7 @@ class UserSettingsUpdate(BaseModel):
     model_fit: Optional[str] = None
     model_letter: Optional[str] = None
     model_prep: Optional[str] = None
+    model_tailor: Optional[str] = None
     onboarding_completed: Optional[bool] = None
     onboarding_step: Optional[str] = None
     api_key: Optional[str] = Field(None, description="Custom API key (will be encrypted and stored securely)")
@@ -263,6 +264,7 @@ class UserSettingsResponse(BaseModel):
     model_fit: Optional[str] = None
     model_letter: Optional[str] = None
     model_prep: Optional[str] = None
+    model_tailor: Optional[str] = None
     onboarding_completed: Optional[bool] = None
     onboarding_step: Optional[str] = None
     daily_analysis_credits: Optional[int] = None
@@ -270,5 +272,34 @@ class UserSettingsResponse(BaseModel):
     last_credit_reset: Optional[datetime] = None
     updated_at: datetime
     has_saved_key: bool = Field(False, description="True if an encrypted API key is stored on the backend")
-    
     model_config = ConfigDict(from_attributes=True)
+
+# ============================================
+# STATS SCHEMAS
+# ============================================
+
+class FunnelItem(BaseModel):
+    name: str
+    value: int
+
+class FitScoreBucket(BaseModel):
+    label: str
+    count: int
+
+class TimelineItem(BaseModel):
+    date: str  # Format: "YYYY-MM-DD"
+    count: int
+
+class TopCompanyItem(BaseModel):
+    name: str
+    value: int
+
+class ApplicationStatsResponse(BaseModel):
+    total_active: int
+    response_rate: int
+    interview_conversion: int
+    funnel_data: List[FunnelItem]
+    fit_score_data: List[FitScoreBucket]
+    timeline_data: List[TimelineItem]
+    top_companies_data: List[TopCompanyItem]
+

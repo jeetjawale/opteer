@@ -20,6 +20,7 @@ export default function SettingsPage() {
   const [modelFit, setModelFit] = useState("");
   const [modelLetter, setModelLetter] = useState("");
   const [modelPrep, setModelPrep] = useState("");
+  const [modelTailor, setModelTailor] = useState("");
   const [loadingSettings, setLoadingSettings] = useState(true);
   
   // Test connection states
@@ -47,6 +48,7 @@ export default function SettingsPage() {
         setModelFit(data.model_fit || "");
         setModelLetter(data.model_letter || "");
         setModelPrep(data.model_prep || "");
+        setModelTailor(data.model_tailor || "");
       }
     }).catch(err => {
       console.error("Failed to fetch user settings", err);
@@ -72,6 +74,7 @@ export default function SettingsPage() {
       setModelFit(getRecommendedModelForTask(val, "fit"));
       setModelLetter(getRecommendedModelForTask(val, "letter"));
       setModelPrep(getRecommendedModelForTask(val, "prep"));
+      setModelTailor(getRecommendedModelForTask(val, "tailor"));
     }
     
     // Reset test/save states on change
@@ -92,6 +95,7 @@ export default function SettingsPage() {
     setModelFit(getRecommendedModelForTask(null, "fit"));
     setModelLetter(getRecommendedModelForTask(null, "letter"));
     setModelPrep(getRecommendedModelForTask(null, "prep"));
+    setModelTailor(getRecommendedModelForTask(null, "tailor"));
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -111,7 +115,8 @@ export default function SettingsPage() {
         model_default: modelDefault || undefined,
         model_fit: modelFit || undefined,
         model_letter: modelLetter || undefined,
-        model_prep: modelPrep || undefined
+        model_prep: modelPrep || undefined,
+        model_tailor: modelTailor || undefined
       });
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2500);
@@ -163,12 +168,14 @@ export default function SettingsPage() {
   const recommendedFit = getRecommendedModelForTask(userApiKey, "fit");
   const recommendedLetter = getRecommendedModelForTask(userApiKey, "letter");
   const recommendedPrep = getRecommendedModelForTask(userApiKey, "prep");
+  const recommendedTailor = getRecommendedModelForTask(userApiKey, "tailor");
 
   const handleDefaultModelChange = (val: string) => {
     setModelDefault(val);
     setModelFit(val);
     setModelLetter(val);
     setModelPrep(val);
+    setModelTailor(val);
   };
 
   return (
@@ -320,6 +327,21 @@ export default function SettingsPage() {
                     {availableModels.map(m => (
                       <option key={m.value} value={m.value}>
                         {m.label}{m.value === recommendedPrep ? " (Recommended)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                  <label className="text-secondary text-xs font-semibold uppercase tracking-wider">Resume Tailoring Model</label>
+                  <select 
+                    value={modelTailor} 
+                    onChange={(e) => setModelTailor(e.target.value)}
+                    className="w-full p-2.5 rounded-xl bg-elevated border border-border-default text-primary text-sm focus:outline-none focus:border-border-strong"
+                  >
+                    {availableModels.map(m => (
+                      <option key={m.value} value={m.value}>
+                        {m.label}{m.value === recommendedTailor ? " (Recommended)" : ""}
                       </option>
                     ))}
                   </select>

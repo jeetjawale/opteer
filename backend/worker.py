@@ -12,7 +12,27 @@ Strategy (Option B): applications table is the durable queue.
 import asyncio
 import sys
 import os
+import logging
+import json
 from datetime import datetime, timedelta, timezone
+
+class JSONFormatter(logging.Formatter):
+    def format(self, record):
+        log_record = {
+            "timestamp": self.formatTime(record, self.datefmt),
+            "level": record.levelname,
+            "name": record.name,
+            "message": record.getMessage()
+        }
+        if record.exc_info:
+            log_record["error"] = self.formatException(record.exc_info)
+        return json.dumps(log_record)
+
+logger = logging.getLogger("worker")
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler(sys.stdout)
+handler.setFormatter(JSONFormatter())
+logger.addHandler(handler)
 
 sys.path.insert(0, os.path.dirname(__file__))
 
@@ -63,7 +83,7 @@ async def process_one() -> None:
         if not claimed.data:
             return  # lost the race — skip
 
-        print(f"[worker] Claimed application {app_id}")
+        logger.info(f"Claimed application {app_id}")
 
         # 3. Fetch user model settings
         user_settings: dict = {}
@@ -71,7 +91,7 @@ async def process_one() -> None:
             settings_resp = await asyncio.to_thread(
                 lambda: (
                     supabase_service.table("user_settings")
-                    .select("model_default, model_fit, model_letter, model_prep")
+                    .select("model_default, model_fit, model_letter, model_prep, model_tailor")
                     .eq("user_id", user_id)
                     .execute()
                 )
@@ -79,7 +99,7 @@ async def process_one() -> None:
             if settings_resp.data:
                 user_settings = settings_resp.data[0]
         except Exception as exc:
-            print(f"[worker] Warning: could not fetch user settings for {user_id}: {exc}")
+            logger.warning(f"Warning: could not fetch user settings for {user_id}: {exc}")
 
         # 4. Run the analysis pipeline
         try:
@@ -90,6 +110,7 @@ async def process_one() -> None:
                 model_fit=user_settings.get("model_fit"),
                 model_letter=user_settings.get("model_letter"),
                 model_prep=user_settings.get("model_prep"),
+                model_tailor=user_settings.get("model_tailor"),
             )
 
             if final_state.get("error") is not None:
@@ -99,14 +120,14 @@ async def process_one() -> None:
                         {"analysis_status": "failed", "analysis_error": error_msg}
                     ).eq("id", app_id).execute()
                 )
-                print(f"[worker] Failed  {app_id}: {error_msg}")
+                logger.error(f"Failed {app_id}: {error_msg}")
             else:
                 await asyncio.to_thread(
                     lambda: supabase_service.table("applications").update(
                         {"analysis_status": "completed", "analysis_error": None}
                     ).eq("id", app_id).execute()
                 )
-                print(f"[worker] Completed {app_id}")
+                logger.info(f"Completed {app_id}")
 
         except Exception as exc:
             error_msg = f"Analysis pipeline exception: {exc}"
@@ -118,7 +139,7 @@ async def process_one() -> None:
                 )
             except Exception:
                 pass
-            print(f"[worker] Exception {app_id}: {exc}")
+            logger.exception(f"Exception {app_id}: {exc}")
 
 
 async def recover_stale() -> None:
@@ -141,25 +162,25 @@ async def recover_stale() -> None:
                 )
             )
             if result.data:
-                print(f"[worker] Reset {len(result.data)} stale record(s) to 'queued'")
+                logger.info(f"Reset {len(result.data)} stale record(s) to 'queued'")
         except Exception as exc:
-            print(f"[worker] Warning: stale recovery failed: {exc}")
+            logger.warning(f"Warning: stale recovery failed: {exc}")
 
 
 async def main() -> None:
-    print(f"[worker] Started. Poll interval={POLL_INTERVAL}s, stale timeout={MAX_STALE_MINUTES}min")
+    logger.info(f"Started. Poll interval={POLL_INTERVAL}s, stale timeout={MAX_STALE_MINUTES}min")
     recovery_tick = 0
     while True:
         try:
-            # Run stale recovery every ~5 minutes (60 ticks × 5 s)
+            # Run stale recovery every ~5 minutes (150 ticks × 2 s)
             recovery_tick += 1
-            if recovery_tick >= 60:
+            if recovery_tick >= 150:
                 await recover_stale()
                 recovery_tick = 0
 
             await process_one()
         except Exception as exc:
-            print(f"[worker] Unhandled error in main loop: {exc}")
+            logger.exception(f"Unhandled error in main loop: {exc}")
 
         await asyncio.sleep(POLL_INTERVAL)
 

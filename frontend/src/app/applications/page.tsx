@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Plus, Download, MoreHorizontal, Search, RefreshCw, Sparkles, PlayCircle } from "lucide-react";
 
 import { getApplications } from "@/lib/api";
@@ -39,10 +39,16 @@ function CommandListener({ setIsImportOpen }: { setIsImportOpen: (v: boolean) =>
 }
 
 export default function ApplicationsPage() {
-  const [applications, setApplications] = useState([]);
+  const [applications, setApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
+  // Pagination states
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const PER_PAGE = 50;
+
   // Filtering and Searching states
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -51,23 +57,46 @@ export default function ApplicationsPage() {
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<number>(0); // minutes ago
 
-  const fetchApps = useCallback(async () => {
-    setLoading(true);
+  const fetchIdRef = useRef(0);
+
+  const fetchApps = useCallback(async (pageNum: number = 1, append: boolean = false, statusFilter: string = "all") => {
+    const fetchId = ++fetchIdRef.current;
+    if (!append) setLoading(true);
+    else setLoadingMore(true);
+    
     setError(null);
     try {
-      const data = await getApplications();
-      setApplications(data || []);
+      const data = await getApplications(statusFilter === "all" ? undefined : statusFilter, pageNum, PER_PAGE);
+      if (fetchId !== fetchIdRef.current) return;
+      
+      if (append) {
+        setApplications(prev => [...prev, ...(data || [])]);
+      } else {
+        setApplications(data || []);
+      }
+      setHasMore((data || []).length === PER_PAGE);
+      setPage(pageNum);
       setLastUpdated(0);
     } catch (err: any) {
+      if (fetchId !== fetchIdRef.current) return;
       setError(err.message || "Failed to load applications.");
     } finally {
-      setLoading(false);
+      if (fetchId === fetchIdRef.current) {
+        setLoading(false);
+        setLoadingMore(false);
+      }
     }
   }, []);
 
+  // Handle status change
+  const handleStatusChange = (newStatus: string) => {
+    setSelectedStatus(newStatus);
+    fetchApps(1, false, newStatus);
+  };
+
   // Fetch applications on mount
   useEffect(() => {
-    fetchApps();
+    fetchApps(1, false, "all");
   }, [fetchApps]);
 
   // Increment last updated minutes timer and auto-refresh every 5 minutes
@@ -77,11 +106,11 @@ export default function ApplicationsPage() {
     }, 60000); // update every minute
 
     const refreshTimer = setInterval(() => {
-      fetchApps();
+      fetchApps(1, false, selectedStatus);
     }, 300000); // auto-refresh every 5 minutes
 
     const handleOnboardingComplete = () => {
-      fetchApps();
+      fetchApps(1, false, selectedStatus);
     };
     window.addEventListener("onboarding_completed", handleOnboardingComplete);
 
@@ -90,7 +119,7 @@ export default function ApplicationsPage() {
       clearInterval(refreshTimer);
       window.removeEventListener("onboarding_completed", handleOnboardingComplete);
     };
-  }, [fetchApps]);
+  }, [fetchApps, selectedStatus]);
 
   // Export applications as CSV
   const handleExport = () => {
@@ -126,7 +155,7 @@ export default function ApplicationsPage() {
 
   // Filter application items dynamically in memory for fast UI search
   const filteredApplications = applications.filter((app: any) => {
-    // 1. Status Filter
+    // 1. Status Filter is now handled by backend, but we keep this for safety
     if (selectedStatus !== "all" && app.status !== selectedStatus) {
       return false;
     }
@@ -155,11 +184,11 @@ export default function ApplicationsPage() {
         
         <div className="flex items-center space-x-3">
           <button 
-            onClick={fetchApps} 
+            onClick={() => fetchApps(1, false, selectedStatus)} 
             className="p-2.5 rounded-xl border border-zinc-800 hover:bg-zinc-900 text-zinc-400 hover:text-white transition-colors"
             title="Refresh database"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw className={`w-4 h-4 ${loading && !loadingMore ? "animate-spin" : ""}`} />
           </button>
           
           <button 
@@ -215,7 +244,7 @@ export default function ApplicationsPage() {
           
           {/* Pill: All */}
           <button
-            onClick={() => setSelectedStatus("all")}
+            onClick={() => handleStatusChange("all")}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 border uppercase tracking-wider ${
               selectedStatus === "all"
                 ? "bg-zinc-800 text-white border-zinc-700"
@@ -227,7 +256,7 @@ export default function ApplicationsPage() {
 
           {/* Pill: Saved */}
           <button
-            onClick={() => setSelectedStatus("saved")}
+            onClick={() => handleStatusChange("saved")}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 border uppercase tracking-wider ${
               selectedStatus === "saved"
                 ? "bg-zinc-800 text-white border-zinc-700"
@@ -240,7 +269,7 @@ export default function ApplicationsPage() {
 
           {/* Pill: Applied */}
           <button
-            onClick={() => setSelectedStatus("applied")}
+            onClick={() => handleStatusChange("applied")}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 border uppercase tracking-wider ${
               selectedStatus === "applied"
                 ? "bg-zinc-800 text-white border-zinc-700"
@@ -253,7 +282,7 @@ export default function ApplicationsPage() {
 
           {/* Pill: Interview */}
           <button
-            onClick={() => setSelectedStatus("interview")}
+            onClick={() => handleStatusChange("interview")}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 border uppercase tracking-wider ${
               selectedStatus === "interview"
                 ? "bg-zinc-800 text-white border-zinc-700"
@@ -266,7 +295,7 @@ export default function ApplicationsPage() {
 
           {/* Pill: Offer */}
           <button
-            onClick={() => setSelectedStatus("offer")}
+            onClick={() => handleStatusChange("offer")}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 border uppercase tracking-wider ${
               selectedStatus === "offer"
                 ? "bg-zinc-800 text-white border-zinc-700"
@@ -279,7 +308,7 @@ export default function ApplicationsPage() {
 
           {/* Pill: Closed */}
           <button
-            onClick={() => setSelectedStatus("closed")}
+            onClick={() => handleStatusChange("closed")}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 border uppercase tracking-wider ${
               selectedStatus === "closed"
                 ? "bg-zinc-800 text-white border-zinc-700"
@@ -292,7 +321,7 @@ export default function ApplicationsPage() {
 
           {/* Pill: Rejected */}
           <button
-            onClick={() => setSelectedStatus("rejected")}
+            onClick={() => handleStatusChange("rejected")}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 border uppercase tracking-wider ${
               selectedStatus === "rejected"
                 ? "bg-zinc-800 text-white border-zinc-700"
@@ -322,7 +351,7 @@ export default function ApplicationsPage() {
 
       {/* Main CRM Table list */}
       <div className="reveal reveal-4">
-        {loading ? (
+        {loading && !loadingMore ? (
           <div className="bg-surface border border-border-default rounded-xl overflow-hidden shadow-xl">
             <div className="border-b border-white/5 bg-surface px-6 py-4">
               <SkeletonPulse className="w-1/3 h-4" />
@@ -351,11 +380,31 @@ export default function ApplicationsPage() {
             {error}
           </div>
         ) : (
-          <ApplicationsTable 
-            applications={filteredApplications} 
-            onRefresh={fetchApps} 
-            onImportAction={() => setIsImportOpen(true)}
-          />
+          <div className="space-y-6">
+            <ApplicationsTable 
+              applications={filteredApplications} 
+              onRefresh={() => fetchApps(1, false, selectedStatus)} 
+              onImportAction={() => setIsImportOpen(true)}
+            />
+            {hasMore && (
+              <div className="flex justify-center mt-6">
+                <button
+                  onClick={() => fetchApps(page + 1, true, selectedStatus)}
+                  disabled={loadingMore}
+                  className="px-6 py-3 rounded-xl bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 hover:text-white font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                >
+                  {loadingMore ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Loading...</span>
+                    </>
+                  ) : (
+                    <span>Load More</span>
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
         )}
       </div>
 
@@ -363,7 +412,7 @@ export default function ApplicationsPage() {
       <ImportModal
         isOpen={isImportOpen}
         onClose={() => setIsImportOpen(false)}
-        onRefresh={fetchApps}
+        onRefresh={() => fetchApps(1, false, selectedStatus)}
       />
 
       <Suspense fallback={null}>

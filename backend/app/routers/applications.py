@@ -1,8 +1,9 @@
 import asyncio
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Response, Header
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Header, Query
 from uuid import UUID
-from datetime import datetime, timezone, date
+from datetime import datetime, timezone, date, timedelta
+from collections import Counter
 
 from app.database import supabase_service, get_current_user
 from app.schemas import ApplicationResponse, ApplicationUpdate, ApplicationStatus
@@ -17,7 +18,9 @@ from app.utils.security import sanitize_error
 
 @router.get("", response_model=List[ApplicationResponse])
 async def list_applications(
-    status_filter: Optional[ApplicationStatus] = None,
+    status_filter: Optional[ApplicationStatus] = Query(None, alias="status"),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(50, ge=1, le=200),
     current_user = Depends(get_current_user)
 ):
     """
@@ -26,12 +29,15 @@ async def list_applications(
     """
     async with log_duration("LIST_APPLICATIONS"):
         try:
+            offset = (page - 1) * per_page
             query = supabase_service.table("applications") \
                 .select("*, jobs(company, role, url, company_research, scraped_jd)") \
-                .eq("user_id", current_user.id)
+                .eq("user_id", str(current_user.id)) \
+                .order("created_at", desc=True) \
+                .range(offset, offset + per_page - 1)
 
             if status_filter:
-                query = query.eq("status", status_filter)
+                query = query.eq("status", status_filter.value)
 
             response = await asyncio.to_thread(query.execute)
 
@@ -48,6 +54,115 @@ async def list_applications(
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to retrieve applications: {str(e)}"
+            )
+
+from app.schemas import ApplicationStatsResponse
+
+@router.get("/stats", response_model=ApplicationStatsResponse)
+async def get_application_stats(
+    time_window: str = Query("30"),
+    current_user = Depends(get_current_user)
+):
+    """
+    Computes analytics stats for the user's applications within the given time window.
+    """
+    async with log_duration("GET_APPLICATION_STATS"):
+        try:
+            query = supabase_service.table("applications") \
+                .select("status, fit_score, created_at, jobs(company)") \
+                .eq("user_id", str(current_user.id))
+            
+            if time_window != "all":
+                try:
+                    days = int(time_window)
+                    cutoff_date = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+                    query = query.gte("created_at", cutoff_date)
+                except ValueError:
+                    pass
+            
+            response = await asyncio.to_thread(query.execute)
+            records = response.data or []
+            
+            counts = {"saved": 0, "applied": 0, "interview": 0, "offer": 0, "rejected": 0, "closed": 0}
+            fit_buckets = [0, 0, 0, 0] # 0-50, 51-70, 71-85, 86-100
+            timeline_counter = Counter()
+            company_counter = Counter()
+
+            for row in records:
+                status_val = row.get("status")
+                if status_val in counts:
+                    counts[status_val] += 1
+                
+                score = row.get("fit_score")
+                if score is not None:
+                    if score <= 50:
+                        fit_buckets[0] += 1
+                    elif score <= 70:
+                        fit_buckets[1] += 1
+                    elif score <= 85:
+                        fit_buckets[2] += 1
+                    else:
+                        fit_buckets[3] += 1
+                
+                created_at = row.get("created_at")
+                if created_at:
+                    date_str = created_at.split("T")[0]
+                    timeline_counter[date_str] += 1
+                
+                job_data = row.get("jobs") or {}
+                if isinstance(job_data, list):
+                    job_data = job_data[0] if len(job_data) > 0 else {}
+                company = job_data.get("company")
+                if company:
+                    company_counter[company] += 1
+                else:
+                    company_counter["Unknown"] += 1
+            
+            active = counts["applied"] + counts["interview"] + counts["offer"] + counts["rejected"]
+            responses = counts["interview"] + counts["offer"]
+            resp_rate = round((responses / active) * 100) if active > 0 else 0
+            
+            total_interviews = counts["interview"] + counts["offer"]
+            conv_rate = round((counts["offer"] / total_interviews) * 100) if total_interviews > 0 else 0
+            
+            funnel_data = [
+                {"name": "Saved", "value": counts["saved"]},
+                {"name": "Applied", "value": counts["applied"]},
+                {"name": "Interviewing", "value": counts["interview"]},
+                {"name": "Offer", "value": counts["offer"]},
+                {"name": "Rejected", "value": counts["rejected"]}
+            ]
+            
+            fit_score_data = [
+                {"label": "0-50", "count": fit_buckets[0]},
+                {"label": "51-70", "count": fit_buckets[1]},
+                {"label": "71-85", "count": fit_buckets[2]},
+                {"label": "86-100", "count": fit_buckets[3]}
+            ]
+            
+            days_to_fill = int(time_window) if time_window != "all" else 90
+            timeline_data = []
+            now = datetime.now(timezone.utc)
+            for i in range(days_to_fill - 1, -1, -1):
+                d = now - timedelta(days=i)
+                ds = d.strftime("%Y-%m-%d")
+                timeline_data.append({"date": ds, "count": timeline_counter[ds]})
+
+            top_companies = [{"name": k, "value": v} for k, v in company_counter.most_common(5)]
+            
+            return {
+                "total_active": active,
+                "response_rate": resp_rate,
+                "interview_conversion": conv_rate,
+                "funnel_data": funnel_data,
+                "fit_score_data": fit_score_data,
+                "timeline_data": timeline_data,
+                "top_companies_data": top_companies
+            }
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to generate stats: {str(e)}"
             )
 
 

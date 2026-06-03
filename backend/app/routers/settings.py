@@ -43,6 +43,7 @@ async def get_settings(current_user = Depends(get_current_user)):
                     "model_fit":    _resolve(None, settings.AI_MODEL_FIT, saved_default),
                     "model_letter": _resolve(None, settings.AI_MODEL_LETTER, saved_default),
                     "model_prep":   _resolve(None, settings.AI_MODEL_PREP, saved_default),
+                    "model_tailor": _resolve(None, settings.AI_MODEL_TAILOR, saved_default),
                     "onboarding_completed": False,
                     "onboarding_step": None,
                     "daily_analysis_credits": 50,
@@ -56,6 +57,7 @@ async def get_settings(current_user = Depends(get_current_user)):
             row["model_fit"]    = _resolve(row.get("model_fit"),    settings.AI_MODEL_FIT,    saved_default)
             row["model_letter"] = _resolve(row.get("model_letter"), settings.AI_MODEL_LETTER, saved_default)
             row["model_prep"]   = _resolve(row.get("model_prep"),   settings.AI_MODEL_PREP,   saved_default)
+            row["model_tailor"] = _resolve(row.get("model_tailor"), settings.AI_MODEL_TAILOR, saved_default)
             return row
 
         except Exception as e:
@@ -76,7 +78,6 @@ async def update_settings(
         update_data = payload.model_dump(exclude_unset=True)
         update_data.pop("api_key", None)
         update_data["user_id"] = str(current_user.id)
-        update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
 
         try:
             response = await asyncio.to_thread(
