@@ -45,8 +45,10 @@ def test_upsert_settings():
                         user_id = data["user_id"]
                         if user_id in db_state:
                             db_state[user_id].update(data)
+                            db_state[user_id]["updated_at"] = "2026-06-03T12:00:00Z"
                         else:
                             data["id"] = str(uuid4())
+                            data["updated_at"] = "2026-06-03T12:00:00Z"
                             db_state[user_id] = data
                         return MagicMock(data=[db_state[user_id]])
                     mock_chain_exec.execute = mock_execute

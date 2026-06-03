@@ -5,7 +5,8 @@ from unittest.mock import patch, MagicMock
 
 from app.database import get_current_user
 
-def test_get_current_user_hides_sdk_errors():
+@pytest.mark.asyncio
+async def test_get_current_user_hides_sdk_errors():
     """
     Test that when Supabase SDK throws an exception with internal details,
     the application catches it and raises a generic 401 HTTPException
@@ -19,7 +20,7 @@ def test_get_current_user_hides_sdk_errors():
     
     with patch("app.database.supabase_client", mock_supabase_client):
         with pytest.raises(HTTPException) as exc_info:
-            get_current_user(credentials)
+            await get_current_user(credentials)
             
         # Verify the exception is an HTTP 401
         assert exc_info.value.status_code == 401
