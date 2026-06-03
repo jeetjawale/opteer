@@ -16,6 +16,11 @@ app = FastAPI(
     version="1.0.0",
 )
 
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
+
+# Setup Proxy Headers Middleware (resolves real IP behind reverse proxies)
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=settings.TRUSTED_PROXIES)
+
 # CORS Middleware setup
 # Allowed origins are loaded from the validated pydantic settings
 app.add_middleware(

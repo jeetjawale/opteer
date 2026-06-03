@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     # Security
     API_KEY_ENCRYPTION_KEY: str
     
+    # Network
+    TRUSTED_PROXIES: str = "127.0.0.1"
+    
     # CORS Origins (contains http://localhost:3000 by default)
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
     
