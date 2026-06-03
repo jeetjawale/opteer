@@ -1,6 +1,6 @@
 import { supabase } from "./supabase";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8085";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 async function fetchWithAuth(url: string, init?: RequestInit): Promise<Response> {
   const { data: { session } } = await supabase.auth.getSession();
@@ -307,6 +307,10 @@ export interface UserSettingsResponse {
   model_prep?: string;
   onboarding_completed?: boolean;
   onboarding_step?: string;
+  has_saved_key: boolean;
+  daily_analysis_credits?: number;
+  max_daily_credits?: number;
+  last_credit_reset?: string;
 }
 
 export async function getUserSettings(): Promise<UserSettingsResponse> {

@@ -1,3 +1,4 @@
+import asyncio
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from supabase import create_client, Client
@@ -12,15 +13,15 @@ supabase_service: Client = create_client(settings.SUPABASE_URL, settings.SUPABAS
 # HTTPBearer scheme to retrieve the authorization token
 security = HTTPBearer()
 
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """
     FastAPI dependency to extract and verify the Supabase JWT token.
     Calls Supabase Auth to fetch the user details associated with the token.
-    Runs in a threadpool automatically via FastAPI's sync dependency handling.
+    Uses asyncio.to_thread to prevent blocking the event loop on network calls.
     """
     token = credentials.credentials
     try:
-        response = supabase_client.auth.get_user(token)
+        response = await asyncio.to_thread(lambda: supabase_client.auth.get_user(token))
         if not response or not response.user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,

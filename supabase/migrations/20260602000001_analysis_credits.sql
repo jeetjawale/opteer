@@ -19,10 +19,21 @@ BEGIN
     WHERE user_id = target_user_id
     FOR UPDATE;
 
-    -- If no settings row exists yet, we can't consume credits.
-    -- (The app should ensure settings exist or fallback gracefully).
+    -- If no settings row exists yet, create one with defaults
     IF NOT FOUND THEN
-        RETURN FALSE;
+        INSERT INTO public.user_settings (user_id)
+        VALUES (target_user_id)
+        ON CONFLICT (user_id) DO NOTHING;
+
+        SELECT daily_analysis_credits, max_daily_credits, last_credit_reset
+        INTO current_credits, max_credits, last_reset
+        FROM public.user_settings
+        WHERE user_id = target_user_id
+        FOR UPDATE;
+
+        IF NOT FOUND THEN
+            RETURN FALSE;
+        END IF;
     END IF;
 
     -- Check if we need a 24-hour reset
