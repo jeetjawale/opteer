@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect } from "react";
 import { Settings as SettingsIcon, Save, Cpu, Eye, EyeOff, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
-import { testLlmConnection, getUserSettings, updateUserSettings, getApiKeyStatus, updateApiKey } from "@/lib/api";
+import { testLlmConnection, getUserSettings, updateUserSettings, getApiKeyStatus, updateApiKey, getAvailableModels, ModelsConfig } from "@/lib/api";
 import { 
-  PROVIDER_MODELS, 
   getProviderFromKey, 
   getRecommendedModelForTask,
-  PROVIDER_DEFAULTS
+  getDefaultModelForKey,
+  getModelsForKey
 } from "@/lib/models";
 
 export default function SettingsPage() {
@@ -22,6 +22,8 @@ export default function SettingsPage() {
   const [modelPrep, setModelPrep] = useState("");
   const [modelTailor, setModelTailor] = useState("");
   const [loadingSettings, setLoadingSettings] = useState(true);
+  
+  const [modelsConfig, setModelsConfig] = useState<ModelsConfig | null>(null);
   
   // Test connection states
   const [testing, setTesting] = useState(false);
@@ -41,6 +43,10 @@ export default function SettingsPage() {
         setUserApiKey("••••••••••••••••"); // visual placeholder
       }
     }).catch(err => console.error("Failed to fetch API key status", err));
+    
+    getAvailableModels().then(data => {
+      setModelsConfig(data);
+    }).catch(err => console.error("Failed to fetch dynamic models", err));
     
     getUserSettings().then(data => {
       if (data) {
@@ -69,12 +75,12 @@ export default function SettingsPage() {
     }
     
     if (newProvider !== oldProvider) {
-      const providerDefault = PROVIDER_DEFAULTS[newProvider] || PROVIDER_DEFAULTS["gemini"];
+      const providerDefault = getDefaultModelForKey(val, modelsConfig);
       setModelDefault(providerDefault);
-      setModelFit(getRecommendedModelForTask(val, "fit"));
-      setModelLetter(getRecommendedModelForTask(val, "letter"));
-      setModelPrep(getRecommendedModelForTask(val, "prep"));
-      setModelTailor(getRecommendedModelForTask(val, "tailor"));
+      setModelFit(getRecommendedModelForTask(val, "fit", modelsConfig));
+      setModelLetter(getRecommendedModelForTask(val, "letter", modelsConfig));
+      setModelPrep(getRecommendedModelForTask(val, "prep", modelsConfig));
+      setModelTailor(getRecommendedModelForTask(val, "tailor", modelsConfig));
     }
     
     // Reset test/save states on change
@@ -91,11 +97,11 @@ export default function SettingsPage() {
     } catch (e) {}
     
     // Switch to Gemini defaults on clear
-    setModelDefault(PROVIDER_DEFAULTS["gemini"]);
-    setModelFit(getRecommendedModelForTask(null, "fit"));
-    setModelLetter(getRecommendedModelForTask(null, "letter"));
-    setModelPrep(getRecommendedModelForTask(null, "prep"));
-    setModelTailor(getRecommendedModelForTask(null, "tailor"));
+    setModelDefault(getDefaultModelForKey(null, modelsConfig));
+    setModelFit(getRecommendedModelForTask(null, "fit", modelsConfig));
+    setModelLetter(getRecommendedModelForTask(null, "letter", modelsConfig));
+    setModelPrep(getRecommendedModelForTask(null, "prep", modelsConfig));
+    setModelTailor(getRecommendedModelForTask(null, "tailor", modelsConfig));
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -162,13 +168,12 @@ export default function SettingsPage() {
 
   const detected = getProviderFromKey(userApiKey);
   const detectedDisplay = detected.charAt(0).toUpperCase() + detected.slice(1);
-  const detectedLower = detected.toLowerCase();
-  const availableModels = PROVIDER_MODELS[detectedLower] || PROVIDER_MODELS["gemini"];
+  const availableModels = getModelsForKey(userApiKey, modelsConfig);
   
-  const recommendedFit = getRecommendedModelForTask(userApiKey, "fit");
-  const recommendedLetter = getRecommendedModelForTask(userApiKey, "letter");
-  const recommendedPrep = getRecommendedModelForTask(userApiKey, "prep");
-  const recommendedTailor = getRecommendedModelForTask(userApiKey, "tailor");
+  const recommendedFit = getRecommendedModelForTask(userApiKey, "fit", modelsConfig);
+  const recommendedLetter = getRecommendedModelForTask(userApiKey, "letter", modelsConfig);
+  const recommendedPrep = getRecommendedModelForTask(userApiKey, "prep", modelsConfig);
+  const recommendedTailor = getRecommendedModelForTask(userApiKey, "tailor", modelsConfig);
 
   const handleDefaultModelChange = (val: string) => {
     setModelDefault(val);
@@ -260,7 +265,7 @@ export default function SettingsPage() {
             </div>
             
             {/* Model Selections */}
-            {!loadingSettings && (
+            {(!loadingSettings && modelsConfig) && (
               <div className="space-y-4 pt-2">
                 <h3 className="text-primary text-sm font-semibold border-b border-border-subtle pb-2">Task Model Preferences</h3>
                 

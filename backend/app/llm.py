@@ -1,10 +1,18 @@
 from app.config import settings
 from langchain_core.language_models.chat_models import BaseChatModel
 import re
+import json
+from pathlib import Path
+from functools import lru_cache
+
+@lru_cache(maxsize=1)
+def get_models_config() -> dict:
+    models_path = Path(__file__).parent.parent / "models.json"
+    with open(models_path) as f:
+        return json.load(f)
 
 KEY_PATTERNS = {
     "anthropic": re.compile(r"^sk-ant-[a-zA-Z0-9\-_]{20,}$"),
-    "minimax":   re.compile(r"^eyJ[a-zA-Z0-9._-]{20,}$"),
     "openai":    re.compile(r"^sk-[a-zA-Z0-9]{20,}$"),
     "xai":       re.compile(r"^xai-[a-zA-Z0-9\-_]{20,}$"),
     "gemini":    re.compile(r"^[A-Za-z0-9\-_]{30,}$"),
@@ -20,8 +28,6 @@ def detect_provider(api_key: str | None) -> str:
     
     if api_key.startswith("sk-ant-"):
         return "anthropic"
-    elif api_key.startswith("eyJ"):
-        return "minimax"
     elif api_key.startswith("xai-"):
         return "xai"
     elif api_key.startswith("sk-"):
@@ -103,20 +109,11 @@ def get_llm(
         # If the custom key's provider matches the global .env provider, respect the .env default model
         elif provider == settings.AI_PROVIDER.lower():
             model_name = settings.AI_MODEL
-        # Otherwise fall back to sensible defaults per provider
+        # Otherwise fall back to sensible defaults from models.json
         else:
-            if provider == "anthropic":
-                model_name = "claude-3-5-sonnet-20241022"
-            elif provider == "openai":
-                model_name = "gpt-4o-mini"
-            elif provider == "xai":
-                model_name = "grok-2-1212-beta"
-            elif provider == "minimax":
-                model_name = "minimax/m2-7-highspeed"
-            elif provider == "moonshot":
-                model_name = "moonshot/kimi-k2-6"
-            else:
-                model_name = "gemini-3.1-flash-lite"
+            config = get_models_config()
+            defaults = config.get("provider_defaults", {})
+            model_name = defaults.get(provider, defaults.get("gemini", "gemini-3.1-flash-lite"))
         api_key = user_api_key
     else:
         provider = settings.AI_PROVIDER.lower()
@@ -186,37 +183,6 @@ def get_llm(
             **kwargs
         )
 
-    elif provider == "minimax":
-        from langchain_openai import ChatOpenAI
-        key = api_key or settings.MINIMAX_API_KEY or ""
-        if not key:
-            raise ValueError("MINIMAX_API_KEY is not configured.")
-        kwargs = {}
-        if max_tokens is not None:
-            kwargs["max_tokens"] = max_tokens
-        model = ChatOpenAI(
-            model=model_name,
-            temperature=temperature,
-            api_key=key,
-            base_url="https://api.minimax.chat/v1",
-            **kwargs
-        )
-
-    elif provider == "moonshot":
-        from langchain_openai import ChatOpenAI
-        key = api_key or settings.MOONSHOT_API_KEY or ""
-        if not key:
-            raise ValueError("MOONSHOT_API_KEY is not configured.")
-        kwargs = {}
-        if max_tokens is not None:
-            kwargs["max_tokens"] = max_tokens
-        model = ChatOpenAI(
-            model=model_name,
-            temperature=temperature,
-            api_key=key,
-            base_url="https://api.moonshot.cn/v1",
-            **kwargs
-        )
 
     elif provider == "local":
         from langchain_openai import ChatOpenAI

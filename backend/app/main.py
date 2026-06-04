@@ -38,6 +38,13 @@ app.include_router(reminders_router)
 app.include_router(resumes_router)
 app.include_router(settings_router)
 
+from app.llm import get_models_config
+
+@app.get("/api/models", tags=["config"])
+async def list_models():
+    """Returns the dynamically configured models available in the system."""
+    return get_models_config()
+
 @app.get("/health", tags=["health"])
 async def health_check():
     """

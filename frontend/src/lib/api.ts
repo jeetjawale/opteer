@@ -130,6 +130,28 @@ export async function testLlmConnection(key: string) {
   return response.json();
 }
 
+export interface ModelOption {
+  value: string;
+  label: string;
+  tier: "fast" | "balanced" | "powerful";
+  context?: string;
+}
+
+export interface ModelsConfig {
+  provider_models: Record<string, ModelOption[]>;
+  provider_defaults: Record<string, string>;
+  task_tier_preference: Record<string, "fast" | "balanced" | "powerful">;
+}
+
+export async function getAvailableModels(): Promise<ModelsConfig> {
+  const url = `${API_BASE_URL}/api/models`;
+  // Using unauthenticated fetch since this endpoint is public
+  const response = await fetch(url, { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch models: HTTP error ${response.status}`);
+  }
+  return response.json();
+}
 
 export async function analyzeApplication(id: string, signal?: AbortSignal) {
   const headers: Record<string, string> = {};
