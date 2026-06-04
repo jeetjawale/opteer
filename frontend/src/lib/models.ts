@@ -4,8 +4,10 @@ import { ModelOption, ModelsConfig } from "./api";
 export function getProviderFromKey(apiKey: string | null): string {
   if (!apiKey) return "gemini";
   if (apiKey.startsWith("sk-ant-")) return "anthropic";
+  if (apiKey.startsWith("sk-or-v1-")) return "openrouter";
   if (apiKey.startsWith("xai-"))    return "xai";
   if (apiKey.startsWith("sk-"))     return "openai";
+  if (apiKey.startsWith("local-"))  return "local";
   return "gemini";
 }
 

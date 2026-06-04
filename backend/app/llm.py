@@ -13,8 +13,10 @@ def get_models_config() -> dict:
 
 KEY_PATTERNS = {
     "anthropic": re.compile(r"^sk-ant-[a-zA-Z0-9\-_]{20,}$"),
+    "openrouter": re.compile(r"^sk-or-v1-[a-zA-Z0-9]{20,}$"),
     "openai":    re.compile(r"^sk-[a-zA-Z0-9]{20,}$"),
     "xai":       re.compile(r"^xai-[a-zA-Z0-9\-_]{20,}$"),
+    "local":     re.compile(r"^local-.*"),
     "gemini":    re.compile(r"^[A-Za-z0-9\-_]{30,}$"),
 }
 
@@ -28,10 +30,14 @@ def detect_provider(api_key: str | None) -> str:
     
     if api_key.startswith("sk-ant-"):
         return "anthropic"
+    elif api_key.startswith("sk-or-v1-"):
+        return "openrouter"
     elif api_key.startswith("xai-"):
         return "xai"
     elif api_key.startswith("sk-"):
         return "openai"
+    elif api_key.startswith("local-"):
+        return "local"
     else:
         return "gemini"
 
@@ -183,6 +189,22 @@ def get_llm(
             **kwargs
         )
 
+
+    elif provider == "openrouter":
+        from langchain_openai import ChatOpenAI
+        key = api_key or settings.OPENROUTER_API_KEY
+        if not key:
+            raise ValueError("OPENROUTER_API_KEY is not configured.")
+        kwargs = {}
+        if max_tokens is not None:
+            kwargs["max_tokens"] = max_tokens
+        model = ChatOpenAI(
+            model=model_name,
+            temperature=temperature,
+            api_key=key,
+            base_url="https://openrouter.ai/api/v1",
+            **kwargs
+        )
 
     elif provider == "local":
         from langchain_openai import ChatOpenAI

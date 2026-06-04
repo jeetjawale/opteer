@@ -14,6 +14,7 @@ export default function SettingsPage() {
   const [userApiKey, setUserApiKey] = useState("");
   const [showKey, setShowKey] = useState(false);
   const [isSavedKey, setIsSavedKey] = useState(false);
+  const [useOllama, setUseOllama] = useState(false);
   
   // Model configuration states
   const [modelDefault, setModelDefault] = useState("");
@@ -40,7 +41,13 @@ export default function SettingsPage() {
     getApiKeyStatus().then(data => {
       if (data && data.has_saved_key) {
         setIsSavedKey(true);
-        setUserApiKey("••••••••••••••••"); // visual placeholder
+        if (data.provider === "local") {
+          setUseOllama(true);
+          setUserApiKey("local-ollama");
+        } else {
+          setUseOllama(false);
+          setUserApiKey("••••••••••••••••"); // visual placeholder
+        }
       }
     }).catch(err => console.error("Failed to fetch API key status", err));
     
@@ -108,13 +115,16 @@ export default function SettingsPage() {
     e.preventDefault();
     
     try {
-      if (userApiKey.trim() !== "••••••••••••••••") {
+      if (userApiKey.trim() !== "••••••••••••••••" && userApiKey.trim() !== "local-ollama") {
         const detectedProvider = getProviderFromKey(userApiKey.trim());
         await updateApiKey(userApiKey.trim(), detectedProvider);
         setIsSavedKey(!!userApiKey.trim());
         if (userApiKey.trim()) {
            setUserApiKey("••••••••••••••••");
         }
+      } else if (userApiKey.trim() === "local-ollama") {
+        await updateApiKey("local-ollama", "local");
+        setIsSavedKey(true);
       }
       
       await updateUserSettings({
@@ -215,54 +225,85 @@ export default function SettingsPage() {
               )}
             </div>
 
-            {/* API Key Input */}
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <label className="text-secondary text-xs font-semibold uppercase tracking-wider" htmlFor="settings-api-key">
-                  API Key
-                </label>
-                {userApiKey && (
-                  <span className="text-[10px] bg-green-950/80 text-green-300 border border-green-800/50 px-2 py-0.5 rounded-full font-semibold transition-all">
-                    {detectedDisplay} detected
-                  </span>
-                )}
-              </div>
-              
-              <div className="relative flex items-center">
-                <input
-                  id="settings-api-key"
-                  type={showKey ? "text" : "password"}
-                  className="w-full pl-4 pr-16 py-3 rounded-xl bg-elevated border border-border-default text-primary placeholder-muted focus:outline-none focus:border-border-strong transition-colors text-sm"
-                  placeholder="sk-ant-... or sk-... or gsk_... or AIza..."
-                  value={userApiKey}
-                  onChange={(e) => handleKeyChange(e.target.value)}
+            <div className="flex items-center justify-between border-b border-border-subtle pb-4 mb-4">
+              <label className="text-primary text-sm font-semibold flex items-center space-x-2 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={useOllama} 
+                  onChange={(e) => {
+                    setUseOllama(e.target.checked);
+                    if (e.target.checked) {
+                      handleKeyChange("local-ollama");
+                    } else {
+                      handleClearKey();
+                    }
+                  }} 
+                  className="rounded border-border-default bg-elevated text-accent focus:ring-accent focus:ring-offset-surface"
                 />
-                <div className="absolute right-3 flex items-center space-x-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowKey(!showKey)}
-                    className="text-secondary hover:text-primary transition-colors focus:outline-none"
-                    title={showKey ? "Hide API key" : "Show API key"}
-                  >
-                    {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
+                <span>Use Local Model (Ollama)</span>
+              </label>
+            </div>
+
+            {/* API Key Input */}
+            {!useOllama ? (
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <label className="text-secondary text-xs font-semibold uppercase tracking-wider" htmlFor="settings-api-key">
+                    API Key
+                  </label>
                   {userApiKey && (
-                    <button
-                      type="button"
-                      onClick={handleClearKey}
-                      className="text-secondary hover:text-primary transition-colors focus:outline-none font-bold text-lg px-1 select-none"
-                      title="Clear key"
-                    >
-                      ×
-                    </button>
+                    <span className="text-[10px] bg-green-950/80 text-green-300 border border-green-800/50 px-2 py-0.5 rounded-full font-semibold transition-all">
+                      {detectedDisplay} detected
+                    </span>
                   )}
                 </div>
+                
+                <div className="relative flex items-center">
+                  <input
+                    id="settings-api-key"
+                    type={showKey ? "text" : "password"}
+                    className="w-full pl-4 pr-16 py-3 rounded-xl bg-elevated border border-border-default text-primary placeholder-muted focus:outline-none focus:border-border-strong transition-colors text-sm"
+                    placeholder="sk-ant-... or sk-or-v1-... or sk-..."
+                    value={userApiKey}
+                    onChange={(e) => handleKeyChange(e.target.value)}
+                  />
+                  <div className="absolute right-3 flex items-center space-x-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowKey(!showKey)}
+                      className="text-secondary hover:text-primary transition-colors focus:outline-none"
+                      title={showKey ? "Hide API key" : "Show API key"}
+                    >
+                      {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                    {userApiKey && (
+                      <button
+                        type="button"
+                        onClick={handleClearKey}
+                        className="text-secondary hover:text-primary transition-colors focus:outline-none font-bold text-lg px-1 select-none"
+                        title="Clear key"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <p className="text-[10px] text-muted">
+                  Pasting a custom API key configures JobPilot to execute your personal analysis pipelines using the detected provider. 
+                  The key is saved securely encrypted in your backend database, and will never be exposed in the frontend.
+                </p>
               </div>
-              <p className="text-[10px] text-muted">
-                Pasting a custom API key configures JobPilot to execute your personal analysis pipelines using the detected provider. 
-                The key is saved securely encrypted in your backend database, and will never be exposed in the frontend.
-              </p>
-            </div>
+            ) : (
+              <div className="space-y-2 p-4 bg-elevated border border-border-default rounded-xl">
+                <h3 className="text-sm font-semibold text-primary">Local Ollama Configuration</h3>
+                <p className="text-xs text-muted mb-2">
+                  JobPilot is currently configured to connect to your local Ollama instance. Make sure Ollama is running on your machine.
+                </p>
+                <p className="text-[10px] text-muted">
+                  Note: To change the base URL, please update the <code className="text-secondary bg-surface px-1 py-0.5 rounded">LOCAL_LLM_BASE_URL</code> environment variable in your backend <code className="text-secondary bg-surface px-1 py-0.5 rounded">.env</code> file. The default is <code className="text-accent bg-surface px-1 py-0.5 rounded">http://localhost:11434/v1</code>.
+                </p>
+              </div>
+            )}
             
             {/* Model Selections */}
             {(!loadingSettings && modelsConfig) && (
@@ -280,76 +321,126 @@ export default function SettingsPage() {
                         Used as the primary fallback for all background tasks, imports, and analysis tasks unless individually overridden below.
                       </p>
                     </div>
-                    <select 
-                      value={modelDefault} 
-                      onChange={(e) => handleDefaultModelChange(e.target.value)}
-                      className="w-full p-2.5 rounded-xl bg-elevated border border-border-default text-primary text-sm focus:outline-none focus:border-border-strong"
-                    >
-                      {availableModels.map(m => (
-                        <option key={m.value} value={m.value}>{m.label}</option>
-                      ))}
-                    </select>
+                    {useOllama ? (
+                      <input 
+                        type="text"
+                        value={modelDefault}
+                        onChange={(e) => handleDefaultModelChange(e.target.value)}
+                        placeholder="e.g. llama3.2"
+                        className="w-full p-2.5 rounded-xl bg-elevated border border-border-default text-primary text-sm focus:outline-none focus:border-border-strong"
+                      />
+                    ) : (
+                      <select 
+                        value={modelDefault} 
+                        onChange={(e) => handleDefaultModelChange(e.target.value)}
+                        className="w-full p-2.5 rounded-xl bg-elevated border border-border-default text-primary text-sm focus:outline-none focus:border-border-strong"
+                      >
+                        {availableModels.map(m => (
+                          <option key={m.value} value={m.value}>{m.label}</option>
+                        ))}
+                      </select>
+                    )}
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
                   <label className="text-secondary text-xs font-semibold uppercase tracking-wider">Fit Scoring Model</label>
-                  <select 
-                    value={modelFit} 
-                    onChange={(e) => setModelFit(e.target.value)}
-                    className="w-full p-2.5 rounded-xl bg-elevated border border-border-default text-primary text-sm focus:outline-none focus:border-border-strong"
-                  >
-                    {availableModels.map(m => (
-                      <option key={m.value} value={m.value}>
-                        {m.label}{m.value === recommendedFit ? " (Recommended)" : ""}
-                      </option>
-                    ))}
-                  </select>
+                  {useOllama ? (
+                    <input 
+                      type="text"
+                      value={modelFit}
+                      onChange={(e) => setModelFit(e.target.value)}
+                      placeholder="e.g. qwen2.5:7b"
+                      className="w-full p-2.5 rounded-xl bg-elevated border border-border-default text-primary text-sm focus:outline-none focus:border-border-strong"
+                    />
+                  ) : (
+                    <select 
+                      value={modelFit} 
+                      onChange={(e) => setModelFit(e.target.value)}
+                      className="w-full p-2.5 rounded-xl bg-elevated border border-border-default text-primary text-sm focus:outline-none focus:border-border-strong"
+                    >
+                      {availableModels.map(m => (
+                        <option key={m.value} value={m.value}>
+                          {m.label}{m.value === recommendedFit ? " (Recommended)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
                   <label className="text-secondary text-xs font-semibold uppercase tracking-wider">Cover Letter Model</label>
-                  <select 
-                    value={modelLetter} 
-                    onChange={(e) => setModelLetter(e.target.value)}
-                    className="w-full p-2.5 rounded-xl bg-elevated border border-border-default text-primary text-sm focus:outline-none focus:border-border-strong"
-                  >
-                    {availableModels.map(m => (
-                      <option key={m.value} value={m.value}>
-                        {m.label}{m.value === recommendedLetter ? " (Recommended)" : ""}
-                      </option>
-                    ))}
-                  </select>
+                  {useOllama ? (
+                    <input 
+                      type="text"
+                      value={modelLetter}
+                      onChange={(e) => setModelLetter(e.target.value)}
+                      placeholder="e.g. llama3.2"
+                      className="w-full p-2.5 rounded-xl bg-elevated border border-border-default text-primary text-sm focus:outline-none focus:border-border-strong"
+                    />
+                  ) : (
+                    <select 
+                      value={modelLetter} 
+                      onChange={(e) => setModelLetter(e.target.value)}
+                      className="w-full p-2.5 rounded-xl bg-elevated border border-border-default text-primary text-sm focus:outline-none focus:border-border-strong"
+                    >
+                      {availableModels.map(m => (
+                        <option key={m.value} value={m.value}>
+                          {m.label}{m.value === recommendedLetter ? " (Recommended)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
                   <label className="text-secondary text-xs font-semibold uppercase tracking-wider">Interview Prep Model</label>
-                  <select 
-                    value={modelPrep} 
-                    onChange={(e) => setModelPrep(e.target.value)}
-                    className="w-full p-2.5 rounded-xl bg-elevated border border-border-default text-primary text-sm focus:outline-none focus:border-border-strong"
-                  >
-                    {availableModels.map(m => (
-                      <option key={m.value} value={m.value}>
-                        {m.label}{m.value === recommendedPrep ? " (Recommended)" : ""}
-                      </option>
-                    ))}
-                  </select>
+                  {useOllama ? (
+                    <input 
+                      type="text"
+                      value={modelPrep}
+                      onChange={(e) => setModelPrep(e.target.value)}
+                      placeholder="e.g. deepseek-r1:8b"
+                      className="w-full p-2.5 rounded-xl bg-elevated border border-border-default text-primary text-sm focus:outline-none focus:border-border-strong"
+                    />
+                  ) : (
+                    <select 
+                      value={modelPrep} 
+                      onChange={(e) => setModelPrep(e.target.value)}
+                      className="w-full p-2.5 rounded-xl bg-elevated border border-border-default text-primary text-sm focus:outline-none focus:border-border-strong"
+                    >
+                      {availableModels.map(m => (
+                        <option key={m.value} value={m.value}>
+                          {m.label}{m.value === recommendedPrep ? " (Recommended)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
                   <label className="text-secondary text-xs font-semibold uppercase tracking-wider">Resume Tailoring Model</label>
-                  <select 
-                    value={modelTailor} 
-                    onChange={(e) => setModelTailor(e.target.value)}
-                    className="w-full p-2.5 rounded-xl bg-elevated border border-border-default text-primary text-sm focus:outline-none focus:border-border-strong"
-                  >
-                    {availableModels.map(m => (
-                      <option key={m.value} value={m.value}>
-                        {m.label}{m.value === recommendedTailor ? " (Recommended)" : ""}
-                      </option>
-                    ))}
-                  </select>
+                  {useOllama ? (
+                    <input 
+                      type="text"
+                      value={modelTailor}
+                      onChange={(e) => setModelTailor(e.target.value)}
+                      placeholder="e.g. mistral"
+                      className="w-full p-2.5 rounded-xl bg-elevated border border-border-default text-primary text-sm focus:outline-none focus:border-border-strong"
+                    />
+                  ) : (
+                    <select 
+                      value={modelTailor} 
+                      onChange={(e) => setModelTailor(e.target.value)}
+                      className="w-full p-2.5 rounded-xl bg-elevated border border-border-default text-primary text-sm focus:outline-none focus:border-border-strong"
+                    >
+                      {availableModels.map(m => (
+                        <option key={m.value} value={m.value}>
+                          {m.label}{m.value === recommendedTailor ? " (Recommended)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               </div>
             )}

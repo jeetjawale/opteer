@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str | None = None
     ANTHROPIC_API_KEY: str | None = None
     XAI_API_KEY: str | None = None
+    OPENROUTER_API_KEY: str | None = None
     
     # Integrations
     FIRECRAWL_API_KEY: str | None = None
