@@ -154,7 +154,8 @@ export default function SettingsPage() {
     setTestResult({ status: "idle", message: "" });
     
     try {
-      const res = await testLlmConnection(userApiKey.trim());
+      const keyToTest = userApiKey.trim() === "••••••••••••••••" ? "SAVED_KEY" : userApiKey.trim();
+      const res = await testLlmConnection(keyToTest);
       if (res.status === "ok") {
         setTestResult({
           status: "success",

@@ -68,8 +68,12 @@ def health_check_llm(
     Validates user-provided LLM connection and API key credentials.
     Runs get_llm(user_api_key=key).invoke("say ok") to verify connectivity.
     """
-    key = x_user_api_key
-    if not key:
+    from app.llm import resolve_api_key
+    
+    key = None if x_user_api_key == "SAVED_KEY" else x_user_api_key
+    resolved_key = resolve_api_key(str(current_user.id), key)
+
+    if not resolved_key:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="A user API key is required to test an LLM connection."
@@ -77,11 +81,11 @@ def health_check_llm(
 
     try:
         # Initialize and invoke connection test
-        llm = get_llm(temperature=0.0, user_api_key=key)
+        llm = get_llm(temperature=0.0, user_api_key=resolved_key)
         llm.invoke("say ok")
         
         # Determine provider name
-        provider = detect_provider(key) if key else settings.AI_PROVIDER
+        provider = detect_provider(resolved_key) if resolved_key else settings.AI_PROVIDER
         return {"status": "ok", "provider": provider}
     except Exception as e:
         error_msg = str(e)
