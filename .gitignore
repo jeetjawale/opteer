@@ -61,7 +61,3 @@ opencode.json
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
-
-# Generated files
-file_structure.txt
-project_structure.txt
