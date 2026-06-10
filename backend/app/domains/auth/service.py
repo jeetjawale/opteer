@@ -8,6 +8,8 @@ class InternalUser(BaseModel):
     email: str
 
 
+from sqlalchemy.exc import IntegrityError
+
 class AuthService:
     def __init__(self, user_repo: UserRepository):
         self.user_repo = user_repo
@@ -25,5 +27,12 @@ class AuthService:
             return InternalUser(id=user.id, email=user.email)
 
         # Create user if not exists
-        new_user = await self.user_repo.create(email=local_email)
-        return InternalUser(id=new_user.id, email=new_user.email)
+        try:
+            new_user = await self.user_repo.create(email=local_email)
+            return InternalUser(id=new_user.id, email=new_user.email)
+        except IntegrityError:
+            # Handle race condition: another thread created it
+            user = await self.user_repo.get_by_email(local_email)
+            if user:
+                return InternalUser(id=user.id, email=user.email)
+            raise
