@@ -44,8 +44,6 @@ jobs:
       env:
         AI_PROVIDER: mock
         API_KEY_ENCRYPTION_KEY: Z_ILOz5AOX7jBQ3cIveKBpeaAxB-pOlmixGsxuy-ii8=
-        CLERK_SECRET_KEY: mockclerksecret
-        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: mockclerkpub
       run: |
         pytest tests/ --cov=app --cov-report=xml --cov-report=term-missing --cov-fail-under=70
 
@@ -79,5 +77,3 @@ jobs:
       run: npm run build
       env:
         NEXT_PUBLIC_API_URL: http://localhost:8085
-        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_mock
-        CLERK_SECRET_KEY: sk_test_mock

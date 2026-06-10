@@ -56,3 +56,12 @@ playwright-report/
 test-results/
 backend/local_storage/
 opencode.json
+
+# Caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Generated files
+file_structure.txt
+project_structure.txt
