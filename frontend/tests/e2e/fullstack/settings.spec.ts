@@ -3,7 +3,7 @@ import { test, expect } from '../fixtures/test';
 test.describe('Fullstack: Settings Flow', () => {
   test('user can update settings', async ({ page }) => {
 
-    await page.goto('/sign-in');
+    await page.goto('/dashboard');
     await page.goto('/dashboard');
     await expect(page).toHaveURL(/.*dashboard.*/, { timeout: 15000 });
 

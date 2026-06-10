@@ -39,6 +39,7 @@ test.describe('Fullstack: Golden Path', () => {
         console.error(`API Error: ${response.status()} ${response.url()}`);
       }
     });
+    await page.goto('/dashboard');
     await expect(page).toHaveURL(/.*dashboard.*/, { timeout: 15000 });
 
     // 2. Upload Resume

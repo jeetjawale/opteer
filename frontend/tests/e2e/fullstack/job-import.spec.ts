@@ -3,7 +3,7 @@ import { test, expect } from '../fixtures/test';
 test.describe('Fullstack: Job Import Operations', () => {
   test('user can import a job and create an application', async ({ page }) => {
 
-    await page.goto('/sign-in');
+    await page.goto('/dashboard');
     await page.goto('/dashboard');
 
     await page.goto('/applications');

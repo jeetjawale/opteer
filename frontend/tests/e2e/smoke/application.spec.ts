@@ -5,7 +5,7 @@ test.describe('Application Operations', () => {
 
     
 
-    await page.goto('/sign-in');
+    await page.goto('/dashboard');
 
     await page.goto('/applications');
     

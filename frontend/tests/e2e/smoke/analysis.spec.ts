@@ -5,7 +5,7 @@ test.describe('AI Analysis Workflow', () => {
 
     
 
-    await page.goto('/sign-in');
+    await page.goto('/dashboard');
 
     // Go to applications list and click the first application
     await page.goto('/applications');

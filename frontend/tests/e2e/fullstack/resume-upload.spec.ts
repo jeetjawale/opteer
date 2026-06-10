@@ -4,7 +4,7 @@ import path from 'path';
 test.describe('Fullstack: Resume Operations', () => {
   test('user can upload and parse resume', async ({ page }) => {
 
-    await page.goto('/sign-in');
+    await page.goto('/dashboard');
     await page.goto('/dashboard');
 
     await page.goto('/resumes');

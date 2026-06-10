@@ -5,7 +5,7 @@ test.describe('Dashboard and Protected Routes', () => {
 
     
 
-    await page.goto('/sign-in');
+    await page.goto('/dashboard');
 
     await page.goto('/dashboard');
     
