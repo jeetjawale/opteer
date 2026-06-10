@@ -61,3 +61,7 @@ opencode.json
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+# Local testing artifacts
+*.log
+*.pid
+run_e2e.sh
