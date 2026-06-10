@@ -12,8 +12,6 @@ import socket
 from firecrawl import FirecrawlApp
 from tavily import TavilyClient
 from app.utils.timing import log_duration
-from app.utils.security import sanitize_error
-from datetime import date
 from sqlalchemy import select, or_
 
 from app.db.repositories.job import JobRepository
