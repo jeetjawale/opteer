@@ -1,5 +1,6 @@
 from uuid import UUID
 from pydantic import BaseModel
+from sqlalchemy.exc import IntegrityError
 from app.db.repositories.user import UserRepository
 
 
@@ -7,8 +8,6 @@ class InternalUser(BaseModel):
     id: UUID
     email: str
 
-
-from sqlalchemy.exc import IntegrityError
 
 class AuthService:
     def __init__(self, user_repo: UserRepository):
