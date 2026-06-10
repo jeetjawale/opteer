@@ -7,23 +7,35 @@ from langgraph.graph import StateGraph, END, START
 from sqlalchemy import select, update
 from sqlalchemy.orm import joinedload
 
-logger = logging.getLogger(__name__)
 
-from app.ai.chains.fit_scoring import get_fit_scoring_chain  # noqa: E402
+from app.ai.chains.fit_scoring import get_fit_scoring_chain
+
 # import get_fit_scoring_chain
-from app.ai.chains.cover_letter import get_cover_letter_chain  # noqa: E402
+from app.ai.chains.cover_letter import get_cover_letter_chain
+
 # import get_cover_letter_chain
-from app.ai.chains.interview_prep import get_interview_prep_chain  # noqa: E402
+from app.ai.chains.interview_prep import get_interview_prep_chain
+
 # import get_interview_prep_chain
-from app.ai.chains.resume_tailor import get_resume_tailoring_chain  # noqa: E402
+from app.ai.chains.resume_tailor import get_resume_tailoring_chain
+
 # import get_resume_tailoring_chain
-from app.db.session import async_session  # noqa: E402
-from app.db.models.application import Application  # noqa: E402
-from app.schemas import FitScoreResult, InterviewPrepResult, ResumeEditsResult  # noqa: E402
-#, InterviewPrepResult, ResumeEditsResult
+from app.db.session import async_session
+from app.db.models.application import Application
+from app.schemas import (
+    FitScoreResult,
+    InterviewPrepResult,
+    ResumeEditsResult,
+)
+
+# , InterviewPrepResult, ResumeEditsResult
+
+logger = logging.getLogger(__name__)
 
 # ============================================
 # STATE SCHEMA DEFINITION
+logger = logging.getLogger(__name__)
+
 # ============================================
 
 
@@ -46,8 +58,12 @@ class AnalysisState(TypedDict):
     error: Optional[str]
 
 
+logger = logging.getLogger(__name__)
+
 # ============================================
 # NODES
+logger = logging.getLogger(__name__)
+
 # ============================================
 
 
@@ -240,8 +256,12 @@ async def save_results(state: AnalysisState) -> dict:
         return {"error": f"save_results validation or database update failed: {str(e)}"}
 
 
+logger = logging.getLogger(__name__)
+
 # ============================================
 # GRAPH WIRING & ROUTING
+logger = logging.getLogger(__name__)
+
 # ============================================
 
 
@@ -275,8 +295,12 @@ workflow.add_edge("save_results", END)
 
 graph = workflow.compile()
 
+logger = logging.getLogger(__name__)
+
 # ============================================
 # PUBLIC INTERFACE
+logger = logging.getLogger(__name__)
+
 # ============================================
 
 

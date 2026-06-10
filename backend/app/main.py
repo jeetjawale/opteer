@@ -15,6 +15,7 @@ app = FastAPI(
 )
 
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware  # noqa: E402
+
 # import ProxyHeadersMiddleware
 
 # Setup Proxy Headers Middleware (resolves real IP behind reverse proxies)

@@ -9,6 +9,7 @@ from fastapi import (
     Header,
     Query,
     Response,
+    BackgroundTasks,
 )
 from typing import Optional, List
 from uuid import UUID
@@ -96,9 +97,6 @@ async def parse_resume(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=f"Failed to parse resume file: {str(e)}",
             )
-
-
-from fastapi import APIRouter, Depends, status, UploadFile, File, BackgroundTasks  # noqa: E402
 
 
 @router.post(
