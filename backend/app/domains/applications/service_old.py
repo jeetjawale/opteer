@@ -7,17 +7,28 @@ from app.schemas import ApplicationUpdate
 
 ACTIVE_ANALYSIS_STATUSES = {"queued", "processing"}
 
+
 class ApplicationService:
     def __init__(self, db_client):
         self.db = db_client
 
-    async def list_applications(self, user_id: str, status_filter: Optional[str] = None, page: int = 1, per_page: int = 50) -> List[Dict]:
+    async def list_applications(
+        self,
+        user_id: str,
+        status_filter: Optional[str] = None,
+        page: int = 1,
+        per_page: int = 50,
+    ) -> List[Dict]:
         offset = (page - 1) * per_page
-        query = self.db.table("applications") \
-            .select("*, jobs(company, role, location, work_model, url, company_research, scraped_jd)") \
-            .eq("user_id", str(user_id)) \
-            .order("created_at", desc=True) \
+        query = (
+            self.db.table("applications")
+            .select(
+                "*, jobs(company, role, location, work_model, url, company_research, scraped_jd)"
+            )
+            .eq("user_id", str(user_id))
+            .order("created_at", desc=True)
             .range(offset, offset + per_page - 1)
+        )
 
         if status_filter:
             query = query.eq("status", status_filter)
@@ -35,10 +46,12 @@ class ApplicationService:
     async def get_application(self, user_id: str, application_id: UUID) -> Dict:
         response = await asyncio.to_thread(
             lambda: self.db.table("applications")
-                .select("*, jobs(company, role, location, work_model, url, company_research, scraped_jd)")
-                .eq("id", str(application_id))
-                .eq("user_id", str(user_id))
-                .execute()
+            .select(
+                "*, jobs(company, role, location, work_model, url, company_research, scraped_jd)"
+            )
+            .eq("id", str(application_id))
+            .eq("user_id", str(user_id))
+            .execute()
         )
         if not response.data or len(response.data) == 0:
             raise HTTPException(status_code=404, detail="Application not found")
@@ -50,13 +63,15 @@ class ApplicationService:
         row.update(job_data)
         return row
 
-    async def update_application(self, user_id: str, application_id: UUID, payload: ApplicationUpdate) -> Dict:
+    async def update_application(
+        self, user_id: str, application_id: UUID, payload: ApplicationUpdate
+    ) -> Dict:
         check_response = await asyncio.to_thread(
             lambda: self.db.table("applications")
-                .select("user_id, status")
-                .eq("id", str(application_id))
-                .eq("user_id", str(user_id))
-                .execute()
+            .select("user_id, status")
+            .eq("id", str(application_id))
+            .eq("user_id", str(user_id))
+            .execute()
         )
         if not check_response.data or len(check_response.data) == 0:
             raise HTTPException(status_code=404, detail="Application not found")
@@ -73,21 +88,24 @@ class ApplicationService:
         if update_data:
             await asyncio.to_thread(
                 lambda: self.db.table("applications")
-                    .update(update_data)
-                    .eq("id", str(application_id))
-                    .eq("user_id", str(user_id))
-                    .execute()
+                .update(update_data)
+                .eq("id", str(application_id))
+                .eq("user_id", str(user_id))
+                .execute()
             )
 
             new_status = update_data.get("status")
             if new_status and new_status != previous_status:
                 await asyncio.to_thread(
                     lambda: self.db.table("application_history")
-                        .insert({
+                    .insert(
+                        {
                             "application_id": str(application_id),
                             "previous_status": previous_status,
-                            "new_status": new_status
-                        }).execute()
+                            "new_status": new_status,
+                        }
+                    )
+                    .execute()
                 )
 
         return await self.get_application(user_id, application_id)
@@ -95,10 +113,10 @@ class ApplicationService:
     async def delete_application(self, user_id: str, application_id: UUID):
         check_response = await asyncio.to_thread(
             lambda: self.db.table("applications")
-                .select("user_id, job_id")
-                .eq("id", str(application_id))
-                .eq("user_id", str(user_id))
-                .execute()
+            .select("user_id, job_id")
+            .eq("id", str(application_id))
+            .eq("user_id", str(user_id))
+            .execute()
         )
         if not check_response.data or len(check_response.data) == 0:
             raise HTTPException(status_code=404, detail="Application not found")
@@ -107,36 +125,40 @@ class ApplicationService:
 
         await asyncio.to_thread(
             lambda: self.db.table("applications")
-                .delete()
-                .eq("id", str(application_id))
-                .eq("user_id", str(user_id))
-                .execute()
+            .delete()
+            .eq("id", str(application_id))
+            .eq("user_id", str(user_id))
+            .execute()
         )
 
         if job_id:
             try:
                 await asyncio.to_thread(
-                    lambda: self.db.rpc("delete_job_if_orphaned", {"target_job_id": str(job_id)}).execute()
+                    lambda: self.db.rpc(
+                        "delete_job_if_orphaned", {"target_job_id": str(job_id)}
+                    ).execute()
                 )
             except Exception:
                 pass
 
-    async def get_application_history(self, user_id: str, application_id: UUID) -> List[Dict]:
+    async def get_application_history(
+        self, user_id: str, application_id: UUID
+    ) -> List[Dict]:
         check_response = await asyncio.to_thread(
             lambda: self.db.table("applications")
-                .select("id")
-                .eq("id", str(application_id))
-                .eq("user_id", str(user_id))
-                .execute()
+            .select("id")
+            .eq("id", str(application_id))
+            .eq("user_id", str(user_id))
+            .execute()
         )
         if not check_response.data:
             raise HTTPException(status_code=404, detail="Application not found")
 
         response = await asyncio.to_thread(
             lambda: self.db.table("application_history")
-                .select("*")
-                .eq("application_id", str(application_id))
-                .order("changed_at", desc=True)
-                .execute()
+            .select("*")
+            .eq("application_id", str(application_id))
+            .order("changed_at", desc=True)
+            .execute()
         )
         return response.data or []

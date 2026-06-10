@@ -4,11 +4,10 @@ from app.db.session import get_db
 from app.db.repositories.user import UserRepository
 from app.domains.auth.service import AuthService, InternalUser
 
-async def get_current_user(
-    session: AsyncSession = Depends(get_db)
-) -> InternalUser:
+
+async def get_current_user(session: AsyncSession = Depends(get_db)) -> InternalUser:
     """
-    Returns the default local user. 
+    Returns the default local user.
     Bypasses any authorization headers for local-first mode.
     """
     user_repo = UserRepository(session)

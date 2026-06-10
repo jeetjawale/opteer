@@ -3,53 +3,57 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 import logging
 
 logger = logging.getLogger(__name__)
-from pydantic import field_validator, model_validator
+from pydantic import field_validator, model_validator  # noqa: E402
+
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Opteer"
-    
+
     FRONTEND_URL: str = "http://localhost:3000"
-    
+
     # Database (PostgreSQL)
     DATABASE_URL: str
-    
+
     # Security
     API_KEY_ENCRYPTION_KEY: str
-    
+
     # Network
     API_URL: str = "http://localhost:8080"
     TRUSTED_PROXIES: str = "127.0.0.1"
-    
+
     # CORS Origins (contains http://localhost:3000 by default)
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
-    
+
     model_config = SettingsConfigDict(
-        env_file=os.path.join(os.path.dirname(__file__), '..', '..', '.env'),
-        env_file_encoding='utf-8',
+        env_file=os.path.join(os.path.dirname(__file__), "..", "..", ".env"),
+        env_file_encoding="utf-8",
         case_sensitive=True,
-        extra='ignore'
+        extra="ignore",
     )
-    
-    
+
     # Environment
     ENVIRONMENT: str = "development"
-    
+
     @field_validator("CORS_ORIGINS")
     @classmethod
     def validate_cors(cls, v: list[str], info: any) -> list[str]:
         env = info.data.get("ENVIRONMENT", "development")
         if env == "production":
             if len(v) == 1 and v[0] == "http://localhost:3000":
-                raise ValueError("CORS_ORIGINS must be configured for production (cannot be just localhost:3000)")
+                raise ValueError(
+                    "CORS_ORIGINS must be configured for production (cannot be just localhost:3000)"
+                )
         return v
-    
-
 
     @field_validator("DATABASE_URL")
     @classmethod
     def validate_database_url(cls, v: str) -> str:
-        if not v.startswith("postgresql+asyncpg://") and not v.startswith("postgresql://"):
-            raise ValueError("DATABASE_URL must be a valid PostgreSQL connection string")
+        if not v.startswith("postgresql+asyncpg://") and not v.startswith(
+            "postgresql://"
+        ):
+            raise ValueError(
+                "DATABASE_URL must be a valid PostgreSQL connection string"
+            )
         if v.startswith("postgresql://"):
             v = v.replace("postgresql://", "postgresql+asyncpg://")
         return v
@@ -57,9 +61,12 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def validate_encryption_key(self) -> "Settings":
         if not self.API_KEY_ENCRYPTION_KEY:
-            raise ValueError("API_KEY_ENCRYPTION_KEY is required. Must be a 32 url-safe base64-encoded string.")
-            
+            raise ValueError(
+                "API_KEY_ENCRYPTION_KEY is required. Must be a 32 url-safe base64-encoded string."
+            )
+
         return self
+
 
 settings = Settings()
 

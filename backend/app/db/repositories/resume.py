@@ -4,6 +4,7 @@ from sqlalchemy import select
 from app.db.models.resume import Resume
 from app.db.repositories.base import BaseRepository
 
+
 class ResumeRepository(BaseRepository[Resume]):
     def __init__(self, session: AsyncSession):
         super().__init__(Resume, session)

@@ -7,8 +7,9 @@ from app.ai.providers.implementations import (
     DeepSeekProvider,
     OpenRouterProvider,
     OllamaProvider,
-    CustomProvider
+    CustomProvider,
 )
+
 
 class ProviderFactory:
     _providers: Dict[str, Type[LLMProvider]] = {

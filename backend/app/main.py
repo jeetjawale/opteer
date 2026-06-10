@@ -1,7 +1,6 @@
-from fastapi import Depends, FastAPI, Header, HTTPException, status
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.database import get_current_user
 from app.domains.jobs.router import router as jobs_router
 from app.domains.applications.router import router as applications_router
 from app.domains.resumes.router import router as resumes_router
@@ -15,7 +14,8 @@ app = FastAPI(
     version="1.0.0",
 )
 
-from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware  # noqa: E402
+# import ProxyHeadersMiddleware
 
 # Setup Proxy Headers Middleware (resolves real IP behind reverse proxies)
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=settings.TRUSTED_PROXIES)
@@ -30,8 +30,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from fastapi.staticfiles import StaticFiles
-import os
+from fastapi.staticfiles import StaticFiles  # noqa: E402
+import os  # noqa: E402
 
 # Create local_storage directory if it doesn't exist
 os.makedirs("local_storage", exist_ok=True)
@@ -46,12 +46,14 @@ app.include_router(resumes_router)
 app.include_router(settings_router)
 app.include_router(dashboard_router)
 
-from app.ai.llm import get_models_config
+from app.ai.llm import get_models_config  # noqa: E402
+
 
 @app.get("/api/models", tags=["config"])
 async def list_models():
     """Returns the dynamically configured models available in the system."""
     return get_models_config()
+
 
 @app.get("/health", tags=["health"])
 async def health_check():
@@ -62,6 +64,3 @@ async def health_check():
         "status": "healthy",
         "project": settings.PROJECT_NAME,
     }
-
-
-

@@ -15,35 +15,39 @@ from app.domains.resumes.service import ResumeService
 from app.domains.auth.service import AuthService
 from app.infrastructure.storage.local import LocalStorageProvider
 
+
 def get_job_service(session: AsyncSession = Depends(get_db)) -> JobService:
     return JobService(
         job_repo=JobRepository(session),
         app_repo=ApplicationRepository(session),
         user_repo=UserRepository(session),
-        user_configs_repo=UserConfigsRepository(session)
+        user_configs_repo=UserConfigsRepository(session),
     )
 
-def get_application_service(session: AsyncSession = Depends(get_db)) -> ApplicationService:
+
+def get_application_service(
+    session: AsyncSession = Depends(get_db),
+) -> ApplicationService:
     return ApplicationService(
         app_repo=ApplicationRepository(session),
         job_repo=JobRepository(session),
         history_repo=ApplicationHistoryRepository(session),
         user_repo=UserRepository(session),
-        user_configs_repo=UserConfigsRepository(session)
+        user_configs_repo=UserConfigsRepository(session),
     )
+
 
 def get_resume_service(session: AsyncSession = Depends(get_db)) -> ResumeService:
     return ResumeService(
-        resume_repo=ResumeRepository(session),
-        storage=LocalStorageProvider()
+        resume_repo=ResumeRepository(session), storage=LocalStorageProvider()
     )
+
 
 def get_auth_service(session: AsyncSession = Depends(get_db)) -> AuthService:
-    return AuthService(
-        user_repo=UserRepository(session)
-    )
+    return AuthService(user_repo=UserRepository(session))
 
 
-
-def get_user_configs_repo(session: AsyncSession = Depends(get_db)) -> UserConfigsRepository:
+def get_user_configs_repo(
+    session: AsyncSession = Depends(get_db),
+) -> UserConfigsRepository:
     return UserConfigsRepository(session)

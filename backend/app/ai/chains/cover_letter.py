@@ -1,10 +1,15 @@
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 import app.ai.llm
-from app.core.config import settings
 from app.ai.workflow_config import WORKFLOW_CONFIG
 
-def get_cover_letter_chain(provider_name: str, model_name: str | None = None, api_key: str | None = None, base_url: str | None = None):
+
+def get_cover_letter_chain(
+    provider_name: str,
+    model_name: str | None = None,
+    api_key: str | None = None,
+    base_url: str | None = None,
+):
     """
     Creates and returns a LangChain chain for writing a tailored 3-paragraph cover letter.
     Uses temperature=0.7 to support natural, engaging, and professional writing style.
@@ -12,7 +17,7 @@ def get_cover_letter_chain(provider_name: str, model_name: str | None = None, ap
     """
     parser = StrOutputParser()
     config = WORKFLOW_CONFIG["cover_letter"]
-    
+
     # 1. Initialize LLM
     llm = app.ai.llm.get_llm(
         provider_name=provider_name,
@@ -20,7 +25,7 @@ def get_cover_letter_chain(provider_name: str, model_name: str | None = None, ap
         api_key=api_key,
         base_url=base_url,
         temperature=config["temperature"],
-        max_tokens=config["max_tokens"]
+        max_tokens=config["max_tokens"],
     )
 
     # 2. Build Prompt Template

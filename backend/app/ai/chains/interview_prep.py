@@ -2,17 +2,22 @@ from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 import app.ai.llm
 from app.schemas import InterviewPrepResult
-from app.core.config import settings
 
 from app.ai.workflow_config import WORKFLOW_CONFIG
 
-def get_interview_prep_chain(provider_name: str, model_name: str | None = None, api_key: str | None = None, base_url: str | None = None):
+
+def get_interview_prep_chain(
+    provider_name: str,
+    model_name: str | None = None,
+    api_key: str | None = None,
+    base_url: str | None = None,
+):
     """
     Creates and returns a LangChain chain for generating technical interview preparation questions.
     """
     parser = JsonOutputParser(pydantic_object=InterviewPrepResult)
     config = WORKFLOW_CONFIG["interview_prep"]
-    
+
     # 1. Initialize LLM
     llm = app.ai.llm.get_llm(
         provider_name=provider_name,
@@ -20,7 +25,7 @@ def get_interview_prep_chain(provider_name: str, model_name: str | None = None, 
         api_key=api_key,
         base_url=base_url,
         temperature=config["temperature"],
-        max_tokens=config["max_tokens"]
+        max_tokens=config["max_tokens"],
     )
 
     # 2. Build Prompt Template with formatting instructions

@@ -2,6 +2,7 @@ from langchain_openai import ChatOpenAI
 from app.core.config import settings
 from .base import AIProvider
 
+
 class XAIProvider(AIProvider):
     def get_model(self, model_name: str, **kwargs) -> ChatOpenAI:
         return ChatOpenAI(

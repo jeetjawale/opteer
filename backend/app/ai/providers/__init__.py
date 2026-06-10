@@ -6,7 +6,7 @@ from .implementations import (
     DeepSeekProvider,
     OpenRouterProvider,
     OllamaProvider,
-    CustomProvider
+    CustomProvider,
 )
 from .factory import ProviderFactory
 
@@ -19,5 +19,5 @@ __all__ = [
     "DeepSeekProvider",
     "OpenRouterProvider",
     "OllamaProvider",
-    "CustomProvider"
+    "CustomProvider",
 ]

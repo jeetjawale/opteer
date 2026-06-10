@@ -1,4 +1,3 @@
-import asyncio
 from typing import List, Optional, Dict, Any
 import uuid
 from fastapi import HTTPException
@@ -14,6 +13,7 @@ from app.db.models.application import Application
 
 ACTIVE_ANALYSIS_STATUSES = {"queued", "processing"}
 
+
 class ApplicationService:
     def __init__(
         self,
@@ -21,7 +21,7 @@ class ApplicationService:
         job_repo: JobRepository,
         history_repo: ApplicationHistoryRepository,
         user_repo=None,
-        user_configs_repo=None
+        user_configs_repo=None,
     ):
         self.app_repo = app_repo
         self.job_repo = job_repo
@@ -45,57 +45,90 @@ class ApplicationService:
             "key_requirements": app.key_requirements,
             "summary": app.summary,
             "interview_prep": app.interview_prep,
-            "resume_edits": app.resume_edits
+            "resume_edits": app.resume_edits,
         }
-        
+
         if getattr(app, "job", None):
-            data.update({
-            "company": app.job.company,
-            "role": app.job.role,
-            "location": app.job.location,
-            "work_model": app.job.work_model,
-            "url": app.job.url,
-            "company_research": app.job.company_research,
-            "scraped_jd": app.job.scraped_jd
-        })
+            data.update(
+                {
+                    "company": app.job.company,
+                    "role": app.job.role,
+                    "location": app.job.location,
+                    "work_model": app.job.work_model,
+                    "url": app.job.url,
+                    "company_research": app.job.company_research,
+                    "scraped_jd": app.job.scraped_jd,
+                }
+            )
         return data
 
-    async def list_applications(self, user_id: str | uuid.UUID, status_filter: Optional[str] = None, page: int = 1, per_page: int = 50) -> List[Dict]:
-        if isinstance(user_id, str): user_id = uuid.UUID(user_id)
+    async def list_applications(
+        self,
+        user_id: str | uuid.UUID,
+        status_filter: Optional[str] = None,
+        page: int = 1,
+        per_page: int = 50,
+    ) -> List[Dict]:
+        if isinstance(user_id, str):
+            user_id = uuid.UUID(user_id)
         offset = (page - 1) * per_page
-        
-        query = select(Application).options(joinedload(Application.job)).where(Application.user_id == user_id).order_by(Application.created_at.desc())
-        
+
+        query = (
+            select(Application)
+            .options(joinedload(Application.job))
+            .where(Application.user_id == user_id)
+            .order_by(Application.created_at.desc())
+        )
+
         if status_filter:
             query = query.where(Application.status == status_filter)
-            
+
         query = query.offset(offset).limit(per_page)
-        
+
         result = await self.app_repo.session.execute(query)
         apps = result.scalars().all()
         return [self._model_to_dict(a) for a in apps]
 
-    async def get_application(self, user_id: str | uuid.UUID, application_id: str | uuid.UUID) -> Dict:
-        if isinstance(user_id, str): user_id = uuid.UUID(user_id)
-        if isinstance(application_id, str): application_id = uuid.UUID(application_id)
-        
-        query = select(Application).options(joinedload(Application.job)).where(Application.id == application_id, Application.user_id == user_id)
+    async def get_application(
+        self, user_id: str | uuid.UUID, application_id: str | uuid.UUID
+    ) -> Dict:
+        if isinstance(user_id, str):
+            user_id = uuid.UUID(user_id)
+        if isinstance(application_id, str):
+            application_id = uuid.UUID(application_id)
+
+        query = (
+            select(Application)
+            .options(joinedload(Application.job))
+            .where(Application.id == application_id, Application.user_id == user_id)
+        )
         result = await self.app_repo.session.execute(query)
         app = result.scalar_one_or_none()
-        
+
         if not app:
             raise HTTPException(status_code=404, detail="Application not found")
-            
+
         return self._model_to_dict(app)
 
-    async def update_application(self, user_id: str | uuid.UUID, application_id: str | uuid.UUID, payload: ApplicationUpdate) -> Dict:
-        if isinstance(user_id, str): user_id = uuid.UUID(user_id)
-        if isinstance(application_id, str): application_id = uuid.UUID(application_id)
-        
-        query = select(Application).options(joinedload(Application.job)).where(Application.id == application_id, Application.user_id == user_id)
+    async def update_application(
+        self,
+        user_id: str | uuid.UUID,
+        application_id: str | uuid.UUID,
+        payload: ApplicationUpdate,
+    ) -> Dict:
+        if isinstance(user_id, str):
+            user_id = uuid.UUID(user_id)
+        if isinstance(application_id, str):
+            application_id = uuid.UUID(application_id)
+
+        query = (
+            select(Application)
+            .options(joinedload(Application.job))
+            .where(Application.id == application_id, Application.user_id == user_id)
+        )
         result = await self.app_repo.session.execute(query)
         app = result.scalar_one_or_none()
-        
+
         if not app:
             raise HTTPException(status_code=404, detail="Application not found")
 
@@ -115,15 +148,19 @@ class ApplicationService:
                 await self.history_repo.create(
                     application_id=application_id,
                     previous_status=previous_status,
-                    new_status=new_status
+                    new_status=new_status,
                 )
 
         return self._model_to_dict(app)
 
-    async def delete_application(self, user_id: str | uuid.UUID, application_id: str | uuid.UUID):
-        if isinstance(user_id, str): user_id = uuid.UUID(user_id)
-        if isinstance(application_id, str): application_id = uuid.UUID(application_id)
-            
+    async def delete_application(
+        self, user_id: str | uuid.UUID, application_id: str | uuid.UUID
+    ):
+        if isinstance(user_id, str):
+            user_id = uuid.UUID(user_id)
+        if isinstance(application_id, str):
+            application_id = uuid.UUID(application_id)
+
         app = await self.app_repo.get(application_id)
         if not app or app.user_id != user_id:
             raise HTTPException(status_code=404, detail="Application not found")
@@ -133,15 +170,21 @@ class ApplicationService:
 
         # delete job if orphaned
         if job_id:
-            other_apps_query = select(Application).where(Application.job_id == job_id).limit(1)
+            other_apps_query = (
+                select(Application).where(Application.job_id == job_id).limit(1)
+            )
             other_apps_result = await self.app_repo.session.execute(other_apps_query)
             if not other_apps_result.scalar_one_or_none():
                 # delete the job
                 await self.job_repo.delete(job_id)
 
-    async def get_application_history(self, user_id: str | uuid.UUID, application_id: str | uuid.UUID) -> List[Dict]:
-        if isinstance(user_id, str): user_id = uuid.UUID(user_id)
-        if isinstance(application_id, str): application_id = uuid.UUID(application_id)
+    async def get_application_history(
+        self, user_id: str | uuid.UUID, application_id: str | uuid.UUID
+    ) -> List[Dict]:
+        if isinstance(user_id, str):
+            user_id = uuid.UUID(user_id)
+        if isinstance(application_id, str):
+            application_id = uuid.UUID(application_id)
 
         app = await self.app_repo.get(application_id)
         if not app or app.user_id != user_id:
@@ -156,19 +199,28 @@ class ApplicationService:
                 "application_id": str(h.application_id),
                 "previous_status": h.previous_status,
                 "new_status": h.new_status,
-                "changed_at": h.changed_at.isoformat() if h.changed_at else None
+                "changed_at": h.changed_at.isoformat() if h.changed_at else None,
             }
             for h in history
         ]
 
-    async def queue_analysis(self, user_id: str | uuid.UUID, application_id: str | uuid.UUID, user_api_key: Optional[str] = None) -> Dict:
-        if isinstance(user_id, str): user_id = uuid.UUID(user_id)
-        if isinstance(application_id, str): application_id = uuid.UUID(application_id)
-        
+    async def queue_analysis(
+        self,
+        user_id: str | uuid.UUID,
+        application_id: str | uuid.UUID,
+        user_api_key: Optional[str] = None,
+    ) -> Dict:
+        if isinstance(user_id, str):
+            user_id = uuid.UUID(user_id)
+        if isinstance(application_id, str):
+            application_id = uuid.UUID(application_id)
+
         app = await self.app_repo.get(application_id)
         if not app or app.user_id != user_id:
             raise HTTPException(status_code=404, detail="Application not found")
-            
-        app = await self.app_repo.update(app, analysis_status="queued", analysis_error=None)
-        
+
+        app = await self.app_repo.update(
+            app, analysis_status="queued", analysis_error=None
+        )
+
         return {"status": "accepted", "message": "Analysis queued successfully"}

@@ -2,24 +2,29 @@ from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 import app.ai.llm
 from app.schemas import FitScoreResult
-from app.core.config import settings
 
 from app.ai.workflow_config import WORKFLOW_CONFIG
 
-def get_fit_scoring_chain(provider_name: str, model_name: str | None = None, api_key: str | None = None, base_url: str | None = None):
+
+def get_fit_scoring_chain(
+    provider_name: str,
+    model_name: str | None = None,
+    api_key: str | None = None,
+    base_url: str | None = None,
+):
     """
     Creates and returns a LangChain chain for calculating the job fit score.
     """
     parser = JsonOutputParser(pydantic_object=FitScoreResult)
     config = WORKFLOW_CONFIG["fit_scoring"]
-    
+
     llm = app.ai.llm.get_llm(
         provider_name=provider_name,
         model_name=model_name,
         api_key=api_key,
         base_url=base_url,
         temperature=config["temperature"],
-        max_tokens=config["max_tokens"]
+        max_tokens=config["max_tokens"],
     )
 
     # 2. Build Prompt Template with formatting instructions
