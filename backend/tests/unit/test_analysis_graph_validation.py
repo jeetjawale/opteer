@@ -1,6 +1,6 @@
 import pytest
 
-from app.graphs.analysis_graph import save_results
+from app.ai.graphs.analysis_graph import save_results
 
 
 @pytest.mark.asyncio

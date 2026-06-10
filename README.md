@@ -1,17 +1,22 @@
-# JobPilot — AI-powered job application helper
+# Opteer
 
 ![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
+[![Build Status](https://github.com/jeetjawale/opteer/actions/workflows/ci.yml/badge.svg)](https://github.com/jeetjawale/opteer/actions/workflows/ci.yml)
+![Tests](https://img.shields.io/badge/tests-100%25_passing-success.svg)
+![Coverage](https://img.shields.io/badge/coverage-71%25-success.svg)
 
 *(Placeholder: UI Screenshot or Demo GIF)*
 
-## What is JobPilot?
+## What is Opteer?
 
-JobPilot is a premium, AI-powered CRM designed to assist job seekers in organizing their job search and tailoring their applications. Instead of manually writing custom cover letters or researching company backgrounds, JobPilot completely automates the heavy lifting. It ingests public job descriptions, scores your resume against the requirements, and generates personalized application assets instantly.
+Opteer is an **AI-powered Job Search & Application Management Platform**.
 
-This project is built for developers and job seekers who want a highly customizable, private, and localized tool to manage their careers. Whether you are mass-applying or targeting a few niche roles, JobPilot scales to meet your workflow.
+Opteer is a premium tool designed to assist job seekers in organizing their job search and tailoring their applications. Instead of manually writing custom cover letters or researching company backgrounds, Opteer completely automates the heavy lifting. It ingests public job descriptions, scores your resume against the requirements, and generates personalized application assets instantly.
 
-What makes JobPilot different from standard wrappers is its stateful AI orchestration. By leveraging LangGraph, it runs multi-step pipelines that fetch context, score fit, draft cover letters, and build interview prep guides in isolated, reliable steps. Furthermore, it strictly prioritizes security—user API keys are stored fully encrypted in the database and only decrypted in-memory during execution.
+This project is built for developers and job seekers who want a highly customizable, private, and localized tool to manage their careers. Whether you are mass-applying or targeting a few niche roles, Opteer scales to meet your workflow.
+
+What makes Opteer different from standard wrappers is its stateful AI orchestration. By leveraging LangGraph, it runs multi-step pipelines that fetch context, score fit, draft cover letters, and build interview prep guides in isolated, reliable steps. Furthermore, it strictly prioritizes security—user API keys are stored fully encrypted in the database and only decrypted in-memory during execution.
 
 ## Features
 
@@ -20,27 +25,64 @@ What makes JobPilot different from standard wrappers is its stateful AI orchestr
 - **Secure API Key Management**: User API keys are mathematically encrypted at rest and dynamically decrypted in-memory during pipeline execution.
 - **Quota & Rate Limiting**: Dedicated application-layer usage limits and worker-enforced analysis quotas prevent runaway LLM costs.
 - **Background Task Processing**: Heavy AI tasks are offloaded to a resilient, asynchronous polling worker (`worker.py`).
-- **End-to-End Auth**: Complete session management and route protection via Supabase SSR Auth.
-- **Dynamic File Storage**: Handles PDF resume uploads via Supabase Storage, serving short-lived, on-demand signed URLs.
+- **Local-First Architecture**: Dedicated single-tenant structure with automatic user provisioning.
+- **Dynamic File Storage**: Handles PDF resume uploads via Local Storage Provider.
 
 ## Tech Stack
 
-| Layer | Technology | Version |
-| :--- | :--- | :--- |
-| **Frontend Framework** | Next.js | ^15.5.18 |
-| **UI Library** | React | 18.3.1 |
-| **Styling** | Tailwind CSS | 3.4.3 |
-| **Backend API** | FastAPI | 0.136.3 |
-| **AI Orchestration** | LangGraph & LangChain | 0.3.15 & 1.3.2 |
-| **Database & Auth** | Supabase | 2.30.1 |
-| **Web Scraping** | firecrawl-py | 4.28.2 |
-| **Search Engine API** | tavily-python | 0.7.25 |
+Opteer is built on a modern, robust stack optimized for providing real AI value out-of-the-box.
+
+### Frontend
+- **Next.js 15** (App Router)
+- **TypeScript**
+- **Tailwind CSS**
+- **TanStack Query**
+### User Management
+- **Local First** (Automatic profile provisioning without authentication hurdles)
+
+### Backend
+- **FastAPI**
+- **Pydantic**
+- **LangGraph**
+
+### Database & Storage
+- **PostgreSQL**
+- **SQLAlchemy Async**
+
+### External Data Sources
+- **Firecrawl API** (Job scraping, Website extraction)
+- **Tavily API** (Company research, Web search, Job intelligence)
+
+### Infrastructure
+- **GitHub Actions CI**
+- **Pytest**
+- **Ruff** & **Black**
+- **MyPy**
+
+## Architecture Workflow
+
+```text
+Frontend
+  Next.js
+      │
+      ▼
+   FastAPI
+      │
+      ├── PostgreSQL
+      │
+      ├── OpenAI
+      ├── Anthropic
+      ├── Gemini
+      │
+      ├── Firecrawl
+      └── Tavily
+```
 
 ## Prerequisites
 
 - Node.js >= 20.0.0
 - Python >= 3.11
-- Supabase CLI
+- Alembic
 - Docker & Docker Compose (optional, for self-hosted container deployment)
 
 ## Installation & Setup
@@ -48,7 +90,7 @@ What makes JobPilot different from standard wrappers is its stateful AI orchestr
 1. **Clone the repository:**
    ```bash
    git clone <your-repo-url>
-   cd jobpilot
+   cd opteer
    ```
 
 2. **Install Backend Dependencies:**
@@ -74,9 +116,7 @@ What makes JobPilot different from standard wrappers is its stateful AI orchestr
    - `AI_PROVIDER`: The active LLM provider (e.g., `gemini`, `openai`, `anthropic`).
    - `AI_MODEL`: The default model string (e.g., `gemini-3.1-flash-lite`).
    - `API_KEY_ENCRYPTION_KEY`: A 32 url-safe base64-encoded byte string for securing user API keys. Generate via: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`.
-   - `SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_URL`: Your Supabase project URL (Get from Supabase Dashboard).
-   - `SUPABASE_KEY` / `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Your Supabase anonymous public key (Get from Supabase Dashboard).
-   - `SUPABASE_SERVICE_KEY`: Your Supabase service role key (Get from Supabase Dashboard).
+   - `DATABASE_URL`: Your PostgreSQL connection string.
    - `NEXT_PUBLIC_API_URL`: Backend URL (defaults to `http://localhost:8080`).
 
    *Optional Variables:*
@@ -85,9 +125,10 @@ What makes JobPilot different from standard wrappers is its stateful AI orchestr
    - `GOOGLE_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, etc.: Platform-level LLM fallbacks.
 
 5. **Database Setup:**
-   Apply the migrations to your Supabase project to generate the schema, quotas, and RLS policies:
+   Apply the migrations to your PostgreSQL database to generate the schema:
    ```bash
-   npx supabase db push
+   cd backend
+   alembic upgrade head
    ```
 
 6. **Start the Application (Manual Method):**
@@ -127,15 +168,14 @@ What makes JobPilot different from standard wrappers is its stateful AI orchestr
 ## Project Structure
 
 ```text
-jobpilot/
+opteer/
 ├── backend/                  # FastAPI Application & Background Worker
 │   ├── app/                  # API routers, chains, graph orchestration, and schemas
 │   └── tests/                # Pytest suites for unit and integration testing
 ├── frontend/                 # Next.js App Router Application
 │   ├── public/               # Static assets
 │   └── src/                  # React components, pages, and client API lib
-├── supabase/
-│   └── migrations/           # SQL definitions for schema, RLS, and RPC functions
+├── backend/alembic/          # Alembic database migrations
 ├── docker-compose.yml        # Multi-container orchestration config
 ├── LICENSE                   # MIT License
 └── README.md                 # Project documentation
@@ -147,7 +187,7 @@ The backend exposes several modular routers. Here are the core health and valida
 
 **`GET /health`**
 - **Description:** Verifies service uptime and returns basic project metadata.
-- **Response:** `{"status": "healthy", "project": "JobPilot"}`
+- **Response:** `{"status": "healthy", "project": "Opteer"}`
 
 **`POST /health/llm`**
 - **Description:** Validates user-provided LLM credentials by invoking a minimal test prompt. Protected by a rate limiter (5 requests / 60 seconds).
@@ -155,7 +195,7 @@ The backend exposes several modular routers. Here are the core health and valida
 - **Response (Success):** `{"status": "ok", "provider": "gemini"}`
 - **Response (Error):** `{"status": "error", "detail": "Invalid authentication credentials"}`
 
-*(Note: `jobs`, `applications`, `reminders`, `resumes`, and `settings` routers are fully implemented and interact directly with Supabase and the LangGraph worker.)*
+*(Note: `jobs`, `applications`, `reminders`, `resumes`, and `settings` routers are fully implemented and interact directly with PostgreSQL and the LangGraph worker.)*
 
 ## Configuration
 

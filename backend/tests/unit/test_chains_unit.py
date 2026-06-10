@@ -53,9 +53,9 @@ CO_RES = "Overview: Fast-growing fintech startup.\nWebsite: https://example.com\
 @pytest.mark.asyncio
 async def test_fit_scoring_chain_returns_valid_schema():
     """Fit scoring chain parses JSON and returns a dict with fit_score."""
-    with patch("app.llm.get_llm", return_value=make_mock_llm(FIT_SCORE_JSON)):
-        from app.chains.fit_scoring import get_fit_scoring_chain
-        chain = get_fit_scoring_chain()
+    with patch("app.ai.llm.get_llm", return_value=make_mock_llm(FIT_SCORE_JSON)):
+        from app.ai.chains.fit_scoring import get_fit_scoring_chain
+        chain = get_fit_scoring_chain(provider_name="openai")
         result = await chain.ainvoke({"resume_text": RESUME, "scraped_jd": JD})
 
     assert isinstance(result, dict)
@@ -69,9 +69,9 @@ async def test_fit_scoring_chain_returns_valid_schema():
 @pytest.mark.asyncio
 async def test_fit_scoring_chain_provider_agnostic():
     """Fit scoring chain mock works regardless of AI_PROVIDER env var."""
-    with patch("app.llm.get_llm", return_value=make_mock_llm(FIT_SCORE_JSON)):
-        from app.chains.fit_scoring import get_fit_scoring_chain
-        chain = get_fit_scoring_chain(user_api_key="sk-ant-fake-key-12345678901234")
+    with patch("app.ai.llm.get_llm", return_value=make_mock_llm(FIT_SCORE_JSON)):
+        from app.ai.chains.fit_scoring import get_fit_scoring_chain
+        chain = get_fit_scoring_chain(provider_name="openai", api_key="sk-ant-fake-key-12345678901234")
         result = await chain.ainvoke({"resume_text": RESUME, "scraped_jd": JD})
 
     assert result["fit_score"] == 88
@@ -82,9 +82,9 @@ async def test_fit_scoring_chain_provider_agnostic():
 @pytest.mark.asyncio
 async def test_cover_letter_chain_returns_string():
     """Cover letter chain returns a non-empty string starting with greeting."""
-    with patch("app.llm.get_llm", return_value=make_mock_llm(COVER_LETTER_TEXT)):
-        from app.chains.cover_letter import get_cover_letter_chain
-        chain = get_cover_letter_chain()
+    with patch("app.ai.llm.get_llm", return_value=make_mock_llm(COVER_LETTER_TEXT)):
+        from app.ai.chains.cover_letter import get_cover_letter_chain
+        chain = get_cover_letter_chain(provider_name="openai")
         result = await chain.ainvoke({
             "resume_text": RESUME,
             "scraped_jd": JD,
@@ -99,9 +99,9 @@ async def test_cover_letter_chain_returns_string():
 @pytest.mark.asyncio
 async def test_cover_letter_chain_with_empty_research():
     """Cover letter chain handles empty company_research gracefully."""
-    with patch("app.llm.get_llm", return_value=make_mock_llm(COVER_LETTER_TEXT)):
-        from app.chains.cover_letter import get_cover_letter_chain
-        chain = get_cover_letter_chain()
+    with patch("app.ai.llm.get_llm", return_value=make_mock_llm(COVER_LETTER_TEXT)):
+        from app.ai.chains.cover_letter import get_cover_letter_chain
+        chain = get_cover_letter_chain(provider_name="openai")
         result = await chain.ainvoke({
             "resume_text": RESUME,
             "scraped_jd": JD,
@@ -117,9 +117,9 @@ async def test_cover_letter_chain_with_empty_research():
 @pytest.mark.asyncio
 async def test_interview_prep_chain_returns_questions():
     """Interview prep chain returns a dict with a non-empty questions list."""
-    with patch("app.llm.get_llm", return_value=make_mock_llm(INTERVIEW_PREP_JSON)):
-        from app.chains.interview_prep import get_interview_prep_chain
-        chain = get_interview_prep_chain()
+    with patch("app.ai.llm.get_llm", return_value=make_mock_llm(INTERVIEW_PREP_JSON)):
+        from app.ai.chains.interview_prep import get_interview_prep_chain
+        chain = get_interview_prep_chain(provider_name="openai")
         result = await chain.ainvoke({"resume_text": RESUME, "scraped_jd": JD})
 
     assert isinstance(result, dict)
@@ -133,9 +133,9 @@ async def test_interview_prep_chain_returns_questions():
 @pytest.mark.asyncio
 async def test_interview_prep_chain_question_content():
     """Each interview prep question has non-empty question and answer."""
-    with patch("app.llm.get_llm", return_value=make_mock_llm(INTERVIEW_PREP_JSON)):
-        from app.chains.interview_prep import get_interview_prep_chain
-        chain = get_interview_prep_chain()
+    with patch("app.ai.llm.get_llm", return_value=make_mock_llm(INTERVIEW_PREP_JSON)):
+        from app.ai.chains.interview_prep import get_interview_prep_chain
+        chain = get_interview_prep_chain(provider_name="openai")
         result = await chain.ainvoke({"resume_text": RESUME, "scraped_jd": JD})
 
     for q in result["questions"]:

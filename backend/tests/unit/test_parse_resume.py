@@ -9,7 +9,7 @@ client = TestClient(app)
 
 class MockUser:
     id = "11111111-1111-1111-1111-111111111111"
-    email = "test@jobpilot.com"
+    email = "test@opteer.com"
 
 @pytest.fixture(autouse=True)
 def override_dependencies():

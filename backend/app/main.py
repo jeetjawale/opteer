@@ -1,18 +1,17 @@
 from fastapi import Depends, FastAPI, Header, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from app.config import settings
+from app.core.config import settings
 from app.database import get_current_user
-from app.rate_limiter import rate_limiter
-from app.routers.jobs import router as jobs_router
-from app.routers.applications import router as applications_router
-from app.routers.reminders import router as reminders_router
-from app.routers.resumes import router as resumes_router
-from app.routers.settings import router as settings_router
+from app.domains.jobs.router import router as jobs_router
+from app.domains.applications.router import router as applications_router
+from app.domains.resumes.router import router as resumes_router
+from app.domains.settings.router import router as settings_router
+from app.domains.dashboard.router import router as dashboard_router
 
 # Initialize the FastAPI app
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    description="JobPilot Backend — AI-powered job application helper",
+    description="Opteer Backend",
     version="1.0.0",
 )
 
@@ -31,14 +30,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from fastapi.staticfiles import StaticFiles
+import os
+
+# Create local_storage directory if it doesn't exist
+os.makedirs("local_storage", exist_ok=True)
+
+# Mount local storage for serving files (like resumes)
+app.mount("/api/storage", StaticFiles(directory="local_storage"), name="storage")
+
 # Include resource routers
 app.include_router(jobs_router)
 app.include_router(applications_router)
-app.include_router(reminders_router)
 app.include_router(resumes_router)
 app.include_router(settings_router)
+app.include_router(dashboard_router)
 
-from app.llm import get_models_config
+from app.ai.llm import get_models_config
 
 @app.get("/api/models", tags=["config"])
 async def list_models():
@@ -56,39 +64,4 @@ async def health_check():
     }
 
 
-from typing import Optional
-from app.llm import get_llm, detect_provider
 
-@app.post("/health/llm", tags=["health"], dependencies=[Depends(rate_limiter(limit=5, window_seconds=60))])
-def health_check_llm(
-    x_user_api_key: Optional[str] = Header(None, alias="X-User-Api-Key"),
-    current_user = Depends(get_current_user),
-):
-    """
-    Validates user-provided LLM connection and API key credentials.
-    Runs get_llm(user_api_key=key).invoke("say ok") to verify connectivity.
-    """
-    from app.llm import resolve_api_key
-    
-    key = None if x_user_api_key == "SAVED_KEY" else x_user_api_key
-    resolved_key = resolve_api_key(str(current_user.id), key)
-
-    if not resolved_key:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="A user API key is required to test an LLM connection."
-        )
-
-    try:
-        # Initialize and invoke connection test
-        llm = get_llm(temperature=0.0, user_api_key=resolved_key)
-        llm.invoke("say ok")
-        
-        # Determine provider name
-        provider = detect_provider(resolved_key) if resolved_key else settings.AI_PROVIDER
-        return {"status": "ok", "provider": provider}
-    except Exception as e:
-        error_msg = str(e)
-        if key and len(key) > 8:
-            error_msg = error_msg.replace(key, "[REDACTED]")
-        return {"status": "error", "detail": error_msg}

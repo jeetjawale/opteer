@@ -1,6 +1,9 @@
 fastapi
 uvicorn[standard]
-supabase
+
+sqlalchemy
+asyncpg
+alembic
 python-dotenv
 pydantic-settings
 httpx

@@ -1,7 +1,7 @@
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, validator, field_validator
 from uuid import UUID
 from datetime import datetime, date
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Dict
 from enum import Enum
 
 # ============================================
@@ -37,7 +37,7 @@ class FitScoreResult(BaseModel):
     matched_skills: List[str] = Field(..., description="List of user skills matching the job description")
     missing_skills: List[str] = Field(..., description="List of critical skills/requirements missing from user profile")
     key_requirements: List[str] = Field(..., description="List of primary job requirements identified")
-    summary: str = Field(..., description="Brief 2-3 sentence overview highlighting user suitability and fit reasons")
+    summary: str = Field(..., description="An explicit Markdown summary explaining the fit assessment.")
 
 class InterviewQuestion(BaseModel):
     question: str = Field(..., description="Potential interview question based on the role and resume gaps")
@@ -75,9 +75,18 @@ class JobResponse(JobBase):
 
     model_config = ConfigDict(from_attributes=True)
 
+class JobUpdate(BaseModel):
+    url: Optional[str] = None
+    company: Optional[str] = None
+    role: Optional[str] = None
+    location: Optional[str] = None
+    work_model: Optional[str] = None
+    scraped_jd: Optional[str] = None
+    company_research: Optional[str] = None
+
 class ImportJobRequest(BaseModel):
     url: str = Field(..., description="The URL of the job posting to import")
-    resume_text: str = Field(..., description="The candidate's resume text to associate with this application")
+    resume_text: Optional[str] = Field(None, description="The candidate's resume text to associate with this application")
     scraped_jd: Optional[str] = Field(None, description="Optional manually pasted job description text to bypass scraping")
     auto_analyze: bool = Field(False, description="When true, enqueue AI analysis immediately after import")
 
@@ -90,6 +99,21 @@ class JobImportResponse(BaseModel):
     analysis_status: AnalysisStatus = Field(AnalysisStatus.IDLE, description="Durable AI analysis state")
     analysis_error: Optional[str] = Field(None, description="Last analysis error, when analysis failed")
     auto_analyze: bool = Field(False, description="Whether auto-analysis was requested for this import")
+
+# ============================================
+# APPLICATION HISTORY SCHEMAS
+# ============================================
+
+class ApplicationHistoryBase(BaseModel):
+    application_id: UUID
+    previous_status: Optional[str] = None
+    new_status: str
+
+class ApplicationHistoryResponse(ApplicationHistoryBase):
+    id: UUID
+    changed_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
 
 # ============================================
 # APPLICATION SCHEMAS
@@ -122,6 +146,8 @@ class ApplicationUpdate(BaseModel):
     interview_prep: Optional[InterviewPrepResult] = None
     resume_edits: Optional[ResumeEditsResult] = None
     notes: Optional[str] = None
+    is_quality_gated: Optional[bool] = None
+    quality_gate_reason: Optional[str] = None
 
 class ApplicationResponse(ApplicationBase):
     id: UUID
@@ -146,6 +172,8 @@ class ApplicationResponse(ApplicationBase):
     company: Optional[str] = None
     role: Optional[str] = None
     url: Optional[str] = None
+    location: Optional[str] = None
+    work_model: Optional[str] = None
     company_research: Optional[str] = None
     scraped_jd: Optional[str] = None
     
@@ -153,6 +181,8 @@ class ApplicationResponse(ApplicationBase):
     analysis_status: AnalysisStatus = AnalysisStatus.IDLE
     analysis_started_at: Optional[datetime] = None
     analysis_error: Optional[str] = None
+    is_quality_gated: Optional[bool] = False
+    quality_gate_reason: Optional[str] = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -233,6 +263,12 @@ class ResumeListResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+class ResumePaginatedResponse(BaseModel):
+    items: List[ResumeListResponse]
+    total: int
+    page: int
+    per_page: int
+
 class ResumeResponse(ResumeBase):
     id: UUID
     user_id: UUID
@@ -247,32 +283,60 @@ class ResumeResponse(ResumeBase):
 # SETTINGS SCHEMAS
 # ============================================
 
-class UserSettingsUpdate(BaseModel):
-    model_default: Optional[str] = None
-    model_fit: Optional[str] = None
-    model_letter: Optional[str] = None
-    model_prep: Optional[str] = None
-    model_tailor: Optional[str] = None
+class LLMProviderConfig(BaseModel):
+    model: Optional[str] = None
+    api_key_encrypted: Optional[str] = None
+    base_url: Optional[str] = None
+
+class UserConfigUpdate(BaseModel):
     onboarding_completed: Optional[bool] = None
     onboarding_step: Optional[str] = None
-    api_key: Optional[str] = Field(None, description="Custom API key (will be encrypted and stored securely)")
+    active_llm_provider: Optional[str] = None
+    llm_keys: Optional[Dict[str, LLMProviderConfig]] = None
+    task_models: Optional[Dict[str, str]] = None
+    integration_keys: Optional[Dict[str, str]] = None
+    auto_analyze_on_import: Optional[bool] = None
+    generate_interview_prep: Optional[bool] = None
+    auto_draft_cover_letters: Optional[bool] = None
 
-class UserSettingsResponse(BaseModel):
+class UserConfigResponse(BaseModel):
     id: Optional[UUID] = None
     user_id: UUID
-    model_default: Optional[str] = None
-    model_fit: Optional[str] = None
-    model_letter: Optional[str] = None
-    model_prep: Optional[str] = None
-    model_tailor: Optional[str] = None
-    onboarding_completed: Optional[bool] = None
+    onboarding_completed: Optional[bool] = False
     onboarding_step: Optional[str] = None
-    daily_analysis_credits: Optional[int] = None
-    max_daily_credits: Optional[int] = None
+    daily_analysis_credits: int = 50
+    max_daily_credits: int = 50
     last_credit_reset: Optional[datetime] = None
+    active_llm_provider: Optional[str] = None
+    # We shouldn't send raw encrypted keys to the frontend, just a boolean indicator if they exist
+    llm_providers_configured: Dict[str, bool] = Field(default_factory=dict, description="Map of provider -> true if key is configured")
+    active_models: Dict[str, str] = Field(default_factory=dict, description="Map of provider -> active model ID")
+    base_urls: Dict[str, str] = Field(default_factory=dict, description="Map of provider -> custom base URL")
+    task_models: Dict[str, str] = Field(default_factory=dict, description="Map of task -> model ID")
+    integration_providers_configured: Dict[str, bool] = Field(default_factory=dict, description="Map of integration -> true if key is configured")
+    auto_analyze_on_import: Optional[bool] = True
+    generate_interview_prep: Optional[bool] = True
+    auto_draft_cover_letters: Optional[bool] = False
     updated_at: datetime
-    has_saved_key: bool = Field(False, description="True if an encrypted API key is stored on the backend")
     model_config = ConfigDict(from_attributes=True)
+
+class LLMValidateRequest(BaseModel):
+    provider: str
+    api_key: str
+    base_url: Optional[str] = None
+
+class LLMValidateResponse(BaseModel):
+    valid: bool
+    models: List[dict] = Field(default_factory=list)
+    error: Optional[str] = None
+
+class IntegrationValidateRequest(BaseModel):
+    provider: str
+    api_key: str
+
+class IntegrationValidateResponse(BaseModel):
+    valid: bool
+    error: Optional[str] = None
 
 # ============================================
 # STATS SCHEMAS
@@ -302,4 +366,28 @@ class ApplicationStatsResponse(BaseModel):
     fit_score_data: List[FitScoreBucket]
     timeline_data: List[TimelineItem]
     top_companies_data: List[TopCompanyItem]
+
+# ============================================
+# DASHBOARD SCHEMAS
+# ============================================
+
+class DashboardStats(BaseModel):
+    total_applications: int
+    active_interviews: int
+    avg_fit_score: int
+    offers_received: int
+
+class RecentActivityItem(BaseModel):
+    id: UUID
+    type: str = Field(..., description="'application_update', 'reminder_due', etc.")
+    title: str
+    subtitle: Optional[str] = None
+    timestamp: datetime
+    metadata: Optional[dict] = None
+
+class DashboardOverviewResponse(BaseModel):
+    stats: DashboardStats
+    recent_activity: List[RecentActivityItem]
+    top_recommendations: List[ApplicationResponse]
+    upcoming_events: List[ReminderResponse]
 

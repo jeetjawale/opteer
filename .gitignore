@@ -46,8 +46,13 @@ yarn-error.log*
 
 .DS_Store
 
-GEMINI.md
-.codex
-supabase/.temp
+
 *.tsbuildinfo*
-.zip
+
+
+# Testing and Reports
+.coverage
+playwright-report/
+test-results/
+backend/local_storage/
+opencode.json

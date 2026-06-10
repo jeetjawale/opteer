@@ -1,36 +1,34 @@
-"use client";
-
-import { usePathname } from "next/navigation";
-import { GeistSans } from "geist/font/sans";
-import { GeistMono } from "geist/font/mono";
-import Sidebar from "@/components/Sidebar";
-import CommandPalette from "@/components/CommandPalette";
-import { Toaster } from "sonner";
+import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import "./globals.css";
+import { Geist } from "next/font/google";
+import { cn } from "@/lib/utils";
+import { Providers } from './providers';
 
-export default function RootLayout({
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+
+export const metadata: Metadata = {
+  title: "Opteer Dashboard",
+  description: "Opteer",
+};
+
+export default async function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;
-}) {
-  const pathname = usePathname();
-  const isAuthPage = pathname === "/login" || pathname === "/signup";
+}>) {
+  const cookieStore = await cookies();
 
   return (
-    <html lang="en">
+    <html lang="en" className={cn("font-sans", geist.variable)}>
       <head>
-        <title>JobPilot — AI-powered job application helper</title>
-        <meta name="description" content="AI scores your fit, writes your cover letter, preps your interview." />
+        <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Geist:wght@400;600;700;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
       </head>
-      <body className={`${GeistSans.className} ${GeistSans.variable} ${GeistMono.variable} bg-base text-primary min-h-screen antialiased`}>
-        <div className="flex min-h-screen">
-          {!isAuthPage && <Sidebar />}
-          <main className="flex-1 min-h-screen bg-transparent">
-            {children}
-          </main>
-        </div>
-        <CommandPalette />
-        <Toaster theme="dark" richColors />
+      <body className="bg-background text-on-surface font-body-md antialiased">
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );
