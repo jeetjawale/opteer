@@ -13,9 +13,9 @@ class ApplicationHistoryRepository(BaseRepository[ApplicationHistory]):
         self, application_id: uuid.UUID
     ) -> List[ApplicationHistory]:
         query = (
-            select(self.model_class)
-            .where(self.model_class.application_id == application_id)
-            .order_by(self.model_class.changed_at.desc())
+            select(self.model)
+            .where(self.model.application_id == application_id)
+            .order_by(self.model.changed_at.desc())
         )
         result = await self.session.execute(query)
         return list(result.scalars().all())

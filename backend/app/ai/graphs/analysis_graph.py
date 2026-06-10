@@ -148,7 +148,7 @@ async def run_all_analyses(state: AnalysisState) -> dict:
                     "company_research": state["company_research"],
                 }
             )
-            return {"cover_letter": result.get("cover_letter", "")}
+            return {"cover_letter": result if isinstance(result, str) else result.get("cover_letter", "")}
         except Exception as e:
             logger.error("cover_letter failed: %s", str(e))
             return {"cover_letter": ""}

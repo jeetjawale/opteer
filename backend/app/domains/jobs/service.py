@@ -190,36 +190,7 @@ class JobService:
                     detail=f"Failed to load user config: {str(e)}",
                 )
 
-            if payload.auto_analyze:
-                try:
-
-                    today = date.today()
-                    if user_configs.last_credit_reset != today:
-                        user_configs.daily_analysis_credits = 50
-                        user_configs.last_credit_reset = today
-                        await self.user_configs_repo.update(
-                            user_configs,
-                            daily_analysis_credits=50,
-                            last_credit_reset=today,
-                        )
-
-                    if user_configs.daily_analysis_credits <= 0:
-                        raise HTTPException(
-                            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                            detail="Daily analysis quota exceeded.",
-                        )
-                    user_configs = await self.user_configs_repo.update(
-                        user_configs,
-                        daily_analysis_credits=user_configs.daily_analysis_credits - 1,
-                    )
-                except HTTPException:
-                    raise
-                except Exception as e:
-                    raise HTTPException(
-                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                        detail=f"Failed to verify quota: {sanitize_error(str(e), x_user_api_key)}",
-                    )
-
+            # Quota logic removed for local-first deployment
             scraped_jd = payload.scraped_jd
             direct_scraped = None
 

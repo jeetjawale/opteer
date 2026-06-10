@@ -88,6 +88,7 @@ async def process_one() -> None:
             task_models = {}
             auto_draft_cover_letters = False
             generate_interview_prep = False
+            provider_data = {}
             
             if user_configs:
                 auto_draft_cover_letters = getattr(user_configs, "auto_draft_cover_letters", False)
