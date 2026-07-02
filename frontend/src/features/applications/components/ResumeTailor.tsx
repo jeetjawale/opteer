@@ -340,7 +340,7 @@ export function ResumeTailor({
   return (
     <div className="flex flex-col gap-6 w-full h-full">
       {/* ── Top: Resume Renderer ────────────────────────────────────────── */}
-      <div className="w-full relative border border-outline-variant rounded-xl bg-surface flex flex-col min-h-[760px]">
+      <div className="w-full relative border border-outline-variant rounded-xl bg-surface flex flex-col">
         {/* Toolbar */}
         <div className="flex items-center justify-between border-b border-outline-variant p-3 bg-surface-container-lowest rounded-t-xl shrink-0">
           <span className="text-label-lg font-medium text-on-surface">Resume Preview</span>
@@ -366,7 +366,7 @@ export function ResumeTailor({
         </div>
 
         {/* Body */}
-        <div ref={containerRef} className="flex-1 overflow-hidden bg-surface-container-low relative flex items-center justify-center p-5 rounded-b-xl">
+        <div ref={containerRef} className="flex-1 overflow-hidden bg-surface-container-low relative flex items-center justify-center p-5 rounded-b-xl aspect-[8.5/11]">
           {parseError && (
             <div className="mb-4 p-3 rounded-lg bg-error/10 border border-error/30 text-error text-sm">
               {parseError}
@@ -417,22 +417,24 @@ export function ResumeTailor({
           <Sparkles size={18} className="text-tertiary" />
           <h3 className="font-headline-sm text-on-surface">Tailoring Suggestions</h3>
         </div>
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4">
           {resumeEdits && resumeEdits.length > 0 ? (
-            resumeEdits.map((edit: any, i: number) => (
-              <div key={i} className="bg-surface-container-low border border-outline-variant rounded-lg p-3 shadow-sm hover:border-tertiary/50 transition-colors">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider ${edit.type === 'add' ? 'bg-primary/20 text-primary' : edit.type === 'remove' ? 'bg-error/20 text-error' : 'bg-tertiary/20 text-tertiary'}`}>
-                    {edit.type}
-                  </span>
-                  <span className="font-bold text-on-surface text-xs truncate">[{edit.section}]</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {resumeEdits.map((edit: any, i: number) => (
+                <div key={i} className="bg-surface-container-low border border-outline-variant rounded-lg p-3 shadow-sm hover:border-tertiary/50 transition-colors">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider ${edit.type === 'add' ? 'bg-primary/20 text-primary' : edit.type === 'remove' ? 'bg-error/20 text-error' : 'bg-tertiary/20 text-tertiary'}`}>
+                      {edit.type}
+                    </span>
+                    <span className="font-bold text-on-surface text-xs truncate">[{edit.section}]</span>
+                  </div>
+                  <p className="text-on-surface font-medium text-sm mb-2">{edit.suggestion}</p>
+                  <div className="bg-surface-container p-2 rounded text-xs text-on-surface-variant italic border-l-2 border-tertiary/40">
+                    <span className="font-semibold not-italic">Why: </span>{edit.reasoning}
+                  </div>
                 </div>
-                <p className="text-on-surface font-medium text-sm mb-2">{edit.suggestion}</p>
-                <div className="bg-surface-container p-2 rounded text-xs text-on-surface-variant italic border-l-2 border-tertiary/40">
-                  <span className="font-semibold not-italic">Why: </span>{edit.reasoning}
-                </div>
-              </div>
-            ))
+              ))}
+            </div>
           ) : (
             <p className="text-on-surface-variant text-sm italic text-center py-8">
               Run AI Analysis to generate tailoring suggestions.
