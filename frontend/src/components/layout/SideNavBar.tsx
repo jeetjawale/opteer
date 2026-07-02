@@ -12,7 +12,7 @@ export default function SideNavBar({ isCollapsed, setIsCollapsed }: SideNavBarPr
 
   return (
     <nav 
-      className={`bg-surface dark:bg-inverse-surface h-screen fixed left-0 top-0 border-r border-outline-variant dark:border-outline flex flex-col pt-lg pb-0 z-40 transition-all duration-300 ${
+      className={`bg-surface/80 backdrop-blur-md dark:bg-inverse-surface/80 h-screen fixed left-0 top-0 border-r border-outline-variant dark:border-outline flex flex-col pt-lg pb-0 z-40 transition-all duration-300 ${
         isCollapsed ? 'w-[72px] px-sm items-center' : 'w-56 px-md'
       }`}
     >
@@ -36,13 +36,22 @@ export default function SideNavBar({ isCollapsed, setIsCollapsed }: SideNavBarPr
           {!isCollapsed && <span className="whitespace-nowrap">Dashboard</span>}
         </Link>
         
-        <Link href="/jobs" title="Job Board" className={`flex items-center gap-md py-sm rounded font-body-sm text-body-sm transition-colors duration-150 transform active:scale-[0.98] ${
+        <Link href="/discover" title="Search Jobs" className={`flex items-center gap-md py-sm rounded font-body-sm text-body-sm transition-colors duration-150 transform active:scale-[0.98] ${
+          pathname.startsWith('/discover')
+            ? 'bg-primary-container/10 text-primary dark:text-inverse-primary'
+            : 'text-on-surface-variant dark:text-outline-variant hover:bg-surface-container dark:hover:bg-surface-variant'
+        } ${isCollapsed ? 'justify-center px-0' : 'px-md'}`}>
+          <span className="material-symbols-outlined text-[20px] shrink-0">search</span>
+          {!isCollapsed && <span className="whitespace-nowrap">Search Jobs</span>}
+        </Link>
+        
+        <Link href="/jobs" title="Saved Jobs" className={`flex items-center gap-md py-sm rounded font-body-sm text-body-sm transition-colors duration-150 transform active:scale-[0.98] ${
           pathname.startsWith('/jobs')
             ? 'bg-primary-container/10 text-primary dark:text-inverse-primary'
             : 'text-on-surface-variant dark:text-outline-variant hover:bg-surface-container dark:hover:bg-surface-variant'
         } ${isCollapsed ? 'justify-center px-0' : 'px-md'}`}>
           <span className="material-symbols-outlined text-[20px] shrink-0">work</span>
-          {!isCollapsed && <span className="whitespace-nowrap">Job Board</span>}
+          {!isCollapsed && <span className="whitespace-nowrap">Saved Jobs</span>}
         </Link>
         
         <Link href="/applications" title="Applications" className={`flex items-center gap-md py-sm rounded font-body-sm text-body-sm transition-colors duration-150 transform active:scale-[0.98] ${

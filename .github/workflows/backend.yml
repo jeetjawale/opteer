@@ -16,6 +16,20 @@ jobs:
   backend:
     name: Backend Checks
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: opteer_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     defaults:
       run:
         working-directory: ./backend
@@ -33,8 +47,11 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install ruff black mypy pytest-cov
+        pip install -r requirements.txt -r requirements-test.txt
+        pip install ruff black mypy pytest-cov pip-audit
+
+    - name: Security Scan (pip-audit)
+      run: pip-audit
 
     - name: Check formatting with Black
       run: black --check app
@@ -44,7 +61,13 @@ jobs:
 
     - name: Type checking with MyPy
       run: mypy app
-      continue-on-error: true
+
+    - name: Check DB Migrations (Alembic)
+      env:
+        DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/opteer_test
+      run: |
+        alembic upgrade head
+        alembic check
 
     - name: Run tests and coverage
       env:
@@ -52,4 +75,4 @@ jobs:
         API_KEY_ENCRYPTION_KEY: Z_ILOz5AOX7jBQ3cIveKBpeaAxB-pOlmixGsxuy-ii8=
         PYTHONPATH: .
       run: |
-        pytest tests/ --cov=app --cov-report=xml --cov-report=term-missing --cov-fail-under=50
+        pytest tests/ --cov=app --cov-report=xml --cov-report=term-missing --cov-fail-under=70

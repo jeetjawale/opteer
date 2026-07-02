@@ -25,7 +25,7 @@ export default function TopNavBar() {
   };
 
   return (
-    <header className="bg-surface dark:bg-inverse-surface w-full sticky top-0 z-30 border-b border-outline-variant dark:border-outline shadow-sm flex justify-between items-center px-lg py-md">
+    <header className="bg-surface/80 backdrop-blur-md dark:bg-inverse-surface/80 w-full sticky top-0 z-30 border-b border-outline-variant dark:border-outline shadow-sm flex justify-between items-center px-lg py-md">
       <div className="flex-1 max-w-4xl">
         <div className="relative flex items-center group">
           <Search size={18} className="absolute left-3 text-on-surface-variant group-focus-within:text-primary transition-colors" />

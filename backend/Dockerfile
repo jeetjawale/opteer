@@ -10,6 +10,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
+# Create a non-root user and set permissions
+RUN useradd -m -u 1000 appuser && \
+    mkdir -p /app/local_storage && \
+    chown -R appuser:appuser /app
+
+USER appuser
+
 # Healthcheck
 HEALTHCHECK --interval=30s --timeout=5s CMD curl -f http://localhost:8080/health || exit 1
 

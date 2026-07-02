@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useApiClient } from '@/lib/api-client';
+import { apiClient as api } from '@/lib/api-client';
 
 export interface Resume {
   id: string;
@@ -19,7 +19,7 @@ export interface ResumePaginatedResponse {
 }
 
 export function useResumes(page: number = 1, perPage: number = 50) {
-  const api = useApiClient();
+
   
   return useQuery<ResumePaginatedResponse>({
     queryKey: ['resumes', page, perPage],
@@ -28,7 +28,7 @@ export function useResumes(page: number = 1, perPage: number = 50) {
 }
 
 export function useResumeText(resumeId: string | null, enabled = false) {
-  const api = useApiClient();
+
 
   return useQuery<{
     id: string;
@@ -60,7 +60,7 @@ export function useResumeText(resumeId: string | null, enabled = false) {
 }
 
 export function useUploadResume() {
-  const api = useApiClient();
+
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -76,7 +76,7 @@ export function useUploadResume() {
 }
 
 export function useDeleteResume() {
-  const api = useApiClient();
+
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -88,7 +88,7 @@ export function useDeleteResume() {
 }
 
 export function useUpdateResume() {
-  const api = useApiClient();
+
   const queryClient = useQueryClient();
 
   return useMutation({

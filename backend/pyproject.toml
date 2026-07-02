@@ -1,0 +1,55 @@
+[project]
+name = "opteer-backend"
+version = "1.0.0"
+description = "Opteer Backend API"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "sqlalchemy",
+    "asyncpg",
+    "alembic",
+    "python-dotenv",
+    "pydantic-settings",
+    "httpx",
+    "langchain",
+    "langchain-core",
+    "langchain-google-genai",
+    "langchain-anthropic",
+    "langchain-openai",
+    "langgraph",
+    "firecrawl-py",
+    "tavily-python",
+    "pypdf",
+    "python-docx",
+    "python-multipart>=0.0.18",
+    "cryptography>=42.0.0",
+    "sentry-sdk[fastapi]"
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "pytest-asyncio",
+    "pytest-mock",
+    "pytest-cov"
+]
+
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_return_any = false
+warn_unused_configs = true
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = []

@@ -3,16 +3,19 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 import logging
 
 logger = logging.getLogger(__name__)
-from pydantic import field_validator, model_validator  # noqa: E402
+from pydantic import field_validator, model_validator, ValidationInfo  # noqa: E402
 
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Opteer"
+    LOG_LEVEL: str = "INFO"
 
     FRONTEND_URL: str = "http://localhost:3000"
 
     # Database (PostgreSQL)
     DATABASE_URL: str
+
+    SENTRY_DSN: str | None = None
 
     # Security
     API_KEY_ENCRYPTION_KEY: str
@@ -36,8 +39,8 @@ class Settings(BaseSettings):
 
     @field_validator("CORS_ORIGINS")
     @classmethod
-    def validate_cors(cls, v: list[str], info: any) -> list[str]:
-        env = info.data.get("ENVIRONMENT", "development")
+    def validate_cors(cls, v: list[str], info: ValidationInfo) -> list[str]:
+        env = info.data.get("ENVIRONMENT", "development") if info.data else "development"
         if env == "production":
             if len(v) == 1 and v[0] == "http://localhost:3000":
                 raise ValueError(
@@ -68,7 +71,7 @@ class Settings(BaseSettings):
         return self
 
 
-settings = Settings()
+settings = Settings()  # type: ignore[call-arg]
 
 # Startup Config Banner
 logger.info("Initializing configuration...")

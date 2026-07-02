@@ -25,7 +25,9 @@ export default async function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Geist:wght@400;600;700;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
       </head>
-      <body className="bg-background text-on-surface font-body-md antialiased">
+      <body className="bg-background text-on-surface font-body-md antialiased relative min-h-screen">
+        <div className="fixed inset-0 mesh-gradient opacity-10 pointer-events-none -z-10"></div>
+        <div className="fixed inset-0 grid-overlay opacity-30 pointer-events-none -z-10"></div>
         <Providers>
           {children}
         </Providers>

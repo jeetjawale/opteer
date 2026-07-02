@@ -42,6 +42,9 @@ test.describe('Fullstack: Golden Path', () => {
     await page.goto('/dashboard');
     await expect(page).toHaveURL(/.*dashboard.*/, { timeout: 15000 });
 
+    const { configureApiKey } = require('../helpers');
+    await configureApiKey(page);
+
     // 2. Upload Resume
     await page.goto('/resumes');
     const dummyResumePath = path.resolve(__dirname, '../../fixtures/resume.txt');
@@ -56,15 +59,15 @@ test.describe('Fullstack: Golden Path', () => {
     // 3. Import Job & Application Created
     await page.goto('/applications');
     await page.locator('button', { hasText: /Add Posting/i }).click();
-    await page.fill('input[type="url"]', 'https://in.indeed.com/viewjob?jk=fc2ec86e4ab22852&from=shareddesktop_copy');
+    await page.fill('input[type="url"]', 'https://corporate.target.com/jobs/w83/68/apprentice-technology');
     // Ensure the resume dropdown has loaded and we select the first available resume (index 1 because 0 is "No Resume")
     await page.locator('select').selectOption({ index: 1 }, { timeout: 15000 });
-    await page.locator('button', { hasText: /Import|Next|Submit/i }).click();
+    await page.locator('button', { hasText: 'Import' }).click();
     await expect(page.locator('text=Import Job Posting')).toBeHidden({ timeout: 60000 });
-    await page.waitForSelector('.group.block.cursor-pointer', { state: 'visible', timeout: 15000 });
+    await page.waitForSelector('.group.cursor-grab', { state: 'visible', timeout: 15000 });
 
     // 4. Run Analysis
-    await page.locator('.group.block.cursor-pointer').first().click();
+    await page.locator('.group.cursor-grab').first().click();
     await page.waitForURL(/\/jobs\/[a-zA-Z0-9-]+/);
     
     const url = page.url();

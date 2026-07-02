@@ -1,6 +1,8 @@
 import time
 import os
+import logging
 
+logger = logging.getLogger(__name__)
 _ENABLED = os.environ.get("ENABLE_TIMING_LOGS", "false").lower() in ("true", "1", "yes")
 
 
@@ -34,7 +36,7 @@ class _TimingContext:
 
     def __exit__(self, *args):
         elapsed = int((time.perf_counter() - self.start) * 1000)
-        print(f"[timing] {self.name} {elapsed}ms")
+        logger.info("[timing] %s %dms", self.name, elapsed)
 
     async def __aenter__(self):
         self.start = time.perf_counter()
@@ -42,4 +44,4 @@ class _TimingContext:
 
     async def __aexit__(self, *args):
         elapsed = int((time.perf_counter() - self.start) * 1000)
-        print(f"[timing] {self.name} {elapsed}ms")
+        logger.info("[timing] %s %dms", self.name, elapsed)

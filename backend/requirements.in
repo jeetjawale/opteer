@@ -21,6 +21,4 @@ python-multipart>=0.0.18
 
 # Security
 cryptography>=42.0.0
-pytest
-pytest-asyncio
-pytest-mock
+sentry-sdk[fastapi]

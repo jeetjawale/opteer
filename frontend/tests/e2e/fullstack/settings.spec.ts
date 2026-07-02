@@ -11,10 +11,10 @@ test.describe('Fullstack: Settings Flow', () => {
     await page.goto('/settings');
     
     // Change a setting
-    await page.locator('input[type="text"]').last().fill('Test');
-    await page.locator('button', { hasText: /Update Profile/i }).click();
+    await page.locator('input[type="password"]').first().fill('Test');
+    await page.locator('button', { hasText: /Save Credentials/i }).first().click();
 
-    // Verify button goes back to "Update Profile"
-    await expect(page.locator('button', { hasText: 'Update Profile' })).toBeVisible({ timeout: 15000 });
+    // Verify button goes back to "Save Credentials"
+    await expect(page.locator('button', { hasText: /Save Credentials/i }).first()).toBeVisible({ timeout: 15000 });
   });
 });
