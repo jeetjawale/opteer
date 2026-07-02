@@ -1,15 +1,17 @@
+from typing import Any, Dict, List
+
 import httpx
-from typing import List, Dict, Any
-from app.ai.providers.base import LLMProvider
-from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_ollama.chat_models import ChatOllama
+from langchain_openai import ChatOpenAI
+
+from app.ai.providers.base import LLMProvider
 
 
 class OpenAIProvider(LLMProvider):
     def get_client(self, api_key: str, model: str, base_url: str | None = None) -> Any:
-        # For base OpenAI, we force None or the default to prevent hijacking unless it's custom
+        # For base OpenAI, we force None or the default to prevent hijacking unless it's custom  # noqa: E501
         return ChatOpenAI(model=model, api_key=api_key, base_url=base_url)  # type: ignore[arg-type]
 
     async def fetch_available_models(
@@ -140,5 +142,5 @@ class OllamaProvider(LLMProvider):
 
 
 class CustomProvider(OpenAIProvider):
-    # Custom provider uses standard OpenAI compatibility but relies on the base_url passed in
+    # Custom provider uses standard OpenAI compatibility but relies on the base_url passed in  # noqa: E501
     pass

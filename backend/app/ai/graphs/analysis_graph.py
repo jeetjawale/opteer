@@ -1,27 +1,26 @@
 import asyncio
 import logging
-from typing import TypedDict, Optional
-from datetime import datetime, timezone
 import uuid
-from langgraph.graph import StateGraph, END, START
+from datetime import datetime, timezone
+from typing import Optional, TypedDict
+
+from langgraph.graph import END, START, StateGraph
 from sqlalchemy import select, update
 from sqlalchemy.orm import joinedload
 
-
-from app.ai.chains.fit_scoring import get_fit_scoring_chain
-
 # import get_fit_scoring_chain
 from app.ai.chains.cover_letter import get_cover_letter_chain
+from app.ai.chains.fit_scoring import get_fit_scoring_chain
 
 # import get_cover_letter_chain
 from app.ai.chains.interview_prep import get_interview_prep_chain
 
 # import get_interview_prep_chain
 from app.ai.chains.resume_tailor import get_resume_tailoring_chain
+from app.db.models.application import Application
 
 # import get_resume_tailoring_chain
 from app.db.session import async_session
-from app.db.models.application import Application
 from app.schemas import (
     FitScoreResult,
     InterviewPrepResult,

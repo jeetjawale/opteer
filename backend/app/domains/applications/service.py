@@ -1,15 +1,16 @@
-from typing import List, Optional, Dict, Any
 import uuid
-from fastapi import HTTPException
 from datetime import date
+from typing import Any, Dict, List, Optional
+
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
-from app.schemas import ApplicationUpdate
-from app.db.repositories.application import ApplicationRepository
-from app.db.repositories.job import JobRepository
-from app.db.repositories.application_history import ApplicationHistoryRepository
 from app.db.models.application import Application
+from app.db.repositories.application import ApplicationRepository
+from app.db.repositories.application_history import ApplicationHistoryRepository
+from app.db.repositories.job import JobRepository
+from app.schemas import ApplicationUpdate
 
 ACTIVE_ANALYSIS_STATUSES = {"queued", "processing"}
 
@@ -368,7 +369,7 @@ class ApplicationService:
                     )
                     for edit in edits:
                         if isinstance(edit, dict):
-                            tailoring_instructions += f"- [{edit.get('type', 'MODIFY').upper()}] Section: {edit.get('section', 'General')}. {edit.get('suggestion', '')}\n"
+                            tailoring_instructions += f"- [{edit.get('type', 'MODIFY').upper()}] Section: {edit.get('section', 'General')}. {edit.get('suggestion', '')}\n"  # noqa: E501
             except Exception:
                 pass
 

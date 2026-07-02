@@ -1,6 +1,6 @@
-import re
-import json
 import html
+import json
+import re
 
 
 def extract_text_content(content) -> str:
@@ -18,7 +18,8 @@ def extract_text_content(content) -> str:
 
 
 def clean_html(html_content: str) -> str:
-    # 1. Try to extract JobPosting from JSON-LD first (common in modern ATS like Phenom People)
+    # 1. Try to extract JobPosting from JSON-LD first
+    # (common in modern ATS like Phenom People)
     jd = ""
     json_ld_matches = re.finditer(
         r"<script\s+type=[\"\']application/ld\+json[\"\'][^>]*>([\s\S]*?)</script>",

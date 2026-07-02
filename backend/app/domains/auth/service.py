@@ -1,6 +1,8 @@
 from uuid import UUID
+
 from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
+
 from app.db.repositories.user import UserRepository
 
 

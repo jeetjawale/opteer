@@ -1,11 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
 from app.core.config import settings
-from app.domains.jobs.router import router as jobs_router
 from app.domains.applications.router import router as applications_router
+from app.domains.dashboard.router import router as dashboard_router
+from app.domains.jobs.router import router as jobs_router
 from app.domains.resumes.router import router as resumes_router
 from app.domains.settings.router import router as settings_router
-from app.domains.dashboard.router import router as dashboard_router
 
 # Initialize the FastAPI app
 app = FastAPI(
@@ -40,7 +41,9 @@ async def add_security_headers(request, call_next):
     )
     if request.url.path in ["/docs", "/redoc"]:
         response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: https://fastapi.tiangolo.com"
+            "default-src 'self'; script-src 'self' 'unsafe-inline' "
+            "https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' "
+            "https://cdn.jsdelivr.net; img-src 'self' data: https://fastapi.tiangolo.com"
         )
     # else:
     #     response.headers["Content-Security-Policy"] = "default-src 'self'"
@@ -79,8 +82,9 @@ if settings.ENVIRONMENT != "development":
     logger.warning("=" * 60)
 
 
-from fastapi.staticfiles import StaticFiles  # noqa: E402
 import os  # noqa: E402
+
+from fastapi.staticfiles import StaticFiles  # noqa: E402
 
 # Create local_storage directory if it doesn't exist
 os.makedirs("local_storage", exist_ok=True)

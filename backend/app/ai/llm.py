@@ -1,7 +1,9 @@
-from langchain_core.language_models.chat_models import BaseChatModel
-from app.ai.providers import ProviderFactory
 import json
 from pathlib import Path
+
+from langchain_core.language_models.chat_models import BaseChatModel
+
+from app.ai.providers import ProviderFactory
 
 
 def get_llm(
@@ -15,7 +17,7 @@ def get_llm(
     """
     Creates and returns a LangChain chat model based on the active provider.
     Falls back to global settings if model or api_key are missing and provider matches default.
-    """
+    """  # noqa: E501
     # If no model is specified, we rely on the provider's default model fallback
     if not model_name:
         if provider_name == "openai":
@@ -35,10 +37,10 @@ def get_llm(
         api_key=api_key or "", model=model_name or "", base_url=base_url
     )
 
-    # We can inject temperature/max_tokens directly to the client via its attributes or initialization parameters
-    # Note: langchain clients often let you modify these after creation if they are pydantic fields,
-    # but for safety we will rely on the underlying implementation to use default temperature if not specified
-    # For now, most LangChain classes default to temp 0.7. We could update the get_client signature to pass temp,
+    # We can inject temperature/max_tokens directly to the client via its attributes or initialization parameters  # noqa: E501
+    # Note: langchain clients often let you modify these after creation if they are pydantic fields,  # noqa: E501
+    # but for safety we will rely on the underlying implementation to use default temperature if not specified  # noqa: E501
+    # For now, most LangChain classes default to temp 0.7. We could update the get_client signature to pass temp,  # noqa: E501
     # but since it's just Fit Scoring, we can do it post-init if supported.
     if hasattr(client, "temperature"):
         client.temperature = temperature
@@ -51,7 +53,7 @@ def get_llm(
 def sanitize_llm_input(text: str | None, max_chars: int = 15000) -> str:
     """
     Sanitizes LLM prompt inputs by truncating, stripping null bytes, and normalizing spaces.
-    """
+    """  # noqa: E501
     import re
 
     if not text:

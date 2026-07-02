@@ -1,4 +1,5 @@
 from cryptography.fernet import Fernet, InvalidToken
+
 from app.core.config import settings
 
 

@@ -1,20 +1,22 @@
 import uuid
-from datetime import datetime, date
-from sqlalchemy import (
-    String,
-    DateTime,
-    Date,
-    Integer,
-    Boolean,
-    text,
-    ForeignKey,
-    UniqueConstraint,
-    Index,
-)
-from sqlalchemy.dialects.postgresql import UUID, JSONB
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from app.db.base import Base
+from datetime import date, datetime
 from typing import TYPE_CHECKING
+
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+    text,
+)
+from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.db.base import Base
 
 if TYPE_CHECKING:
     from app.db.models.job import Job

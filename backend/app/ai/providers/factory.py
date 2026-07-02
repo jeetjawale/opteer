@@ -1,13 +1,14 @@
 from typing import Dict, Type
+
 from app.ai.providers.base import LLMProvider
 from app.ai.providers.implementations import (
-    OpenAIProvider,
     AnthropicProvider,
-    GeminiProvider,
-    DeepSeekProvider,
-    OpenRouterProvider,
-    OllamaProvider,
     CustomProvider,
+    DeepSeekProvider,
+    GeminiProvider,
+    OllamaProvider,
+    OpenAIProvider,
+    OpenRouterProvider,
 )
 
 

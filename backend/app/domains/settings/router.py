@@ -1,18 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+
+from app.api.dependencies.rate_limit import SimpleRateLimiter
+from app.core.dependencies import get_user_configs_repo
 from app.database import get_current_user
+from app.db.repositories.user_configs import UserConfigsRepository
 from app.schemas import (
-    UserConfigUpdate,
-    UserConfigResponse,
-    LLMValidateRequest,
-    LLMValidateResponse,
     IntegrationValidateRequest,
     IntegrationValidateResponse,
+    LLMValidateRequest,
+    LLMValidateResponse,
+    UserConfigResponse,
+    UserConfigUpdate,
 )
 from app.utils.timing import log_duration
-
-from app.db.repositories.user_configs import UserConfigsRepository
-from app.core.dependencies import get_user_configs_repo
-from app.api.dependencies.rate_limit import SimpleRateLimiter
 
 from .service import SettingsService
 

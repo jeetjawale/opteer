@@ -1,9 +1,10 @@
-import os
-from pydantic_settings import BaseSettings, SettingsConfigDict
 import logging
+import os
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
-from pydantic import field_validator, model_validator, ValidationInfo  # noqa: E402
+from pydantic import ValidationInfo, field_validator, model_validator  # noqa: E402
 
 
 class Settings(BaseSettings):
@@ -46,7 +47,7 @@ class Settings(BaseSettings):
         if env == "production":
             if len(v) == 1 and v[0] == "http://localhost:3000":
                 raise ValueError(
-                    "CORS_ORIGINS must be configured for production (cannot be just localhost:3000)"
+                    "CORS_ORIGINS must be configured for production (cannot be just localhost:3000)"  # noqa: E501
                 )
         return v
 
@@ -67,7 +68,7 @@ class Settings(BaseSettings):
     def validate_encryption_key(self) -> "Settings":
         if not self.API_KEY_ENCRYPTION_KEY:
             raise ValueError(
-                "API_KEY_ENCRYPTION_KEY is required. Must be a 32 url-safe base64-encoded string."
+                "API_KEY_ENCRYPTION_KEY is required. Must be a 32 url-safe base64-encoded string."  # noqa: E501
             )
 
         return self

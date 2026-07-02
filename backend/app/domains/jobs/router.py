@@ -1,36 +1,37 @@
 import asyncio
+import io
+import math
+from typing import List, Optional
+from uuid import UUID
+
+import docx
+import pypdf
 from fastapi import (
     APIRouter,
+    BackgroundTasks,
     Depends,
-    HTTPException,
-    status,
-    UploadFile,
     File,
     Header,
+    HTTPException,
     Query,
     Response,
-    BackgroundTasks,
+    UploadFile,
+    status,
 )
-from typing import Optional, List
-from uuid import UUID
-import pypdf
-import docx
-import io
+from jobspy import scrape_jobs  # type: ignore[import-not-found]
+from pydantic import BaseModel
 
+from app.core.dependencies import get_job_service
 from app.database import get_current_user
+from app.domains.jobs.service import JobService
 from app.schemas import (
     ImportJobRequest,
+    JobCreate,
     JobImportResponse,
     JobResponse,
-    JobCreate,
     JobUpdate,
 )
 from app.utils.timing import log_duration
-from app.core.dependencies import get_job_service
-from app.domains.jobs.service import JobService
-import math
-from jobspy import scrape_jobs  # type: ignore[import-not-found]
-from pydantic import BaseModel
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -68,7 +69,7 @@ async def search_jobs(
     ),
     sites: Optional[str] = Query(
         None,
-        description="Comma separated list of sites (indeed, linkedin, glassdoor, zip_recruiter, google, naukri)",
+        description="Comma separated list of sites (indeed, linkedin, glassdoor, zip_recruiter, google, naukri)",  # noqa: E501
     ),
     current_user=Depends(get_current_user),
 ):
@@ -89,7 +90,7 @@ async def search_jobs(
             if not site_list:
                 site_list = ["indeed", "linkedin"]
 
-        # Append experience level to search query since JobSpy doesn't have an explicit param for it
+        # Append experience level to search query since JobSpy doesn't have an explicit param for it  # noqa: E501
         search_query = q
         if experience_level:
             search_query = f"{q} {experience_level}"
@@ -154,7 +155,7 @@ async def search_jobs(
             )
 
         return results_formatted
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=500, detail="JobSpy search failed. Please try again later."
         )
@@ -166,7 +167,7 @@ async def parse_resume(
 ):
     """
     Parses an uploaded resume file (PDF, DOCX, TXT, LaTeX) and returns the extracted text.
-    """
+    """  # noqa: E501
     async with log_duration("PARSE_RESUME"):
         filename = file.filename.lower()  # type: ignore[union-attr]
         content = await file.read()
@@ -208,7 +209,7 @@ async def parse_resume(
             else:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Unsupported file format. Please upload a PDF, DOCX, TXT, or LaTeX file.",
+                    detail="Unsupported file format. Please upload a PDF, DOCX, TXT, or LaTeX file.",  # noqa: E501
                 )
 
             if not extracted_text.strip():

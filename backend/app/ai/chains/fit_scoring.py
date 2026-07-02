@@ -1,9 +1,9 @@
-from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
-import app.ai.llm
-from app.schemas import FitScoreResult
+from langchain_core.prompts import PromptTemplate
 
+import app.ai.llm
 from app.ai.workflow_config import WORKFLOW_CONFIG
+from app.schemas import FitScoreResult
 
 
 def get_fit_scoring_chain(
@@ -46,7 +46,7 @@ Instructions:
 6. Provide an explicitly detailed, explainable Markdown summary explaining exactly *why* the candidate matched or didn't match. Highlight the strongest alignments and the biggest gaps.
 
 {format_instructions}
-""",
+""",  # noqa: E501
         input_variables=["resume_text", "scraped_jd"],
         partial_variables={"format_instructions": parser.get_format_instructions()},
     )

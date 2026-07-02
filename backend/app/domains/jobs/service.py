@@ -1,29 +1,34 @@
 import asyncio
-from typing import Optional, Any
-from uuid import UUID
-from fastapi import HTTPException, status
-from app.schemas import JobCreate, JobUpdate, ImportJobRequest, JobImportResponse
-from app.ai.llm import get_llm, sanitize_llm_input
-from app.utils.text import extract_text_content, clean_html
-import httpx
-from urllib.parse import urlparse
 import ipaddress
-import socket
-from firecrawl import FirecrawlApp  # type: ignore[import-untyped]
-from tavily import TavilyClient  # type: ignore[import-untyped]
-from app.utils.timing import log_duration
-from sqlalchemy import select, or_
+import json
 import logging
 import re
-import json
+import socket
+from typing import Any, Optional
+from urllib.parse import urlparse
+from uuid import UUID
 
-logger = logging.getLogger(__name__)
+import httpx
+from fastapi import HTTPException
+from sqlalchemy import or_, select
 
-from app.db.repositories.job import JobRepository
+from app.ai.llm import get_llm, sanitize_llm_input
+from app.db.models.job import Job
 from app.db.repositories.application import ApplicationRepository
+from app.db.repositories.job import JobRepository
 from app.db.repositories.user import UserRepository
 from app.db.repositories.user_configs import UserConfigsRepository
-from app.db.models.job import Job
+from app.schemas import (
+    AnalysisStatus,
+    ImportJobRequest,
+    JobCreate,
+    JobImportResponse,
+    JobUpdate,
+)
+from app.utils.text import clean_html, extract_text_content
+from app.utils.timing import log_duration
+
+logger = logging.getLogger(__name__)
 
 BLOCKED_HOSTNAMES = {"localhost", "metadata.google.internal"}
 
@@ -185,7 +190,7 @@ class JobService:
         if not scraped_jd:
             try:
                 headers = {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",  # noqa: E501
                     "Accept": "application/json, text/html",
                 }
 
@@ -243,7 +248,7 @@ class JobService:
         if not scraped_jd:
             raise HTTPException(
                 status_code=422,
-                detail="Failed to extract job description from the provided URL. Please try pasting the text manually.",
+                detail="Failed to extract job description from the provided URL. Please try pasting the text manually.",  # noqa: E501
             )
         return scraped_jd
 
@@ -255,10 +260,19 @@ class JobService:
         company_name, role_name, location, work_model = None, None, None, None
         try:
             prompt = (
-                f"Analyze this job description (Source URL: {url}) and extract the company name, the job title/role, the job location, the work model (Remote/Hybrid/On-site), and a cleaned version of the job description.\n"
-                "If the company name or role is not explicitly stated in the job description text, infer it from the Source URL if possible.\n"
-                "The cleaned job description should preserve the core job details (responsibilities, requirements, qualifications) in clean markdown, but MUST strip away all website navigation text, 'similar jobs' links, cookie notices, header/footer boilerplate, and excessively long legal/diversity footers.\n"
-                "Return ONLY a JSON object with the keys 'company_name', 'role_name', 'location', 'work_model', and 'cleaned_jd'. "
+                "You are an expert HR assistant processing a job posting "
+                f"(Source URL: {url}) and extract the company name, the job "
+                "title/role, the job location, the work model (Remote/Hybrid/On-site), "
+                "and a cleaned version of the job description.\n"
+                "If the company name or role is not explicitly stated in the job "
+                "description text, infer it from the Source URL if possible.\n"
+                "The cleaned job description should preserve the core job details "
+                "(responsibilities, requirements, qualifications) in clean markdown, "
+                "but MUST strip away all website navigation text, 'similar jobs' links, "  # noqa: E501
+                "cookie notices, header/footer boilerplate, and excessively long "
+                "legal/diversity footers.\n"
+                "Return ONLY a JSON object with the keys 'company_name', 'role_name', "
+                "'location', 'work_model', and 'cleaned_jd'. "
                 "Do not include markdown code block formatting (like ```json).\n\n"
                 f"Job Description:\n{scraped_jd}"
             )
@@ -359,7 +373,9 @@ class JobService:
         try:
 
             def _search_tavily():
-                from tavily import TavilyClient  # type: ignore[import-untyped,import-not-found]
+                from tavily import (
+                    TavilyClient,  # type: ignore[import-untyped,import-not-found]
+                )
 
                 client = TavilyClient(api_key=tavily_key)
                 return client.search(
@@ -375,8 +391,10 @@ class JobService:
             raw_research = " ".join([r.get("content", "") for r in raw_results])
             if raw_research.strip() and company_name:
                 research_prompt = (
-                    f"You are a helpful assistant. Based on the following raw web search results for the company '{company_name}', "
-                    "extract and format a concise company profile. You may also use your own general knowledge to fill in any missing details if well-known.\n\n"
+                    f"You are a helpful assistant. Based on the following raw web "
+                    f"search results for the company '{company_name}', extract and "
+                    "format a concise company profile. You may also use your own general "  # noqa: E501
+                    "knowledge to fill in any missing details if well-known.\n\n"
                     "Provide EXACTLY this format and nothing else:\n\n"
                     "Overview: [Quick overview of company]\n"
                     "Website: [URL or N/A]\n"
@@ -396,12 +414,13 @@ class JobService:
     async def _run_quality_gate(self, llm, scraped_jd: str) -> tuple[bool, str | None]:
         try:
             qg_prompt = (
-                "You are a strict Quality Gate for a job applicant. Analyze this Job Description "
-                "and immediately reject it if it falls into any of these categories (Red Flags): "
+                "You are a strict Quality Gate for a job applicant. Analyze this Job Description "  # noqa: E501
+                "and immediately reject it if it falls into any of these categories (Red Flags): "  # noqa: E501
                 "1) Unpaid / Commission-only / Equity-only\n"
                 "2) Fake, Spam, or MLM\n"
-                "3) Requires an active Top Secret clearance or citizenship the user likely lacks.\n"
-                "Output EXACTLY a JSON object with two keys: 'passes_gate' (boolean) and 'reason' (string explaining why, or 'Passed').\n\n"
+                "3) Requires an active Top Secret clearance or citizenship the user likely lacks.\n"  # noqa: E501
+                "Output EXACTLY a JSON object with two keys: 'passes_gate' (boolean) "
+                "and 'reason' (string explaining why, or 'Passed').\n\n"
                 f"Job Description:\n{scraped_jd[:4000]}"
             )
             qg_resp = await asyncio.to_thread(llm.invoke, qg_prompt)
@@ -560,8 +579,12 @@ class JobService:
             ).scalar_one_or_none()
 
             if existing_app:
-                final_analysis_status = existing_app.analysis_status or "idle"
-                update_kwargs = {}
+                final_analysis_status = (
+                    AnalysisStatus(existing_app.analysis_status)
+                    if existing_app.analysis_status
+                    else AnalysisStatus.IDLE
+                )
+                update_kwargs: dict[str, Any] = {}
                 if resume_text and existing_app.resume_text != resume_text:
                     update_kwargs["resume_text"] = resume_text
                 if (
@@ -569,9 +592,13 @@ class JobService:
                     and existing_app.resume_file_name != resume_file_name
                 ):
                     update_kwargs["resume_file_name"] = resume_file_name
-                if payload.auto_analyze and final_analysis_status in ["idle", "failed"]:
-                    update_kwargs.update({"analysis_status": "queued", "analysis_error": None})  # type: ignore[dict-item]
-                    final_analysis_status = "queued"
+                if payload.auto_analyze and final_analysis_status in [
+                    AnalysisStatus.IDLE,
+                    AnalysisStatus.FAILED,
+                ]:
+                    update_kwargs["analysis_status"] = AnalysisStatus.QUEUED
+                    update_kwargs["analysis_error"] = None
+                    final_analysis_status = AnalysisStatus.QUEUED
 
                 if update_kwargs:
                     await self.app_repo.update(existing_app, **update_kwargs)
@@ -580,15 +607,15 @@ class JobService:
                     job_id=job_id,
                     company=company_name,
                     status=existing_app.status,
-                    analysis_status=final_analysis_status,  # type: ignore[arg-type]
+                    analysis_status=final_analysis_status,
                     analysis_error=(
                         existing_app.analysis_error
-                        if final_analysis_status != "queued"
+                        if final_analysis_status != AnalysisStatus.QUEUED
                         else None
                     ),
                     auto_analyze=(
                         bool(payload.auto_analyze)
-                        if final_analysis_status == "queued"
+                        if final_analysis_status == AnalysisStatus.QUEUED
                         else False
                     ),
                 )
@@ -600,9 +627,13 @@ class JobService:
                 resume_file_name=resume_file_name,
                 status="rejected" if is_quality_gated else "saved",
                 analysis_status=(
-                    "idle"
+                    AnalysisStatus.IDLE
                     if is_quality_gated
-                    else ("queued" if payload.auto_analyze else "idle")
+                    else (
+                        AnalysisStatus.QUEUED
+                        if payload.auto_analyze
+                        else AnalysisStatus.IDLE
+                    )
                 ),
                 analysis_error=None,
                 is_quality_gated=is_quality_gated,
@@ -613,7 +644,15 @@ class JobService:
                 job_id=job_id,
                 company=company_name,
                 status=new_app.status,
-                analysis_status="idle" if is_quality_gated else ("queued" if payload.auto_analyze else "idle"),  # type: ignore[arg-type]
+                analysis_status=(
+                    AnalysisStatus.IDLE
+                    if is_quality_gated
+                    else (
+                        AnalysisStatus.QUEUED
+                        if payload.auto_analyze
+                        else AnalysisStatus.IDLE
+                    )
+                ),
                 analysis_error=None,
                 auto_analyze=(
                     bool(payload.auto_analyze) if not is_quality_gated else False

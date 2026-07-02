@@ -1,8 +1,11 @@
 import uuid
 from typing import List
+
 from sqlalchemy import select
-from .base import BaseRepository
+
 from app.db.models.application_history import ApplicationHistory
+
+from .base import BaseRepository
 
 
 class ApplicationHistoryRepository(BaseRepository[ApplicationHistory]):

@@ -1,18 +1,17 @@
 import logging
 from datetime import datetime, timezone
-from typing import List, Dict, Any
 
 from sqlalchemy import select
-from sqlalchemy.orm import joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
+from app.db.models.application import Application
 from app.schemas import (
+    ApplicationResponse,
     DashboardOverviewResponse,
     DashboardStats,
     RecentActivityItem,
-    ApplicationResponse,
 )
-from app.db.models.application import Application
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +93,7 @@ class DashboardService:
                         "scraped_jd": app.job.scraped_jd,
                     }
                 )
-            recommendations.append(app_dict)
+            recommendations.append(ApplicationResponse(**app_dict))  # type: ignore[arg-type]
 
         # Process Recent Activity
         recent_activity = []
@@ -116,14 +115,12 @@ class DashboardService:
 
             recent_activity.append(
                 RecentActivityItem(
-                    id=str(act.id),
+                    id=act.id,
                     type="application_update",
                     title=title,
                     subtitle=f"{company} - {role}",
                     timestamp=(
-                        act.created_at.isoformat()
-                        if act.created_at
-                        else datetime.now(timezone.utc).isoformat()
+                        act.created_at if act.created_at else datetime.now(timezone.utc)
                     ),
                 )
             )

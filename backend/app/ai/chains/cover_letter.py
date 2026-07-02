@@ -1,5 +1,6 @@
-from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import PromptTemplate
+
 import app.ai.llm
 from app.ai.workflow_config import WORKFLOW_CONFIG
 
@@ -14,7 +15,7 @@ def get_cover_letter_chain(
     Creates and returns a LangChain chain for writing a tailored 3-paragraph cover letter.
     Uses temperature=0.7 to support natural, engaging, and professional writing style.
     Pipes the prompt, LLM, and string parser into a single execution unit.
-    """
+    """  # noqa: E501
     parser = StrOutputParser()
     config = WORKFLOW_CONFIG["cover_letter"]
 
@@ -50,7 +51,7 @@ Instructions:
 3. Finish the letter with a formal sign-off (e.g. "Sincerely,", followed by "Candidate" or the candidate's name if evident in the resume).
 
 Write the cover letter now:
-""",
+""",  # noqa: E501
         input_variables=["resume_text", "scraped_jd", "company_research"],
     )
 

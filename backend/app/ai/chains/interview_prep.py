@@ -1,9 +1,9 @@
-from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
-import app.ai.llm
-from app.schemas import InterviewPrepResult
+from langchain_core.prompts import PromptTemplate
 
+import app.ai.llm
 from app.ai.workflow_config import WORKFLOW_CONFIG
+from app.schemas import InterviewPrepResult
 
 
 def get_interview_prep_chain(
@@ -14,7 +14,7 @@ def get_interview_prep_chain(
 ):
     """
     Creates and returns a LangChain chain for generating technical interview preparation questions.
-    """
+    """  # noqa: E501
     parser = JsonOutputParser(pydantic_object=InterviewPrepResult)
     config = WORKFLOW_CONFIG["interview_prep"]
 
@@ -47,7 +47,7 @@ Instructions:
 6. IMPORTANT: Do not use markdown formatting like **bold** or bullet points with *. Use plain text only.
 
 {format_instructions}
-""",
+""",  # noqa: E501
         input_variables=["resume_text", "scraped_jd"],
         partial_variables={"format_instructions": parser.get_format_instructions()},
     )

@@ -1,21 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from datetime import datetime, timezone
-import httpx
 from urllib.parse import urlparse
-from sqlalchemy import select
-from sqlalchemy.orm import joinedload
+
+import httpx
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_current_user
-from app.schemas import DashboardOverviewResponse, DashboardStats, RecentActivityItem
-from app.utils.timing import log_duration
 from app.db.session import get_db
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.models.application import Application
-
-router = APIRouter(prefix="/dashboard", tags=["dashboard"])
-
+from app.schemas import DashboardOverviewResponse
+from app.utils.timing import log_duration
 
 from .service import DashboardService
+
+router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 
 @router.get("/overview", response_model=DashboardOverviewResponse)
@@ -24,7 +20,7 @@ async def get_dashboard_overview(
 ):
     """
     Fetches aggregated dashboard data: Stats, Top Recommendations, Upcoming Events, and Recent Activity.
-    """
+    """  # noqa: E501
     async with log_duration("GET_DASHBOARD_OVERVIEW"):
         try:
             service = DashboardService(session)

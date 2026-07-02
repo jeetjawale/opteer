@@ -1,15 +1,16 @@
 import io
 import uuid
 from pathlib import Path
-import pypdf
-import docx
-from typing import Dict, Any, Optional
-from fastapi import UploadFile
+from typing import Any, Dict, Optional
 
+import docx
+import pypdf
+from fastapi import UploadFile
+from sqlalchemy import func, select
+
+from app.db.models.resume import Resume
 from app.db.repositories.resume import ResumeRepository
 from app.infrastructure.storage.base import StorageProvider
-from app.db.models.resume import Resume
-from sqlalchemy import select, func
 
 MAX_RESUME_SIZE_BYTES = 5 * 1024 * 1024
 ALLOWED_RESUME_EXTENSIONS = (".pdf", ".docx", ".txt")

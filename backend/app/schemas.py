@@ -1,8 +1,9 @@
-from pydantic import BaseModel, Field, ConfigDict
-from uuid import UUID
-from datetime import datetime, date
-from typing import List, Optional, Any, Dict
+from datetime import date, datetime
 from enum import Enum
+from typing import Any, Dict, List, Optional
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, Field
 
 # ============================================
 # ENUMS
@@ -70,7 +71,9 @@ class InterviewPrepResult(BaseModel):
 class ResumeEdit(BaseModel):
     section: str = Field(
         ...,
-        description="The section of the resume (e.g., 'Summary', 'Experience', 'Skills')",
+        description=(
+            "The section of the resume " "(e.g., 'Summary', 'Experience', 'Skills')"
+        ),
     )
     suggestion: str = Field(..., description="The specific, actionable edit to make")
     reasoning: str = Field(
@@ -205,7 +208,7 @@ class ApplicationUpdate(BaseModel):
     resume_file_name: Optional[str] = None
 
     # Allow updating AI fields during analysis workflow
-    fit_score: Optional[int] = Field(None, ge=0, le=100)
+    fit_score: Optional[int] = Field(default=None, ge=0, le=100)
     matched_skills: Optional[List[str]] = None
     missing_skills: Optional[List[str]] = None
     key_requirements: Optional[List[str]] = None
@@ -389,7 +392,8 @@ class UserConfigResponse(BaseModel):
     onboarding_completed: Optional[bool] = False
     onboarding_step: Optional[str] = None
     active_llm_provider: Optional[str] = None
-    # We shouldn't send raw encrypted keys to the frontend, just a boolean indicator if they exist
+    # We shouldn't send raw encrypted keys to the frontend,
+    # just a boolean indicator if they exist
     llm_providers_configured: Dict[str, bool] = Field(
         default_factory=dict, description="Map of provider -> true if key is configured"
     )

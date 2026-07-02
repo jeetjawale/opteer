@@ -1,18 +1,17 @@
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.session import get_db
 
-from app.db.repositories.job import JobRepository
 from app.db.repositories.application import ApplicationRepository
 from app.db.repositories.application_history import ApplicationHistoryRepository
+from app.db.repositories.job import JobRepository
+from app.db.repositories.resume import ResumeRepository
 from app.db.repositories.user import UserRepository
 from app.db.repositories.user_configs import UserConfigsRepository
-from app.db.repositories.resume import ResumeRepository
-
-from app.domains.jobs.service import JobService
+from app.db.session import get_db
 from app.domains.applications.service import ApplicationService
-from app.domains.resumes.service import ResumeService
 from app.domains.auth.service import AuthService
+from app.domains.jobs.service import JobService
+from app.domains.resumes.service import ResumeService
 from app.infrastructure.storage.local import LocalStorageProvider
 
 

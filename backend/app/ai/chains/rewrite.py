@@ -1,5 +1,6 @@
-from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import PromptTemplate
+
 import app.ai.llm
 
 
@@ -41,12 +42,12 @@ User Instruction:
 
 Your task is to rewrite ONLY the selected text based on the user's instruction.
 CRITICAL INSTRUCTIONS:
-- ONLY output the rewritten text. 
+- ONLY output the rewritten text.
 - DO NOT wrap the output in quotes or markdown code blocks like ```text.
 - DO NOT output the full cover letter, just the rewritten snippet.
 - Ensure the tone remains professional and fits well within the context of the full cover letter.
 
-Rewritten Text:""",
+Rewritten Text:""",  # noqa: E501
         input_variables=["full_context", "selected_text", "instruction"],
     )
 

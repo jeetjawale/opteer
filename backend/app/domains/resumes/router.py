@@ -1,25 +1,26 @@
+from uuid import UUID
+
 from fastapi import (
     APIRouter,
     Depends,
+    File,
     HTTPException,
-    status,
+    Query,
     Response,
     UploadFile,
-    File,
-    Query,
+    status,
 )
-from uuid import UUID
 
+from app.core.dependencies import get_resume_service
 from app.database import get_current_user
+from app.domains.resumes.service import ResumeService
 from app.schemas import (
-    ResumeResponse,
     ResumeCreate,
-    ResumeUpdate,
     ResumePaginatedResponse,
+    ResumeResponse,
+    ResumeUpdate,
 )
 from app.utils.timing import log_duration
-from app.core.dependencies import get_resume_service
-from app.domains.resumes.service import ResumeService
 
 router = APIRouter(prefix="/resumes", tags=["resumes"])
 
@@ -102,7 +103,7 @@ async def upload_resume(
                     status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail=message
                 )
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message)
-        except Exception as e:
+        except Exception:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to upload resume. Please try again later.",

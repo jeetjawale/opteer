@@ -1,15 +1,14 @@
-from datetime import datetime, timezone
 import asyncio
+from datetime import datetime, timezone
 
-from fastapi import HTTPException, status
-from app.schemas import (
-    UserConfigUpdate,
-    LLMValidateRequest,
-    IntegrationValidateRequest,
-)
-from app.core.encryption import encrypt_api_key, decrypt_api_key
 from app.ai.providers import ProviderFactory
+from app.core.encryption import decrypt_api_key, encrypt_api_key
 from app.db.repositories.user_configs import UserConfigsRepository
+from app.schemas import (
+    IntegrationValidateRequest,
+    LLMValidateRequest,
+    UserConfigUpdate,
+)
 
 
 class SettingsService:
@@ -189,7 +188,7 @@ class SettingsService:
                 api_key=api_key, base_url=base_url  # type: ignore[arg-type]
             )
             return {"models": models}
-        except Exception as e:
+        except Exception:
             return {"models": []}
 
     async def validate_integration_key(
@@ -204,7 +203,9 @@ class SettingsService:
                 if not payload.api_key.startswith("fc-"):
                     return {
                         "valid": False,
-                        "error": "Invalid Firecrawl API Key format (must start with fc-)",
+                        "error": (
+                            "Invalid Firecrawl API Key format (must start with fc-)"
+                        ),
                     }
 
                 return {"valid": True, "error": None}

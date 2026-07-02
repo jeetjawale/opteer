@@ -1,6 +1,6 @@
-import time
-import os
 import logging
+import os
+import time
 
 logger = logging.getLogger(__name__)
 _ENABLED = os.environ.get("ENABLE_TIMING_LOGS", "false").lower() in ("true", "1", "yes")

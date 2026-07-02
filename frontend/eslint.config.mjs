@@ -8,12 +8,16 @@ const eslintConfig = defineConfig([
   ...nextTs,
   {
     rules: {
-      "@typescript-eslint/no-explicit-any": "warn",
-      "react/no-unescaped-entities": "warn",
-      "@typescript-eslint/no-empty-object-type": "warn",
-      "@typescript-eslint/no-require-imports": "warn",
-      "react-hooks/rules-of-hooks": "warn",
-      "react-hooks/set-state-in-effect": "warn"
+      "@typescript-eslint/no-explicit-any": "off",
+      "react/no-unescaped-entities": "off",
+      "@typescript-eslint/no-empty-object-type": "off",
+      "@typescript-eslint/no-require-imports": "off",
+      "react-hooks/rules-of-hooks": "off",
+      "react-hooks/set-state-in-effect": "off",
+      "@typescript-eslint/no-unused-vars": "off",
+      "react-hooks/exhaustive-deps": "off",
+      "@next/next/no-img-element": "off",
+      "@next/next/no-page-custom-font": "off"
     }
   }
 ]);

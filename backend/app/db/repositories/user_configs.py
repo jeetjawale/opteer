@@ -1,6 +1,8 @@
 import uuid
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.db.models.user_configs import UserConfig
 from app.db.repositories.base import BaseRepository
 

@@ -1,20 +1,21 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, status, Response, Header, Query
 from uuid import UUID
 
+from fastapi import APIRouter, Depends, Header, Query, Response, status
+
+from app.core.dependencies import get_application_service
 from app.database import get_current_user
+from app.domains.applications.service import ApplicationService
 from app.schemas import (
-    ApplicationResponse,
-    ApplicationUpdate,
-    ApplicationStatus,
     ApplicationHistoryResponse,
+    ApplicationResponse,
     ApplicationStatsResponse,
+    ApplicationStatus,
+    ApplicationUpdate,
     RewriteRequest,
     RewriteResponse,
 )
 from app.utils.timing import log_duration
-from app.core.dependencies import get_application_service
-from app.domains.applications.service import ApplicationService
 
 router = APIRouter(prefix="/applications", tags=["applications"])
 
@@ -73,7 +74,7 @@ async def analyze_application(
     """
     Runs the stateful LangGraph AI analysis for the application (fit score, cover letter, prep).
     Updates the database with the results.
-    """
+    """  # noqa: E501
     async with log_duration("ANALYZE_APPLICATION"):
         return await service.queue_analysis(
             str(current_user.id), application_id, x_user_api_key

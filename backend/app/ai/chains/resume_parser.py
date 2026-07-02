@@ -1,7 +1,9 @@
-from langchain_core.prompts import PromptTemplate
-from langchain_core.output_parsers import JsonOutputParser
-from pydantic import BaseModel, Field
 from typing import List, Optional
+
+from langchain_core.output_parsers import JsonOutputParser
+from langchain_core.prompts import PromptTemplate
+from pydantic import BaseModel, Field
+
 import app.ai.llm
 from app.ai.workflow_config import WORKFLOW_CONFIG
 
@@ -120,7 +122,7 @@ Raw Resume Text:
 {resume_text}
 
 {format_instructions}
-""",
+""",  # noqa: E501
         input_variables=["resume_text", "tailoring_instructions"],
         partial_variables={"format_instructions": parser.get_format_instructions()},
     )

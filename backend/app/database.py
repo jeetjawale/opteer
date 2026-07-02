@@ -1,7 +1,8 @@
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.session import get_db
+
 from app.db.repositories.user import UserRepository
+from app.db.session import get_db
 from app.domains.auth.service import AuthService, InternalUser
 
 

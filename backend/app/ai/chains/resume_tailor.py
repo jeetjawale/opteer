@@ -1,9 +1,9 @@
-from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
-import app.ai.llm
-from app.schemas import ResumeEditsResult
+from langchain_core.prompts import PromptTemplate
 
+import app.ai.llm
 from app.ai.workflow_config import WORKFLOW_CONFIG
+from app.schemas import ResumeEditsResult
 
 
 def get_resume_tailoring_chain(
@@ -14,7 +14,7 @@ def get_resume_tailoring_chain(
 ):
     """
     Creates and returns a LangChain chain for suggesting resume edits to better match a job description.
-    """
+    """  # noqa: E501
     parser = JsonOutputParser(pydantic_object=ResumeEditsResult)
     config = WORKFLOW_CONFIG["resume_tailor"]
 
@@ -29,7 +29,7 @@ def get_resume_tailoring_chain(
     )
 
     prompt = PromptTemplate(
-        template="""You are an expert tech recruiter and resume writer. 
+        template="""You are an expert tech recruiter and resume writer.
 Your task is to analyze the candidate's resume and compare it to the Job Description.
 Provide specific, actionable edits the candidate should make to their resume to drastically increase their chances of getting an interview.
 
@@ -47,7 +47,7 @@ Instructions:
 5. Keep the suggestions highly specific. Do not say "add more detail". Say "Add a bullet point about AWS Lambda to your Backend Engineer experience."
 
 {format_instructions}
-""",
+""",  # noqa: E501
         input_variables=["resume_text", "scraped_jd"],
         partial_variables={"format_instructions": parser.get_format_instructions()},
     )
