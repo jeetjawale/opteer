@@ -9,6 +9,8 @@ from app.schemas import (
     ApplicationStatus,
     ApplicationHistoryResponse,
     ApplicationStatsResponse,
+    RewriteRequest,
+    RewriteResponse,
 )
 from app.utils.timing import log_duration
 from app.core.dependencies import get_application_service
@@ -45,7 +47,7 @@ async def get_application_stats(
     Computes analytics stats for the user's applications within the given time window.
     """
     async with log_duration("GET_APPLICATION_STATS"):
-        return await service.get_application_stats(str(current_user.id), time_window)
+        return await service.get_application_stats(str(current_user.id), time_window)  # type: ignore[attr-defined]
 
 
 @router.get("/{application_id}", response_model=ApplicationResponse)
@@ -119,3 +121,41 @@ async def get_application_history(
     Retrieves the status history for an application.
     """
     return await service.get_application_history(str(current_user.id), application_id)
+
+
+@router.post("/{application_id}/rewrite-cover-letter", response_model=RewriteResponse)
+async def rewrite_cover_letter(
+    application_id: UUID,
+    payload: RewriteRequest,
+    current_user=Depends(get_current_user),
+    service: ApplicationService = Depends(get_application_service),
+):
+    """
+    Rewrites a snippet of the cover letter using AI based on user instructions.
+    """
+    async with log_duration("REWRITE_COVER_LETTER"):
+        rewritten = await service.rewrite_cover_letter(
+            user_id=str(current_user.id),
+            application_id=application_id,
+            selected_text=payload.selected_text,
+            full_context=payload.full_context,
+            instruction=payload.instruction
+        )
+        return RewriteResponse(rewritten_text=rewritten)
+
+
+@router.post("/{application_id}/parse-resume")
+async def parse_resume(
+    application_id: UUID,
+    current_user=Depends(get_current_user),
+    service: ApplicationService = Depends(get_application_service),
+):
+    """
+    Uses AI to parse the application's plain-text resume into a structured JSON
+    object with typed sections (contact, experience, education, projects, skills).
+    """
+    async with log_duration("PARSE_RESUME"):
+        return await service.parse_resume(
+            user_id=str(current_user.id),
+            application_id=application_id,
+        )

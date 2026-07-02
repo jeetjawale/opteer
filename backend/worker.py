@@ -6,25 +6,13 @@ import logging
 import json
 from datetime import datetime, timedelta, timezone
 
-class JSONFormatter(logging.Formatter):
-    def format(self, record):
-        log_record = {
-            "timestamp": self.formatTime(record, self.datefmt),
-            "level": record.levelname,
-            "name": record.name,
-            "message": record.getMessage()
-        }
-        if record.exc_info:
-            log_record["error"] = self.formatException(record.exc_info)
-        return json.dumps(log_record)
-
-logger = logging.getLogger("worker")
-logger.setLevel(logging.INFO)
-handler = logging.StreamHandler(sys.stdout)
-handler.setFormatter(JSONFormatter())
-logger.addHandler(handler)
-
 sys.path.insert(0, os.path.dirname(__file__))
+
+from app.core.config import settings
+from app.core.logging_config import setup_logging
+
+setup_logging(settings.LOG_LEVEL)
+logger = logging.getLogger("worker")
 
 from app.db.session import async_session
 from sqlalchemy import select, update, and_, or_
@@ -86,13 +74,18 @@ async def process_one() -> None:
             api_key = None
             base_url = None
             task_models = {}
-            auto_draft_cover_letters = False
-            generate_interview_prep = False
+            auto_draft_cover_letters = True
+            generate_interview_prep = True
+            auto_tailor_resume = True
             provider_data = {}
             
             if user_configs:
-                auto_draft_cover_letters = getattr(user_configs, "auto_draft_cover_letters", False)
-                generate_interview_prep = getattr(user_configs, "generate_interview_prep", False)
+                if getattr(user_configs, "auto_draft_cover_letters", None) is not None:
+                    auto_draft_cover_letters = user_configs.auto_draft_cover_letters
+                if getattr(user_configs, "generate_interview_prep", None) is not None:
+                    generate_interview_prep = user_configs.generate_interview_prep
+                if getattr(user_configs, "auto_tailor_resume", None) is not None:
+                    auto_tailor_resume = user_configs.auto_tailor_resume
                 if user_configs.task_models:
                     task_models = user_configs.task_models
                     
@@ -118,7 +111,8 @@ async def process_one() -> None:
                 base_url=base_url,
                 task_models=task_models,
                 auto_draft_cover_letters=auto_draft_cover_letters,
-                generate_interview_prep=generate_interview_prep
+                generate_interview_prep=generate_interview_prep,
+                auto_tailor_resume=auto_tailor_resume
             )
 
             async with async_session() as session:

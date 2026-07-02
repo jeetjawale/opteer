@@ -9,6 +9,7 @@ async def get_current_user(session: AsyncSession = Depends(get_db)) -> InternalU
     """
     Returns the default local user.
     Bypasses any authorization headers for local-first mode.
+    # S-04 Note: Hardcoded user is ONLY acceptable for local desktop use.
     """
     user_repo = UserRepository(session)
     auth_service = AuthService(user_repo)

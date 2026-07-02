@@ -31,6 +31,7 @@ class AuthService:
             return InternalUser(id=new_user.id, email=new_user.email)
         except IntegrityError:
             # Handle race condition: another thread created it
+            await self.user_repo.session.rollback()
             user = await self.user_repo.get_by_email(local_email)
             if user:
                 return InternalUser(id=user.id, email=user.email)
