@@ -5,6 +5,7 @@ import { formatDistanceToNow } from "date-fns";
 import { Card } from "@/components/ui/Card";
 import ReactMarkdown from "react-markdown";
 import Link from "next/link";
+import { CompanyLogo } from "@/components/ui/CompanyLogo";
 import { useParams, useRouter } from "next/navigation";
 import {
   ChevronRight, 
@@ -18,9 +19,13 @@ import {
   Globe,
   Loader2,
   RefreshCw,
-  Trash2
+  Trash2,
+  ExternalLink
 } from "lucide-react";
-import { useApplicationAnalysis, useUpdateApplicationStatus, useRerunAnalysis, useDeleteApplication } from "@/features/applications/hooks/useApplications";
+import { useApplicationAnalysis, useUpdateApplicationStatus, useUpdateApplication, useRerunAnalysis, useDeleteApplication } from "@/features/applications/hooks/useApplications";
+import { useResumes, useResumeText } from "@/features/resumes/hooks/useResumes";
+import { CoverLetterEditor } from "@/features/applications/components/CoverLetterEditor";
+import { ResumeTailor } from "@/features/applications/components/ResumeTailor";
 
 export default function JobDetailPage() {
   const params = useParams();
@@ -28,10 +33,32 @@ export default function JobDetailPage() {
   const id = params.id as string;
   const { data: app, isLoading, isError } = useApplicationAnalysis(id);
   const { mutate: updateStatus, isPending: isUpdatingStatus } = useUpdateApplicationStatus();
+  const { mutate: updateApplication, isPending: isUpdating } = useUpdateApplication();
   const { mutate: rerunAnalysis, isPending: isRerunning } = useRerunAnalysis();
   const { mutate: deleteApp, isPending: isDeleting } = useDeleteApplication();
 
+  const { data: resumes } = useResumes();
+  const [selectedResumeId, setSelectedResumeId] = useState<string>("");
+  const { data: selectedResumeText, isLoading: isResumeTextLoading } = useResumeText(selectedResumeId, !!selectedResumeId);
+
   const [activeTab, setActiveTab] = useState<'cover_letter' | 'interview_prep' | 'resume_tailoring'>('cover_letter');
+
+  const handleRunAnalysis = () => {
+    if (!app) return;
+    
+    if (!app.resume_text && selectedResumeId) {
+       updateApplication({
+         id: app.id,
+         payload: { resume_text: selectedResumeText?.content?.trim() || "" }
+       }, {
+         onSuccess: () => {
+           rerunAnalysis(app.id);
+         }
+       });
+    } else {
+       rerunAnalysis(app!.id);
+    }
+  };
 
   const handleDelete = () => {
     if (confirm('Are you sure you want to delete this job application? This action cannot be undone.')) {
@@ -121,14 +148,19 @@ export default function JobDetailPage() {
           <Card>
             <div className="flex flex-col sm:flex-row justify-between items-start gap-4 border-b border-outline-variant pb-md mb-md">
               <div className="flex gap-4 items-start">
-                <div className="w-16 h-16 rounded-xl bg-surface-container-high border border-outline-variant flex items-center justify-center p-2 shrink-0">
-                  <span className="font-headline-lg text-headline-lg font-bold text-on-surface">{(app.company || 'U')[0].toUpperCase()}</span>
+                <div className="w-16 h-16 rounded-xl bg-surface flex items-center justify-center shrink-0 border-2 border-surface shadow-sm overflow-hidden text-2xl font-bold text-on-surface-variant">
+                  <CompanyLogo company={app.company || ''} jobUrl={app.url} logoUrl={app.company_logo} fallback={(app.company || 'U')[0].toUpperCase()} />
                 </div>
                 <div>
                   <h2 className="font-headline-lg text-headline-lg font-semibold text-on-surface tracking-tight mb-1">{app.role || 'Unknown Role'}</h2>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-body-md font-body-md text-on-surface-variant">
                     <span className="font-medium text-on-surface">{app.company || 'Unknown Company'}</span>
                     <span className="flex items-center gap-1 text-sm"><MapPin size={16} /> {`${app.location || ''} ${app.work_model ? `(${app.work_model})` : ''}`.trim() || 'Remote'}</span>
+                    {app.url && (
+                      <a href={app.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-primary hover:underline" title="View Source Job Posting">
+                        <ExternalLink size={14} /> Source
+                      </a>
+                    )}
                   </div>
                 </div>
               </div>
@@ -176,64 +208,68 @@ export default function JobDetailPage() {
           )}
 
           {analysisStatus === 'failed' && (
-            <div className="bg-error/5 rounded-xl border border-error/20 p-lg flex flex-col items-center justify-center py-12">
+            <div className="bg-error/5 rounded-xl border border-error/20 p-lg flex flex-col items-center justify-center py-12 w-full max-w-2xl mx-auto">
               <AlertTriangle className="text-error mb-4" size={32} />
               <h3 className="font-headline-sm text-on-surface mb-2">Analysis Failed</h3>
-              <p className="text-body-sm text-on-surface-variant text-center max-w-sm mb-4">We encountered an issue while analyzing your application.</p>
-              {app.analysis_error && <p className="font-mono-data text-xs text-error/80 bg-error/10 p-2 rounded">{app.analysis_error}</p>}
+              <p className="text-body-sm text-on-surface-variant text-center mb-4">We encountered an issue while analyzing your application.</p>
+              {app.analysis_error && <p className="font-mono-data text-xs text-error/80 bg-error/10 p-2 rounded whitespace-pre-wrap break-words w-full overflow-hidden text-center">{app.analysis_error}</p>}
             </div>
           )}
 
           {/* AI Fit Analysis Block (Only show if completed and data exists) */}
           {!app.is_quality_gated && (analysisStatus === 'completed' || analysisStatus === 'idle') && app.fit_score !== undefined && app.fit_score !== null && (
             <>
-              <Card className="border-tertiary-fixed overflow-hidden relative p-0">
-                <div className="absolute left-0 top-0 bottom-0 w-1 bg-tertiary"></div>
-                <div className="p-lg bg-tertiary-container/5">
-                  <div className="flex items-center gap-2 mb-md">
-                    <Sparkles className="text-tertiary" size={24} />
-                    <h3 className="font-headline-sm text-headline-sm font-semibold text-tertiary">AI Fit Analysis</h3>
+              <Card className="border-tertiary-fixed overflow-hidden relative !p-0">
+                <div className="absolute inset-0 mesh-gradient opacity-20 pointer-events-none"></div>
+                <div className="absolute inset-0 grid-overlay opacity-30 pointer-events-none"></div>
+                
+                <div className="p-lg relative z-10">
+                  <div className="flex items-center gap-3 mb-6 border-b border-tertiary-fixed/40 pb-4">
+                    <div className="p-2 bg-tertiary/10 rounded-xl shadow-sm border border-tertiary/20">
+                      <Sparkles className="text-tertiary" size={22} />
+                    </div>
+                    <h3 className="font-headline-sm text-headline-sm font-semibold text-tertiary tracking-tight">AI Fit Analysis</h3>
                   </div>
                   
                   {app.summary && (
-                    <div className="prose prose-sm prose-p:leading-relaxed prose-a:text-primary mb-6 text-on-surface">
+                    <div className="prose prose-sm max-w-none prose-p:leading-relaxed prose-a:text-primary prose-strong:text-tertiary prose-strong:font-semibold prose-strong:tracking-wide mb-8 text-on-surface-variant">
                       <ReactMarkdown>{app.summary}</ReactMarkdown>
                     </div>
                   )}
                   
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="font-label-md text-label-md text-secondary uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                        <CheckCircle2 size={16} className="text-secondary" /> Strengths
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="bg-surface/80 backdrop-blur-md border border-secondary/20 rounded-xl p-5 shadow-sm">
+                      <h4 className="font-label-md text-label-md text-on-secondary-container uppercase tracking-wider mb-4 flex items-center gap-2">
+                        <CheckCircle2 size={18} className="text-on-secondary-container" /> Strengths
                       </h4>
-                      <ul className="space-y-2 font-body-sm text-body-sm text-on-surface">
+                      <ul className="space-y-2 font-body-sm text-body-sm">
                         {app.matched_skills && app.matched_skills.length > 0 ? (
                           app.matched_skills.map((skill: string, idx: number) => (
-                            <li key={idx} className="flex items-start gap-2">
-                              <div className="w-1.5 h-1.5 rounded-full bg-secondary mt-2 shrink-0"></div>
-                              <span>{skill}</span>
+                            <li key={idx} className="flex items-center gap-3 bg-secondary/5 px-3 py-2 rounded-lg border border-secondary/10">
+                              <div className="w-2 h-2 rounded-full bg-on-secondary-container shrink-0 shadow-[0_0_8px_rgba(0,113,77,0.4)]"></div>
+                              <span className="font-medium text-on-secondary-container/90">{skill}</span>
                             </li>
                           ))
                         ) : (
-                          <li className="text-on-surface-variant italic">No matched skills identified.</li>
+                          <li className="text-on-surface-variant italic px-3 py-2">No matched skills identified.</li>
                         )}
                       </ul>
                     </div>
                     
-                    <div>
-                      <h4 className="font-label-md text-label-md text-error uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                        <AlertTriangle size={16} className="text-error" /> Identified Gaps
+                    <div className="bg-surface/80 backdrop-blur-md border border-error/20 rounded-xl p-5 shadow-sm">
+                      <h4 className="font-label-md text-label-md text-error uppercase tracking-wider mb-4 flex items-center gap-2">
+                        <AlertTriangle size={18} className="text-error" /> Identified Gaps
                       </h4>
-                      <ul className="space-y-2 font-body-sm text-body-sm text-on-surface">
+                      <ul className="space-y-2 font-body-sm text-body-sm">
                         {app.missing_skills && app.missing_skills.length > 0 ? (
                           app.missing_skills.map((skill: string, idx: number) => (
-                            <li key={idx} className="flex items-start gap-2">
-                              <div className="w-1.5 h-1.5 rounded-full bg-error mt-2 shrink-0"></div>
-                              <span>{skill}</span>
+                            <li key={idx} className="flex items-center gap-3 bg-error/5 px-3 py-2 rounded-lg border border-error/10">
+                              <div className="w-2 h-2 rounded-full bg-error shrink-0 shadow-[0_0_8px_rgba(186,26,26,0.4)]"></div>
+                              <span className="font-medium text-error/90">{skill}</span>
                             </li>
                           ))
                         ) : (
-                          <li className="text-on-surface-variant italic">No major gaps identified!</li>
+                          <li className="text-on-surface-variant italic px-3 py-2">No major gaps identified!</li>
                         )}
                       </ul>
                     </div>
@@ -279,9 +315,13 @@ export default function JobDetailPage() {
                   </div>
                 </div>
                 
-                <div className="bg-surface-container-low border border-outline-variant rounded-xl p-md font-mono-data text-body-sm text-on-surface whitespace-pre-line leading-relaxed overflow-x-auto min-h-[300px] max-h-[600px] overflow-y-auto">
+                <div className="font-mono-data text-body-sm text-on-surface whitespace-pre-line leading-relaxed overflow-x-auto min-h-[300px] max-h-[600px] overflow-y-auto">
                   {activeTab === 'cover_letter' && (
-                    app.cover_letter ? app.cover_letter : <span className="text-on-surface-variant italic">No cover letter generated yet.</span>
+                    app.cover_letter ? (
+                      <div className="h-[450px] w-full relative">
+                        <CoverLetterEditor applicationId={app.id} initialContent={app.cover_letter} />
+                      </div>
+                    ) : <span className="text-on-surface-variant italic">No cover letter generated yet.</span>
                   )}
                   {activeTab === 'interview_prep' && (
                     app.interview_prep?.questions ? (
@@ -296,22 +336,16 @@ export default function JobDetailPage() {
                     ) : <span className="text-on-surface-variant italic">No interview prep generated yet.</span>
                   )}
                   {activeTab === 'resume_tailoring' && (
-                    app.resume_edits?.edits ? (
-                      <div className="space-y-6">
-                        {app.resume_edits.edits.map((edit: any, i: number) => (
-                          <div key={i} className="border-b border-outline-variant pb-4 last:border-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold ${edit.type === 'add' ? 'bg-primary/20 text-primary' : edit.type === 'remove' ? 'bg-error/20 text-error' : 'bg-secondary/20 text-secondary'}`}>
-                                {edit.type}
-                              </span>
-                              <span className="font-bold text-on-surface text-sm">[{edit.section}]</span>
-                            </div>
-                            <p className="text-on-surface font-medium mb-1">{edit.suggestion}</p>
-                            <p className="text-on-surface-variant text-sm italic">Reasoning: {edit.reasoning}</p>
-                          </div>
-                        ))}
+                    app.resume_edits?.edits && app.resume_text ? (
+                      <div className="w-full relative">
+                        <ResumeTailor 
+                          applicationId={app.id} 
+                          initialContent={app.resume_text} 
+                          resumeEdits={app.resume_edits.edits} 
+                          initialStructuredResume={app.structured_resume}
+                        />
                       </div>
-                    ) : <span className="text-on-surface-variant italic">No resume edits generated yet.</span>
+                    ) : <span className="text-on-surface-variant italic">No resume edits generated yet (or missing resume text).</span>
                   )}
                 </div>
               </Card>
@@ -331,12 +365,34 @@ export default function JobDetailPage() {
             >
               <Download size={18} /> Download Assets
             </button>
+            {app.resume_text ? (
+              <div className="mb-2">
+                <label className="block font-label-md text-label-md text-on-surface mb-1">Analyzed Resume</label>
+                <div className="w-full bg-surface-container-low border border-outline-variant text-on-surface-variant px-3 py-2 rounded-md text-sm">
+                  {app.resume_file_name || "Custom Resume"}
+                </div>
+              </div>
+            ) : (
+              <div className="mb-2">
+                <label className="block font-label-md text-label-md text-on-surface mb-1">Select Resume to Analyze</label>
+                <select 
+                  value={selectedResumeId}
+                  onChange={e => setSelectedResumeId(e.target.value)}
+                  className="w-full bg-surface-container-low border border-outline-variant text-on-surface px-3 py-2 rounded-md text-sm focus:outline-none focus:border-primary"
+                >
+                  <option value="">Select a resume...</option>
+                  {resumes?.items?.map((resume: any) => (
+                    <option key={resume.id} value={resume.id}>{resume.name || resume.file_name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <button 
-              onClick={() => rerunAnalysis(id)}
-              disabled={isRerunning || app.analysis_status === 'processing' || isDeleting}
+              onClick={handleRunAnalysis}
+              disabled={isRerunning || isUpdating || app.analysis_status === 'processing' || isDeleting || (!app.resume_text && !selectedResumeId) || isResumeTextLoading}
               className="w-full border border-primary text-primary py-2.5 rounded-lg font-label-md text-label-md hover:bg-primary/5 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Brain size={18} /> {isRerunning || app.analysis_status === 'processing' ? 'Re-running...' : 'Re-run Analysis'}
+              <Brain size={18} /> {isRerunning || isUpdating || app.analysis_status === 'processing' ? 'Running...' : (!app.resume_text || app.analysis_status === 'idle' ? 'Run Analysis' : 'Re-run Analysis')}
             </button>
             <button 
               onClick={handleDelete}

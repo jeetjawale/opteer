@@ -4,12 +4,14 @@ import { Calendar, User, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useDeleteApplication } from "@/features/applications/hooks/useApplications";
 import { Card } from "@/components/ui/Card";
+import { CompanyLogo } from "@/components/ui/CompanyLogo";
 
 interface ApplicationCardProps {
   company: string;
   role: string;
   location: string;
   logoInitial: string;
+  jobUrl?: string;
   fitScore: number;
   tags: string[];
   timeAgoText: string;
@@ -26,6 +28,7 @@ export default function ApplicationCard({
   role,
   location,
   logoInitial,
+  jobUrl,
   fitScore,
   tags,
   timeAgoText,
@@ -65,8 +68,8 @@ export default function ApplicationCard({
       <div className="flex flex-col gap-3 flex-1">
         {/* Header */}
       <div className="flex justify-between items-start">
-        <div className="w-11 h-11 rounded-lg border border-outline-variant flex items-center justify-center bg-surface-container-low text-on-surface font-headline-sm font-bold shadow-sm group-hover:border-primary/30 transition-colors">
-          {logoInitial}
+        <div className="w-11 h-11 rounded-lg border border-outline-variant flex items-center justify-center bg-surface-container-low text-on-surface font-headline-sm font-bold shadow-sm group-hover:border-primary/30 transition-colors overflow-hidden">
+          <CompanyLogo company={company} jobUrl={jobUrl} fallback={logoInitial} />
         </div>
         <div className="flex items-center gap-2">
           {isQualityGated ? (

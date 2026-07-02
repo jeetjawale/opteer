@@ -1,11 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Building2, Trash2 } from "lucide-react";
+import { Building2, Trash2, ExternalLink } from "lucide-react";
 import { useApplications, useDeleteApplication } from "@/features/applications/hooks/useApplications";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { CompanyLogo } from "@/components/ui/CompanyLogo";
 
 export default function JobBoardPage() {
   const router = useRouter();
@@ -14,8 +15,8 @@ export default function JobBoardPage() {
     <main className="flex-1 p-lg w-full">
       {/* PageHeader */}
       <PageHeader 
-        title="Job Board" 
-        subtitle="Discover and manage your high-value target roles."
+        title="Saved Jobs" 
+        subtitle="Manage and track your high-value target roles."
         action={
           <Button onClick={() => window.dispatchEvent(new Event("opteer:open-job-import-modal"))}>
             Add Posting
@@ -42,10 +43,13 @@ export default function JobBoardPage() {
                 
                 <div className="flex justify-between items-start mb-md">
                   <div className="flex items-center gap-3 pr-2">
-                    <div className="w-12 h-12 rounded-lg bg-surface-container-high border border-outline-variant flex items-center justify-center p-2 shrink-0">
-                      <span className="font-headline-sm text-headline-sm font-bold text-on-surface">
-                        {(app.company || "U")[0].toUpperCase()}
-                      </span>
+                    <div className="w-10 h-10 rounded-md bg-surface-container-high flex items-center justify-center text-lg font-bold text-on-surface-variant border border-outline-variant overflow-hidden">
+                      <CompanyLogo 
+                        company={app.company || ''} 
+                        jobUrl={app.url}
+                        logoUrl={app.company_logo}
+                        fallback={(app.company || 'U')[0].toUpperCase()} 
+                      />
                     </div>
                     <div>
                       <h3 className="font-headline-sm text-headline-sm font-semibold text-on-surface group-hover:text-primary transition-colors line-clamp-1">
@@ -80,6 +84,18 @@ export default function JobBoardPage() {
                     Added recently
                   </span>
                   <div className="flex items-center gap-2">
+                    {app.url && (
+                      <a 
+                        href={app.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-on-surface-variant hover:text-primary hover:bg-primary/10 p-1.5 rounded-md transition-colors z-10 opacity-0 group-hover:opacity-100 focus:opacity-100"
+                        title="View Source Job Posting"
+                      >
+                        <ExternalLink size={16} />
+                      </a>
+                    )}
                     {/* Delete Button */}
                     <button
                       onClick={(e) => {

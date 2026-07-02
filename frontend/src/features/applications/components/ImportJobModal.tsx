@@ -6,13 +6,16 @@ import { createPortal } from "react-dom";
 import { Loader2, X } from "lucide-react";
 import { useImportJob } from "@/features/applications/hooks/useApplications";
 import { useResumes, useResumeText } from "@/features/resumes/hooks/useResumes";
+import { useSettings } from "@/features/settings/hooks/useSettings";
 
 const OPEN_IMPORT_EVENT = "opteer:open-job-import-modal";
 
 export default function ImportJobModal() {
+  const { data: settings } = useSettings();
   const { mutateAsync: importJob, isPending: isImporting } = useImportJob();
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [jobUrl, setJobUrl] = useState("");
+  const [logoUrl, setLogoUrl] = useState("");
   const [importError, setImportError] = useState("");
 
   const { data: paginatedData, isLoading: isResumesLoading } = useResumes();
@@ -35,19 +38,29 @@ export default function ImportJobModal() {
 
   const { data: selectedResumeText, isLoading: isResumeTextLoading } = useResumeText(selectedResumeId, isImportOpen);
 
-  const openImportModal = () => {
+  const openImportModal = (e?: Event) => {
     setImportError("");
+    if (e && 'detail' in e) {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail?.url) {
+        setJobUrl(customEvent.detail.url);
+      }
+      if (customEvent.detail?.logo_url) {
+        setLogoUrl(customEvent.detail.logo_url);
+      }
+    }
     setIsImportOpen(true);
   };
 
   useEffect(() => {
-    window.addEventListener(OPEN_IMPORT_EVENT, openImportModal);
-    return () => window.removeEventListener(OPEN_IMPORT_EVENT, openImportModal);
+    window.addEventListener(OPEN_IMPORT_EVENT, openImportModal as EventListener);
+    return () => window.removeEventListener(OPEN_IMPORT_EVENT, openImportModal as EventListener);
   }, []);
 
   const closeImportModal = () => {
     setIsImportOpen(false);
     setJobUrl("");
+    setLogoUrl("");
     setImportError("");
   };
 
@@ -67,11 +80,16 @@ export default function ImportJobModal() {
       return;
     }
 
+    const selectedResume = resumes.find(r => r.id === selectedResumeId);
+    const resumeFileName = selectedResume ? (selectedResume.name || selectedResume.file_name || undefined) : undefined;
+
     try {
       await importJob({
         url: trimmedUrl,
         resume_text: resumeText,
-        auto_analyze: false,
+        resume_file_name: resumeFileName,
+        logo_url: logoUrl || undefined,
+        auto_analyze: settings?.auto_analyze_on_import ?? true,
       });
 
       closeImportModal();

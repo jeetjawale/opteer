@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useApiClient } from '@/lib/api-client';
+import { apiClient as api } from '@/lib/api-client';
 
 interface Application {
   id: string;
@@ -24,6 +24,7 @@ interface Application {
   
   // Flat-mapped Job Fields
   company?: string;
+  company_logo?: string;
   role?: string;
   url?: string;
   company_research?: string;
@@ -37,12 +38,19 @@ interface Application {
   // Quality Gate
   is_quality_gated?: boolean;
   quality_gate_reason?: string | null;
+  
+  // Job Input
+  resume_text?: string;
+  resume_file_name?: string;
+  resume_file_url?: string;
 }
 
 interface ImportJobRequest {
   url: string;
   resume_text: string;
+  resume_file_name?: string;
   scraped_jd?: string;
+  logo_url?: string;
   auto_analyze?: boolean;
 }
 
@@ -57,7 +65,7 @@ interface ImportJobResponse {
 }
 
 export function useApplications() {
-  const api = useApiClient();
+
   
   return useQuery<Application[]>({
     queryKey: ['applications'],
@@ -66,7 +74,7 @@ export function useApplications() {
 }
 
 export function useApplicationAnalysis(id: string) {
-  const api = useApiClient();
+
   
   return useQuery<Application>({
     queryKey: ['applications', id],
@@ -83,7 +91,7 @@ export function useApplicationAnalysis(id: string) {
 }
 
 export function useUpdateApplicationStatus() {
-  const api = useApiClient();
+
   const queryClient = useQueryClient();
   
   return useMutation({
@@ -113,8 +121,23 @@ export function useUpdateApplicationStatus() {
   });
 }
 
+export function useUpdateApplication() {
+
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: any }) => 
+      api.patch(`/applications/${id}`, payload),
+    onSettled: (_, __, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['applications', id] });
+      queryClient.invalidateQueries({ queryKey: ['applications'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+}
+
 export function useImportJob() {
-  const api = useApiClient();
+
   const queryClient = useQueryClient();
 
   return useMutation<ImportJobResponse, Error, ImportJobRequest>({
@@ -127,7 +150,7 @@ export function useImportJob() {
 }
 
 export function useRerunAnalysis() {
-  const api = useApiClient();
+
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -141,7 +164,7 @@ export function useRerunAnalysis() {
 }
 
 export function useDeleteApplication() {
-  const api = useApiClient();
+
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -152,3 +175,11 @@ export function useDeleteApplication() {
     },
   });
 }
+
+export function useRewriteCoverLetter() {
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: { selected_text: string; full_context: string; instruction: string } }) => 
+      api.post(`/applications/${id}/rewrite-cover-letter`, payload),
+  });
+}
+
