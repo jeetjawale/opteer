@@ -258,37 +258,45 @@ class ApplicationService:
             user_config = await self.user_configs_repo.get_by_user_id(user_id)
             if user_config and user_config.active_llm_provider:
                 provider_name = user_config.active_llm_provider
-                
+
                 # Fetch default model from task_models if specified
-                task_models = user_config.task_models if isinstance(user_config.task_models, dict) else {}
+                task_models = (
+                    user_config.task_models
+                    if isinstance(user_config.task_models, dict)
+                    else {}
+                )
                 model_name = task_models.get("cover_letter")
 
                 if user_config.llm_keys and provider_name in user_config.llm_keys:
                     key_info = user_config.llm_keys[provider_name]
-                    
+
                     if isinstance(key_info, dict):
                         model_name = key_info.get("model") or model_name
                         base_url = key_info.get("base_url")
-                        
+
                         from app.core.encryption import decrypt_api_key
+
                         encrypted_key = key_info.get("api_key_encrypted")
                         if isinstance(encrypted_key, str):
                             api_key = decrypt_api_key(encrypted_key)
 
         from app.ai.chains.rewrite import get_rewrite_chain
+
         chain = get_rewrite_chain(
             provider_name=provider_name,
             model_name=model_name,
             api_key=api_key,
-            base_url=base_url
+            base_url=base_url,
         )
-        
-        rewritten_text = await chain.ainvoke({
-            "selected_text": selected_text,
-            "full_context": full_context,
-            "instruction": instruction
-        })
-        
+
+        rewritten_text = await chain.ainvoke(
+            {
+                "selected_text": selected_text,
+                "full_context": full_context,
+                "instruction": instruction,
+            }
+        )
+
         return rewritten_text.strip()
 
     async def parse_resume(
@@ -307,7 +315,9 @@ class ApplicationService:
             raise HTTPException(status_code=404, detail="Application not found")
 
         if not app.resume_text:
-            raise HTTPException(status_code=400, detail="No resume text found for this application")
+            raise HTTPException(
+                status_code=400, detail="No resume text found for this application"
+            )
 
         provider_name = "gemini"
         model_name = None
@@ -318,7 +328,11 @@ class ApplicationService:
             user_config = await self.user_configs_repo.get_by_user_id(user_id)
             if user_config and user_config.active_llm_provider:
                 provider_name = user_config.active_llm_provider
-                task_models = user_config.task_models if isinstance(user_config.task_models, dict) else {}
+                task_models = (
+                    user_config.task_models
+                    if isinstance(user_config.task_models, dict)
+                    else {}
+                )
                 model_name = task_models.get("default")
                 if user_config.llm_keys and provider_name in user_config.llm_keys:
                     key_info = user_config.llm_keys[provider_name]
@@ -326,11 +340,13 @@ class ApplicationService:
                         model_name = key_info.get("model") or model_name
                         base_url = key_info.get("base_url")
                         from app.core.encryption import decrypt_api_key
+
                         encrypted_key = key_info.get("api_key_encrypted")
                         if isinstance(encrypted_key, str):
                             api_key = decrypt_api_key(encrypted_key)
 
         from app.ai.chains.resume_parser import get_resume_parser_chain
+
         chain = get_resume_parser_chain(
             provider_name=provider_name,
             model_name=model_name,
@@ -341,22 +357,33 @@ class ApplicationService:
         tailoring_instructions = ""
         if app.resume_edits:
             try:
-                edits = app.resume_edits.get("edits", []) if isinstance(app.resume_edits, dict) else app.resume_edits
+                edits = (
+                    app.resume_edits.get("edits", [])
+                    if isinstance(app.resume_edits, dict)
+                    else app.resume_edits
+                )
                 if edits and isinstance(edits, list):
-                    tailoring_instructions = "Tailoring Instructions (APPLY THESE STRICTLY):\n"
+                    tailoring_instructions = (
+                        "Tailoring Instructions (APPLY THESE STRICTLY):\n"
+                    )
                     for edit in edits:
                         if isinstance(edit, dict):
                             tailoring_instructions += f"- [{edit.get('type', 'MODIFY').upper()}] Section: {edit.get('section', 'General')}. {edit.get('suggestion', '')}\n"
             except Exception:
                 pass
 
-        result = await chain.ainvoke({
-            "resume_text": app.resume_text,
-            "tailoring_instructions": tailoring_instructions
-        })
-        
+        result = await chain.ainvoke(
+            {
+                "resume_text": app.resume_text,
+                "tailoring_instructions": tailoring_instructions,
+            }
+        )
+
         # Save structured resume to DB
         from app.schemas import ApplicationUpdate
-        await self.update_application(user_id, application_id, ApplicationUpdate(structured_resume=result))
+
+        await self.update_application(
+            user_id, application_id, ApplicationUpdate(structured_resume=result)
+        )
 
         return result

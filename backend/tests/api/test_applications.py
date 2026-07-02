@@ -10,8 +10,10 @@ from app.core.dependencies import get_application_service
 
 client = TestClient(app)
 
+
 class MockUser:
     id = str(uuid4())
+
 
 @pytest.fixture
 def mock_app_service():
@@ -21,14 +23,16 @@ def mock_app_service():
     yield service
     app.dependency_overrides.clear()
 
+
 def test_list_applications(mock_app_service):
     # Setup mock return value matching ApplicationResponse
     mock_app_service.list_applications.return_value = []
-    
+
     response = client.get("/applications")
     assert response.status_code == 200
     assert response.json() == []
     mock_app_service.list_applications.assert_called_once()
+
 
 def test_get_application(mock_app_service):
     app_id = str(uuid4())
@@ -38,12 +42,13 @@ def test_get_application(mock_app_service):
         "user_id": MockUser.id,
         "status": "saved",
         "created_at": datetime.now(timezone.utc).isoformat(),
-        "updated_at": datetime.now(timezone.utc).isoformat()
+        "updated_at": datetime.now(timezone.utc).isoformat(),
     }
-    
+
     response = client.get(f"/applications/{app_id}")
     assert response.status_code == 200
     assert response.json()["id"] == app_id
+
 
 def test_delete_application(mock_app_service):
     app_id = str(uuid4())

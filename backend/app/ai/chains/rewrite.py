@@ -21,8 +21,8 @@ def get_rewrite_chain(
         model_name=model_name,
         api_key=api_key,
         base_url=base_url,
-        temperature=0.7, 
-        max_tokens=800, 
+        temperature=0.7,
+        max_tokens=800,
     )
 
     # 2. Build Prompt Template

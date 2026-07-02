@@ -139,7 +139,7 @@ async def rewrite_cover_letter(
             application_id=application_id,
             selected_text=payload.selected_text,
             full_context=payload.full_context,
-            instruction=payload.instruction
+            instruction=payload.instruction,
         )
         return RewriteResponse(rewritten_text=rewritten)
 

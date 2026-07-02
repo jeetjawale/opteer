@@ -26,8 +26,6 @@ class AnalysisStatus(str, Enum):
     FAILED = "failed"
 
 
-
-
 # ============================================
 # AI OUTPUT PARSING SCHEMAS
 # ============================================
@@ -144,7 +142,6 @@ class ImportJobRequest(BaseModel):
     auto_analyze: bool = Field(
         False, description="When true, enqueue AI analysis immediately after import"
     )
-
 
 
 class JobImportResponse(BaseModel):
@@ -267,7 +264,6 @@ class ApplicationResponse(ApplicationBase):
     model_config = ConfigDict(from_attributes=True)
 
 
-
 # ============================================
 # ANALYSIS OPERATION SCHEMAS
 # ============================================
@@ -296,7 +292,9 @@ class JobAnalysisResponse(BaseModel):
 
 
 class RewriteRequest(BaseModel):
-    selected_text: str = Field(..., description="The specific text the user highlighted")
+    selected_text: str = Field(
+        ..., description="The specific text the user highlighted"
+    )
     full_context: str = Field(..., description="The entire cover letter for context")
     instruction: str = Field(..., description="The AI instruction like 'shorten this'")
 
@@ -498,4 +496,3 @@ class DashboardOverviewResponse(BaseModel):
     stats: DashboardStats
     recent_activity: List[RecentActivityItem]
     top_recommendations: List[ApplicationResponse]
-

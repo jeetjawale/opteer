@@ -5,15 +5,17 @@ from typing import List, Optional
 import app.ai.llm
 from app.ai.workflow_config import WORKFLOW_CONFIG
 
-
 # ── Output Schema ──────────────────────────────────────────────────────────────
+
 
 class ContactInfo(BaseModel):
     name: str = Field(description="Full name of the candidate")
     email: Optional[str] = Field(default=None)
     phone: Optional[str] = Field(default=None)
     location: Optional[str] = Field(default=None)
-    links: List[str] = Field(default_factory=list, description="LinkedIn, GitHub, portfolio URLs")
+    links: List[str] = Field(
+        default_factory=list, description="LinkedIn, GitHub, portfolio URLs"
+    )
 
 
 class ExperienceEntry(BaseModel):
@@ -22,21 +24,29 @@ class ExperienceEntry(BaseModel):
     location: Optional[str] = Field(default=None)
     start_date: Optional[str] = Field(default=None)
     end_date: Optional[str] = Field(default=None, description="End date or 'Present'")
-    bullets: List[str] = Field(default_factory=list, description="Achievement bullet points")
+    bullets: List[str] = Field(
+        default_factory=list, description="Achievement bullet points"
+    )
 
 
 class EducationEntry(BaseModel):
-    degree: str = Field(description="Degree and major e.g. B.Tech in Computer Engineering")
+    degree: str = Field(
+        description="Degree and major e.g. B.Tech in Computer Engineering"
+    )
     institution: str
     location: Optional[str] = Field(default=None)
     start_date: Optional[str] = Field(default=None)
     end_date: Optional[str] = Field(default=None)
-    notes: Optional[str] = Field(default=None, description="GPA, honors, relevant coursework")
+    notes: Optional[str] = Field(
+        default=None, description="GPA, honors, relevant coursework"
+    )
 
 
 class ProjectEntry(BaseModel):
     name: str
-    tech_stack: Optional[str] = Field(default=None, description="Comma-separated technologies")
+    tech_stack: Optional[str] = Field(
+        default=None, description="Comma-separated technologies"
+    )
     start_date: Optional[str] = Field(default=None)
     end_date: Optional[str] = Field(default=None)
     bullets: List[str] = Field(default_factory=list)
@@ -66,6 +76,7 @@ class ResumeStructured(BaseModel):
 
 # ── Chain factory ──────────────────────────────────────────────────────────────
 
+
 def get_resume_parser_chain(
     provider_name: str,
     model_name: str | None = None,
@@ -79,7 +90,9 @@ def get_resume_parser_chain(
     parser = JsonOutputParser(pydantic_object=ResumeStructured)
 
     # Use the default model config; resume parsing is lightweight
-    config = WORKFLOW_CONFIG.get("fit_scoring", {"temperature": 0.0, "max_tokens": 4000})
+    config = WORKFLOW_CONFIG.get(
+        "fit_scoring", {"temperature": 0.0, "max_tokens": 4000}
+    )
 
     llm = app.ai.llm.get_llm(
         provider_name=provider_name,
@@ -113,4 +126,3 @@ Raw Resume Text:
     )
 
     return prompt | llm | parser
-

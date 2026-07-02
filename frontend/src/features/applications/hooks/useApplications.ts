@@ -21,6 +21,7 @@ interface Application {
   cover_letter?: string;
   interview_prep?: any;
   resume_edits?: any;
+  structured_resume?: any;
   
   // Flat-mapped Job Fields
   company?: string;

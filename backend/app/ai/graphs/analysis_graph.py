@@ -238,18 +238,20 @@ async def save_results(state: AnalysisState) -> dict:
 
         if raw_fit:
             fit_validated = FitScoreResult(**raw_fit)
-            update_data.update({
-                "fit_score": fit_validated.fit_score,
-                "matched_skills": fit_validated.matched_skills,
-                "missing_skills": fit_validated.missing_skills,
-                "key_requirements": fit_validated.key_requirements,
-                "summary": fit_validated.summary,
-            })
-            
+            update_data.update(
+                {
+                    "fit_score": fit_validated.fit_score,
+                    "matched_skills": fit_validated.matched_skills,
+                    "missing_skills": fit_validated.missing_skills,
+                    "key_requirements": fit_validated.key_requirements,
+                    "summary": fit_validated.summary,
+                }
+            )
+
         if raw_prep:
             prep_validated = InterviewPrepResult(**raw_prep)
             update_data["interview_prep"] = prep_validated.model_dump()
-            
+
         if raw_edits:
             edits_validated = ResumeEditsResult(**raw_edits)
             update_data["resume_edits"] = edits_validated.model_dump()

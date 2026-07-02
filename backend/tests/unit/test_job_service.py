@@ -4,21 +4,26 @@ from unittest.mock import MagicMock, AsyncMock
 from app.domains.jobs.service import JobService
 from app.schemas import JobCreate, JobUpdate
 
+
 @pytest.fixture
 def mock_job_repo():
     return AsyncMock()
+
 
 @pytest.fixture
 def mock_app_repo():
     return AsyncMock()
 
+
 @pytest.fixture
 def mock_user_repo():
     return AsyncMock()
 
+
 @pytest.fixture
 def mock_user_configs_repo():
     return AsyncMock()
+
 
 @pytest.fixture
 def job_service(mock_job_repo, mock_app_repo, mock_user_repo, mock_user_configs_repo):
@@ -26,8 +31,9 @@ def job_service(mock_job_repo, mock_app_repo, mock_user_repo, mock_user_configs_
         job_repo=mock_job_repo,
         app_repo=mock_app_repo,
         user_repo=mock_user_repo,
-        user_configs_repo=mock_user_configs_repo
+        user_configs_repo=mock_user_configs_repo,
     )
+
 
 @pytest.mark.asyncio
 async def test_create_job(job_service, mock_job_repo):
@@ -42,14 +48,15 @@ async def test_create_job(job_service, mock_job_repo):
     mock_job.scraped_jd = None
     mock_job.created_at = None
     mock_job.updated_at = None
-    
+
     mock_job_repo.create.return_value = mock_job
-    
+
     payload = JobCreate(url="https://test.com", company="Test Corp", role="Engineer")
     result = await job_service.create_job(payload)
-    
+
     assert result["company"] == "Test Corp"
     mock_job_repo.create.assert_called_once()
+
 
 @pytest.mark.asyncio
 async def test_get_jobs(job_service, mock_job_repo):
@@ -76,14 +83,15 @@ async def test_get_jobs(job_service, mock_job_repo):
     mock_job2.scraped_jd = None
     mock_job2.created_at = None
     mock_job2.updated_at = None
-    
+
     mock_result = MagicMock()
     mock_result.scalars.return_value.all.return_value = [mock_job1, mock_job2]
     mock_job_repo.session.execute.return_value = mock_result
-    
+
     results = await job_service.get_jobs()
     assert len(results) == 2
     mock_job_repo.session.execute.assert_called_once()
+
 
 @pytest.mark.asyncio
 async def test_get_job(job_service, mock_job_repo):
@@ -99,12 +107,13 @@ async def test_get_job(job_service, mock_job_repo):
     mock_job.scraped_jd = None
     mock_job.created_at = None
     mock_job.updated_at = None
-    
+
     mock_job_repo.get.return_value = mock_job
-    
+
     result = await job_service.get_job(job_id)
     assert result["id"] == str(job_id)
     mock_job_repo.get.assert_called_once_with(job_id)
+
 
 @pytest.mark.asyncio
 async def test_update_job(job_service, mock_job_repo):
@@ -120,7 +129,7 @@ async def test_update_job(job_service, mock_job_repo):
     mock_job.scraped_jd = None
     mock_job.created_at = None
     mock_job.updated_at = None
-    
+
     mock_updated = MagicMock()
     mock_updated.id = job_id
     mock_updated.company = "New Corp"
@@ -135,16 +144,17 @@ async def test_update_job(job_service, mock_job_repo):
 
     mock_job_repo.get.return_value = mock_job
     mock_job_repo.update.return_value = mock_updated
-    
+
     payload = JobUpdate(company="New Corp")
     result = await job_service.update_job(job_id, payload)
-    
+
     assert result["company"] == "New Corp"
     mock_job_repo.update.assert_called_once()
+
 
 @pytest.mark.asyncio
 async def test_delete_job(job_service, mock_job_repo):
     job_id = uuid.uuid4()
-    
+
     await job_service.delete_job(job_id)
     mock_job_repo.delete.assert_called_once_with(job_id)

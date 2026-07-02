@@ -34,6 +34,7 @@ from pydantic import BaseModel
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
+
 class JobSearchResponse(BaseModel):
     id: str
     title: str
@@ -50,6 +51,7 @@ class JobSearchResponse(BaseModel):
     company_logo: Optional[str] = None
     site: Optional[str] = None
 
+
 @router.get("/search", response_model=List[JobSearchResponse])
 async def search_jobs(
     q: str = Query(..., description="Search term"),
@@ -58,24 +60,40 @@ async def search_jobs(
     remote: bool = Query(False, description="Is remote"),
     hours_old: Optional[int] = Query(None, description="Hours old"),
     country: str = Query("USA", description="Country for Indeed"),
-    job_type: Optional[str] = Query(None, description="Job type (fulltime, parttime, etc)"),
-    experience_level: Optional[str] = Query(None, description="Experience level (entry, mid, senior)"),
-    sites: Optional[str] = Query(None, description="Comma separated list of sites (indeed, linkedin, glassdoor, zip_recruiter, google, naukri)"),
-    current_user=Depends(get_current_user)
+    job_type: Optional[str] = Query(
+        None, description="Job type (fulltime, parttime, etc)"
+    ),
+    experience_level: Optional[str] = Query(
+        None, description="Experience level (entry, mid, senior)"
+    ),
+    sites: Optional[str] = Query(
+        None,
+        description="Comma separated list of sites (indeed, linkedin, glassdoor, zip_recruiter, google, naukri)",
+    ),
+    current_user=Depends(get_current_user),
 ):
     try:
         site_list = ["indeed", "linkedin"]
         if sites:
-            valid_sites = {"linkedin", "indeed", "glassdoor", "zip_recruiter", "google", "naukri"}
-            site_list = [s.strip() for s in sites.split(",") if s.strip() in valid_sites]
+            valid_sites = {
+                "linkedin",
+                "indeed",
+                "glassdoor",
+                "zip_recruiter",
+                "google",
+                "naukri",
+            }
+            site_list = [
+                s.strip() for s in sites.split(",") if s.strip() in valid_sites
+            ]
             if not site_list:
                 site_list = ["indeed", "linkedin"]
-        
+
         # Append experience level to search query since JobSpy doesn't have an explicit param for it
         search_query = q
         if experience_level:
             search_query = f"{q} {experience_level}"
-            
+
         def _run_scraper():
             return scrape_jobs(
                 site_name=site_list,
@@ -86,14 +104,15 @@ async def search_jobs(
                 hours_old=hours_old,
                 country_indeed=country,
                 job_type=job_type,
-                linkedin_fetch_description=True
+                linkedin_fetch_description=True,
             )
-            
+
         jobs_df = await asyncio.to_thread(_run_scraper)
-        jobs_list = jobs_df.to_dict('records')
-        
+        jobs_list = jobs_df.to_dict("records")
+
         results_formatted = []
         for job in jobs_list:
+
             def safe_get(key):
                 val = job.get(key)
                 if val is None:
@@ -102,39 +121,43 @@ async def search_jobs(
                     return None
                 return str(val)
 
-            loc_string = safe_get('location') or "Unknown Location"
-            
-            min_amt = job.get('min_amount')
+            loc_string = safe_get("location") or "Unknown Location"
+
+            min_amt = job.get("min_amount")
             if isinstance(min_amt, float) and math.isnan(min_amt):
                 min_amt = None
-                
-            max_amt = job.get('max_amount')
+
+            max_amt = job.get("max_amount")
             if isinstance(max_amt, float) and math.isnan(max_amt):
                 max_amt = None
-            
-            job_url = safe_get('job_url') or ""
+
+            job_url = safe_get("job_url") or ""
             unique_id = str(hash(job_url))
-            
-            results_formatted.append(JobSearchResponse(
-                id=unique_id,
-                title=safe_get('title') or "Unknown Title",
-                company=safe_get('company') or "Unknown Company",
-                company_url=safe_get('company_url'),
-                job_url=job_url,
-                location=loc_string,
-                description=safe_get('description'),
-                job_type=safe_get('job_type'),
-                interval=safe_get('interval'),
-                min_amount=min_amt,
-                max_amount=max_amt,
-                date_posted=safe_get('date_posted'),
-                company_logo=safe_get('company_logo'),
-                site=safe_get('site')
-            ))
-            
+
+            results_formatted.append(
+                JobSearchResponse(
+                    id=unique_id,
+                    title=safe_get("title") or "Unknown Title",
+                    company=safe_get("company") or "Unknown Company",
+                    company_url=safe_get("company_url"),
+                    job_url=job_url,
+                    location=loc_string,
+                    description=safe_get("description"),
+                    job_type=safe_get("job_type"),
+                    interval=safe_get("interval"),
+                    min_amount=min_amt,
+                    max_amount=max_amt,
+                    date_posted=safe_get("date_posted"),
+                    company_logo=safe_get("company_logo"),
+                    site=safe_get("site"),
+                )
+            )
+
         return results_formatted
     except Exception as e:
-        raise HTTPException(status_code=500, detail="JobSpy search failed. Please try again later.")
+        raise HTTPException(
+            status_code=500, detail="JobSpy search failed. Please try again later."
+        )
 
 
 @router.post("/parse-resume", status_code=status.HTTP_200_OK)

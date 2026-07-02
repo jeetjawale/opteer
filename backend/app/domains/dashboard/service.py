@@ -6,10 +6,16 @@ from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.schemas import DashboardOverviewResponse, DashboardStats, RecentActivityItem, ApplicationResponse
+from app.schemas import (
+    DashboardOverviewResponse,
+    DashboardStats,
+    RecentActivityItem,
+    ApplicationResponse,
+)
 from app.db.models.application import Application
 
 logger = logging.getLogger(__name__)
+
 
 class DashboardService:
     def __init__(self, session: AsyncSession):
@@ -77,15 +83,17 @@ class DashboardService:
                 "created_at": app.created_at.isoformat() if app.created_at else None,
             }
             if app.job:
-                app_dict.update({
-                    "company": app.job.company,
-                    "role": app.job.role,
-                    "location": app.job.location,
-                    "work_model": app.job.work_model,
-                    "url": app.job.url,
-                    "company_research": app.job.company_research,
-                    "scraped_jd": app.job.scraped_jd,
-                })
+                app_dict.update(
+                    {
+                        "company": app.job.company,
+                        "role": app.job.role,
+                        "location": app.job.location,
+                        "work_model": app.job.work_model,
+                        "url": app.job.url,
+                        "company_research": app.job.company_research,
+                        "scraped_jd": app.job.scraped_jd,
+                    }
+                )
             recommendations.append(app_dict)
 
         # Process Recent Activity

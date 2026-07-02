@@ -9,8 +9,10 @@ from app.core.dependencies import get_application_service
 
 client = TestClient(app)
 
+
 class MockUser:
     id = str(uuid4())
+
 
 @pytest.fixture
 def mock_app_service():
@@ -20,13 +22,14 @@ def mock_app_service():
     yield service
     app.dependency_overrides.clear()
 
+
 def test_analyze_application(mock_app_service):
     app_id = str(uuid4())
     mock_app_service.queue_analysis.return_value = {
         "status": "queued",
-        "message": "Analysis queued successfully"
+        "message": "Analysis queued successfully",
     }
-    
+
     response = client.post(f"/applications/{app_id}/analyze")
     assert response.status_code == 202
     assert response.json()["status"] == "queued"

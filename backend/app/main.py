@@ -15,6 +15,7 @@ app = FastAPI(
 )
 
 from app.core.logging_config import setup_logging  # noqa: E402
+
 setup_logging(settings.LOG_LEVEL)
 
 
@@ -25,6 +26,7 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware  # noqa: E40
 # Setup Proxy Headers Middleware (resolves real IP behind reverse proxies)
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=settings.TRUSTED_PROXIES)
 
+
 # S-13: Basic Security Headers Middleware
 @app.middleware("http")
 async def add_security_headers(request, call_next):
@@ -33,15 +35,21 @@ async def add_security_headers(request, call_next):
     # Allow embedding PDFs in the frontend UI
     # response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
-    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Strict-Transport-Security"] = (
+        "max-age=31536000; includeSubDomains"
+    )
     if request.url.path in ["/docs", "/redoc"]:
-        response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: https://fastapi.tiangolo.com"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: https://fastapi.tiangolo.com"
+        )
     # else:
     #     response.headers["Content-Security-Policy"] = "default-src 'self'"
     return response
 
+
 if settings.SENTRY_DSN:
     import sentry_sdk
+
     sentry_sdk.init(
         dsn=settings.SENTRY_DSN,
         environment=settings.ENVIRONMENT,
@@ -60,6 +68,7 @@ app.add_middleware(
 
 # S-04: Warning for missing authentication outside development
 import logging  # noqa: E402
+
 if settings.ENVIRONMENT != "development":
     logger = logging.getLogger(__name__)
     logger.warning("=" * 60)

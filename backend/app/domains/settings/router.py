@@ -18,8 +18,12 @@ from .service import SettingsService
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
-def get_settings_service(config_repo: UserConfigsRepository = Depends(get_user_configs_repo)) -> SettingsService:
+
+def get_settings_service(
+    config_repo: UserConfigsRepository = Depends(get_user_configs_repo),
+) -> SettingsService:
     return SettingsService(config_repo)
+
 
 @router.get("", response_model=UserConfigResponse)
 async def get_settings(
@@ -34,6 +38,7 @@ async def get_settings(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to retrieve settings. Please try again later.",
             )
+
 
 @router.put("", response_model=UserConfigResponse)
 async def update_settings(
@@ -50,18 +55,20 @@ async def update_settings(
                 detail=f"Failed to update settings: {str(e)}",
             )
 
+
 @router.post(
-    "/llm/validate", 
+    "/llm/validate",
     response_model=LLMValidateResponse,
-    dependencies=[Depends(SimpleRateLimiter(calls=10, period=60))]
+    dependencies=[Depends(SimpleRateLimiter(calls=10, period=60))],
 )
 async def validate_llm_key(
-    payload: LLMValidateRequest, 
+    payload: LLMValidateRequest,
     current_user=Depends(get_current_user),
     service: SettingsService = Depends(get_settings_service),
 ):
     async with log_duration("VALIDATE_LLM"):
         return await service.validate_llm_key(payload)
+
 
 @router.get("/llm/models")
 async def get_llm_models(
@@ -72,13 +79,14 @@ async def get_llm_models(
     async with log_duration("FETCH_MODELS"):
         return await service.get_llm_models(current_user.id, provider)
 
+
 @router.post(
-    "/integrations/validate", 
+    "/integrations/validate",
     response_model=IntegrationValidateResponse,
-    dependencies=[Depends(SimpleRateLimiter(calls=10, period=60))]
+    dependencies=[Depends(SimpleRateLimiter(calls=10, period=60))],
 )
 async def validate_integration_key(
-    payload: IntegrationValidateRequest, 
+    payload: IntegrationValidateRequest,
     current_user=Depends(get_current_user),
     service: SettingsService = Depends(get_settings_service),
 ):

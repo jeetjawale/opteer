@@ -75,10 +75,26 @@ class SettingsService:
             "base_urls": urls_map,
             "task_models": user_config.task_models or {},
             "integration_providers_configured": integration_configured_map,
-            "auto_analyze_on_import": user_config.auto_analyze_on_import if user_config.auto_analyze_on_import is not None else True,
-            "generate_interview_prep": user_config.generate_interview_prep if user_config.generate_interview_prep is not None else True,
-            "auto_draft_cover_letters": user_config.auto_draft_cover_letters if user_config.auto_draft_cover_letters is not None else True,
-            "auto_tailor_resume": user_config.auto_tailor_resume if user_config.auto_tailor_resume is not None else True,
+            "auto_analyze_on_import": (
+                user_config.auto_analyze_on_import
+                if user_config.auto_analyze_on_import is not None
+                else True
+            ),
+            "generate_interview_prep": (
+                user_config.generate_interview_prep
+                if user_config.generate_interview_prep is not None
+                else True
+            ),
+            "auto_draft_cover_letters": (
+                user_config.auto_draft_cover_letters
+                if user_config.auto_draft_cover_letters is not None
+                else True
+            ),
+            "auto_tailor_resume": (
+                user_config.auto_tailor_resume
+                if user_config.auto_tailor_resume is not None
+                else True
+            ),
             "updated_at": user_config.updated_at,
         }
 
@@ -88,11 +104,14 @@ class SettingsService:
         update_data = payload.model_dump(exclude_unset=True)
 
         import copy
+
         if "llm_keys" in update_data and update_data["llm_keys"]:
             llm_keys_payload = update_data["llm_keys"]
 
             existing_keys = (
-                copy.deepcopy(user_config.llm_keys) if user_config and user_config.llm_keys else {}
+                copy.deepcopy(user_config.llm_keys)
+                if user_config and user_config.llm_keys
+                else {}
             )
 
             for provider, data in llm_keys_payload.items():
@@ -173,10 +192,13 @@ class SettingsService:
         except Exception as e:
             return {"models": []}
 
-    async def validate_integration_key(self, payload: IntegrationValidateRequest) -> dict:
+    async def validate_integration_key(
+        self, payload: IntegrationValidateRequest
+    ) -> dict:
         try:
             if payload.provider == "firecrawl":
                 from firecrawl import FirecrawlApp  # type: ignore[import-untyped]
+
                 FirecrawlApp(api_key=payload.api_key)
 
                 if not payload.api_key.startswith("fc-"):

@@ -17,6 +17,7 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 from .service import DashboardService
 
+
 @router.get("/overview", response_model=DashboardOverviewResponse)
 async def get_dashboard_overview(
     current_user=Depends(get_current_user), session: AsyncSession = Depends(get_db)

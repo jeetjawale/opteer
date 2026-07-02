@@ -40,7 +40,9 @@ class Settings(BaseSettings):
     @field_validator("CORS_ORIGINS")
     @classmethod
     def validate_cors(cls, v: list[str], info: ValidationInfo) -> list[str]:
-        env = info.data.get("ENVIRONMENT", "development") if info.data else "development"
+        env = (
+            info.data.get("ENVIRONMENT", "development") if info.data else "development"
+        )
         if env == "production":
             if len(v) == 1 and v[0] == "http://localhost:3000":
                 raise ValueError(

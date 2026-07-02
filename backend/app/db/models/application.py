@@ -18,6 +18,8 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.db.models.job import Job
+
+
 class Application(Base):
     __tablename__ = "applications"
 

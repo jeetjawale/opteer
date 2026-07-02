@@ -21,18 +21,24 @@ from app.db.models.user_configs import UserConfig
 from app.ai.graphs.analysis_graph import run_analysis
 from app.utils.timing import log_duration
 
-POLL_INTERVAL = 2        # seconds between polls
-MAX_STALE_MINUTES = 30   # reset stuck 'processing' records after this long
+POLL_INTERVAL = 2  # seconds between polls
+MAX_STALE_MINUTES = 30  # reset stuck 'processing' records after this long
+
 
 async def process_one() -> None:
     """Claim and process one queued application, if any."""
     async with log_duration("WORKER_PROCESS_ONE"):
         async with async_session() as session:
             # 1. Find the oldest queued application
-            query = select(Application).where(Application.analysis_status == "queued").order_by(Application.created_at.asc()).limit(1)
+            query = (
+                select(Application)
+                .where(Application.analysis_status == "queued")
+                .order_by(Application.created_at.asc())
+                .limit(1)
+            )
             result = await session.execute(query)
             app = result.scalar_one_or_none()
-            
+
             if not app:
                 return
 
@@ -42,18 +48,23 @@ async def process_one() -> None:
             # 2. Atomically claim it
             stmt = (
                 update(Application)
-                .where(and_(Application.id == app_id, Application.analysis_status == "queued"))
+                .where(
+                    and_(
+                        Application.id == app_id,
+                        Application.analysis_status == "queued",
+                    )
+                )
                 .values(
                     analysis_status="processing",
                     analysis_started_at=datetime.now(timezone.utc),
-                    analysis_error=None
+                    analysis_error=None,
                 )
                 .execution_options(synchronize_session=False)
                 .returning(Application.id)
             )
             claim_result = await session.execute(stmt)
             await session.commit()
-            
+
             if not claim_result.scalar_one_or_none():
                 return  # lost the race
 
@@ -66,10 +77,12 @@ async def process_one() -> None:
                 settings_result = await session.execute(settings_query)
                 user_configs = settings_result.scalar_one_or_none()
             except Exception as exc:
-                logger.warning(f"Warning: could not fetch user configs for {user_id}: {exc}")
+                logger.warning(
+                    f"Warning: could not fetch user configs for {user_id}: {exc}"
+                )
 
             # Extract active LLM settings
-            provider_name = "gemini" # default
+            provider_name = "gemini"  # default
             model_name = None
             api_key = None
             base_url = None
@@ -78,7 +91,7 @@ async def process_one() -> None:
             generate_interview_prep = True
             auto_tailor_resume = True
             provider_data = {}
-            
+
             if user_configs:
                 if getattr(user_configs, "auto_draft_cover_letters", None) is not None:
                     auto_draft_cover_letters = user_configs.auto_draft_cover_letters
@@ -88,17 +101,18 @@ async def process_one() -> None:
                     auto_tailor_resume = user_configs.auto_tailor_resume
                 if user_configs.task_models:
                     task_models = user_configs.task_models
-                    
+
                 if user_configs.active_llm_provider and user_configs.llm_keys:
                     provider_name = user_configs.active_llm_provider
                     provider_data = user_configs.llm_keys.get(provider_name, {})
-                    
+
                     model_name = provider_data.get("model")
                     base_url = provider_data.get("base_url")
-                
+
                 encrypted_key = provider_data.get("api_key_encrypted")
                 if encrypted_key:
                     from app.core.encryption import decrypt_api_key
+
                     api_key = decrypt_api_key(encrypted_key)
 
         # 4. Run the analysis pipeline (outside session block)
@@ -112,23 +126,23 @@ async def process_one() -> None:
                 task_models=task_models,
                 auto_draft_cover_letters=auto_draft_cover_letters,
                 generate_interview_prep=generate_interview_prep,
-                auto_tailor_resume=auto_tailor_resume
+                auto_tailor_resume=auto_tailor_resume,
             )
 
             async with async_session() as session:
                 if final_state.get("error") is not None:
                     error_msg = f"Analysis pipeline failed: {final_state['error']}"
                     await session.execute(
-                        update(Application).where(Application.id == app_id).values(
-                            analysis_status="failed", analysis_error=error_msg
-                        )
+                        update(Application)
+                        .where(Application.id == app_id)
+                        .values(analysis_status="failed", analysis_error=error_msg)
                     )
                     logger.error(f"Failed {app_id}: {error_msg}")
                 else:
                     await session.execute(
-                        update(Application).where(Application.id == app_id).values(
-                            analysis_status="completed", analysis_error=None
-                        )
+                        update(Application)
+                        .where(Application.id == app_id)
+                        .values(analysis_status="completed", analysis_error=None)
                     )
                     logger.info(f"Completed {app_id}")
                 await session.commit()
@@ -138,14 +152,15 @@ async def process_one() -> None:
             try:
                 async with async_session() as session:
                     await session.execute(
-                        update(Application).where(Application.id == app_id).values(
-                            analysis_status="failed", analysis_error=error_msg
-                        )
+                        update(Application)
+                        .where(Application.id == app_id)
+                        .values(analysis_status="failed", analysis_error=error_msg)
                     )
                     await session.commit()
             except Exception:
                 pass
             logger.exception(f"Exception {app_id}: {exc}")
+
 
 async def recover_stale() -> None:
     """Reset applications stuck in 'processing' back to 'queued' for retry."""
@@ -158,12 +173,12 @@ async def recover_stale() -> None:
                     .where(
                         and_(
                             Application.analysis_status == "processing",
-                            Application.analysis_started_at < cutoff
+                            Application.analysis_started_at < cutoff,
                         )
                     )
                     .values(
                         analysis_status="queued",
-                        analysis_error="Reset by worker after timeout — will retry."
+                        analysis_error="Reset by worker after timeout — will retry.",
                     )
                     .execution_options(synchronize_session=False)
                 )
@@ -174,8 +189,11 @@ async def recover_stale() -> None:
         except Exception as exc:
             logger.warning(f"Warning: stale recovery failed: {exc}")
 
+
 async def main() -> None:
-    logger.info(f"Started. Poll interval={POLL_INTERVAL}s, stale timeout={MAX_STALE_MINUTES}min")
+    logger.info(
+        f"Started. Poll interval={POLL_INTERVAL}s, stale timeout={MAX_STALE_MINUTES}min"
+    )
     recovery_tick = 0
     while True:
         try:
@@ -189,6 +207,7 @@ async def main() -> None:
             logger.exception(f"Unhandled error in main loop: {exc}")
 
         await asyncio.sleep(POLL_INTERVAL)
+
 
 if __name__ == "__main__":
     asyncio.run(main())

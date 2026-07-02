@@ -8,15 +8,18 @@ from app.database import get_current_user
 
 client = TestClient(app)
 
+
 class MockUser:
     id = "11111111-1111-1111-1111-111111111111"
     email = "test@opteer.com"
+
 
 @pytest.fixture(autouse=True)
 def override_dependencies():
     app.dependency_overrides[get_current_user] = lambda: MockUser()
     yield
     app.dependency_overrides.clear()
+
 
 def test_update_application_status_to_applied():
     mock_app = {
@@ -29,11 +32,14 @@ def test_update_application_status_to_applied():
         "created_at": "2026-05-25T19:00:00Z",
     }
 
-    with patch("app.domains.applications.service.ApplicationService.update_application", new_callable=AsyncMock) as mock_update:
+    with patch(
+        "app.domains.applications.service.ApplicationService.update_application",
+        new_callable=AsyncMock,
+    ) as mock_update:
         mock_update.return_value = mock_app
         response = client.patch(
             "/applications/22222222-2222-2222-2222-222222222222",
-            json={"status": "applied"}
+            json={"status": "applied"},
         )
         assert response.status_code == 200
         data = response.json()
