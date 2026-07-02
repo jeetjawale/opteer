@@ -32,7 +32,7 @@ def get_llm(
 
     provider = ProviderFactory.get_provider(provider_name)
     client = provider.get_client(
-        api_key=api_key or "", model=model_name, base_url=base_url
+        api_key=api_key or "", model=model_name or "", base_url=base_url
     )
 
     # We can inject temperature/max_tokens directly to the client via its attributes or initialization parameters

@@ -13,7 +13,7 @@ class BaseRepository(Generic[ModelType]):
 
     async def get(self, id: Any) -> ModelType | None:
         result = await self.session.execute(
-            select(self.model).where(self.model.id == id)
+            select(self.model).where(getattr(self.model, "id") == id)
         )
         return result.scalar_one_or_none()
 
@@ -38,7 +38,7 @@ class BaseRepository(Generic[ModelType]):
 
     async def delete(self, id: Any) -> bool:
         result = await self.session.execute(
-            delete(self.model).where(self.model.id == id)
+            delete(self.model).where(getattr(self.model, "id") == id)
         )
         await self.session.flush()
-        return result.rowcount > 0
+        return result.rowcount > 0  # type: ignore[attr-defined]

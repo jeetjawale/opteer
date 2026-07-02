@@ -49,7 +49,10 @@ class UserConfig(Base):
         Boolean, server_default=text("true")
     )
     auto_draft_cover_letters: Mapped[bool | None] = mapped_column(
-        Boolean, server_default=text("false")
+        Boolean, server_default=text("true")
+    )
+    auto_tailor_resume: Mapped[bool | None] = mapped_column(
+        Boolean, server_default=text("true")
     )
 
     created_at: Mapped[datetime | None] = mapped_column(

@@ -17,6 +17,7 @@ class Job(Base):
     role: Mapped[str | None] = mapped_column(String, nullable=True)
     scraped_jd: Mapped[str | None] = mapped_column(String, nullable=True)
     company_research: Mapped[str | None] = mapped_column(String, nullable=True)
+    logo_url: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()")
     )

@@ -10,7 +10,7 @@ from langchain_ollama.chat_models import ChatOllama
 class OpenAIProvider(LLMProvider):
     def get_client(self, api_key: str, model: str, base_url: str | None = None) -> Any:
         # For base OpenAI, we force None or the default to prevent hijacking unless it's custom
-        return ChatOpenAI(model=model, api_key=api_key, base_url=base_url)
+        return ChatOpenAI(model=model, api_key=api_key, base_url=base_url)  # type: ignore[arg-type]
 
     async def fetch_available_models(
         self, api_key: str, base_url: str | None = None
@@ -36,7 +36,7 @@ class OpenAIProvider(LLMProvider):
 
 class AnthropicProvider(LLMProvider):
     def get_client(self, api_key: str, model: str, base_url: str | None = None) -> Any:
-        return ChatAnthropic(model=model, api_key=api_key, base_url=base_url)
+        return ChatAnthropic(model_name=model, api_key=api_key, base_url=base_url)  # type: ignore[arg-type,call-arg]
 
     async def fetch_available_models(
         self, api_key: str, base_url: str | None = None
@@ -65,7 +65,7 @@ class AnthropicProvider(LLMProvider):
 
 class GeminiProvider(LLMProvider):
     def get_client(self, api_key: str, model: str, base_url: str | None = None) -> Any:
-        return ChatGoogleGenerativeAI(model=model, google_api_key=api_key)
+        return ChatGoogleGenerativeAI(model=model, google_api_key=api_key)  # type: ignore[arg-type]
 
     async def fetch_available_models(
         self, api_key: str, base_url: str | None = None
@@ -90,8 +90,8 @@ class DeepSeekProvider(OpenAIProvider):
     # DeepSeek uses OpenAI compatibility
     def get_client(self, api_key: str, model: str, base_url: str | None = None) -> Any:
         return ChatOpenAI(
-            model=model, api_key=api_key, base_url="https://api.deepseek.com/v1"
-        )
+            model=model, api_key=api_key, base_url="https://api.deepseek.com/v1"  # type: ignore[arg-type]
+        )  # type: ignore[arg-type]
 
     async def fetch_available_models(
         self, api_key: str, base_url: str | None = None
@@ -104,8 +104,8 @@ class DeepSeekProvider(OpenAIProvider):
 class OpenRouterProvider(OpenAIProvider):
     def get_client(self, api_key: str, model: str, base_url: str | None = None) -> Any:
         return ChatOpenAI(
-            model=model, api_key=api_key, base_url="https://openrouter.ai/api/v1"
-        )
+            model=model, api_key=api_key, base_url="https://openrouter.ai/api/v1"  # type: ignore[arg-type]
+        )  # type: ignore[arg-type]
 
     async def fetch_available_models(
         self, api_key: str, base_url: str | None = None

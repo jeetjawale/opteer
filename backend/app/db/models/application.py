@@ -14,8 +14,10 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
+from typing import TYPE_CHECKING
 
-
+if TYPE_CHECKING:
+    from app.db.models.job import Job
 class Application(Base):
     __tablename__ = "applications"
 
@@ -53,6 +55,7 @@ class Application(Base):
     interview_prep: Mapped[dict | list | None] = mapped_column(JSONB, nullable=True)
     notes: Mapped[str | None] = mapped_column(String, nullable=True)
     resume_edits: Mapped[dict | list | None] = mapped_column(JSONB, nullable=True)
+    structured_resume: Mapped[dict | list | None] = mapped_column(JSONB, nullable=True)
 
     analysis_status: Mapped[str] = mapped_column(String, server_default="idle")
     analysis_started_at: Mapped[datetime | None] = mapped_column(

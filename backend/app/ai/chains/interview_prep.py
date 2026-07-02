@@ -24,8 +24,8 @@ def get_interview_prep_chain(
         model_name=model_name,
         api_key=api_key,
         base_url=base_url,
-        temperature=config["temperature"],
-        max_tokens=config["max_tokens"],
+        temperature=config["temperature"],  # type: ignore[arg-type]
+        max_tokens=config["max_tokens"],  # type: ignore[arg-type]
     )
 
     # 2. Build Prompt Template with formatting instructions

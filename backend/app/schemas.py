@@ -26,10 +26,6 @@ class AnalysisStatus(str, Enum):
     FAILED = "failed"
 
 
-class ReminderType(str, Enum):
-    FOLLOW_UP = "follow-up"
-    INTERVIEW = "interview"
-    DEADLINE = "deadline"
 
 
 # ============================================
@@ -105,6 +101,7 @@ class JobBase(BaseModel):
     company_research: Optional[str] = Field(
         None, description="AI research notes on the company"
     )
+    logo_url: Optional[str] = Field(None, description="Company logo URL")
 
 
 class JobCreate(JobBase):
@@ -134,13 +131,20 @@ class ImportJobRequest(BaseModel):
         None,
         description="The candidate's resume text to associate with this application",
     )
+    resume_file_name: Optional[str] = Field(
+        None, description="The filename of the selected resume"
+    )
     scraped_jd: Optional[str] = Field(
         None,
         description="Optional manually pasted job description text to bypass scraping",
     )
+    logo_url: Optional[str] = Field(
+        None, description="Optional logo url from job board"
+    )
     auto_analyze: bool = Field(
         False, description="When true, enqueue AI analysis immediately after import"
     )
+
 
 
 class JobImportResponse(BaseModel):
@@ -212,6 +216,7 @@ class ApplicationUpdate(BaseModel):
     cover_letter: Optional[str] = None
     interview_prep: Optional[InterviewPrepResult] = None
     resume_edits: Optional[ResumeEditsResult] = None
+    structured_resume: Optional[Any] = None
     notes: Optional[str] = None
     is_quality_gated: Optional[bool] = None
     quality_gate_reason: Optional[str] = None
@@ -238,6 +243,7 @@ class ApplicationResponse(ApplicationBase):
     resume_edits: Optional[Any] = (
         None  # Stored as jsonb in DB (matches ResumeEditsResult structure)
     )
+    structured_resume: Optional[Any] = None
     notes: Optional[str] = None
 
     # Flat-mapped job fields from join
@@ -247,6 +253,7 @@ class ApplicationResponse(ApplicationBase):
     location: Optional[str] = None
     work_model: Optional[str] = None
     company_research: Optional[str] = None
+    company_logo: Optional[str] = None
     scraped_jd: Optional[str] = None
 
     analyzed_at: Optional[datetime] = None
@@ -259,39 +266,6 @@ class ApplicationResponse(ApplicationBase):
 
     model_config = ConfigDict(from_attributes=True)
 
-
-# ============================================
-# REMINDER SCHEMAS
-# ============================================
-
-
-class ReminderBase(BaseModel):
-    application_id: UUID
-    type: ReminderType
-    due_at: datetime
-    note: Optional[str] = None
-
-
-class ReminderCreate(ReminderBase):
-    pass
-
-
-class ReminderUpdate(BaseModel):
-    type: Optional[ReminderType] = None
-    due_at: Optional[datetime] = None
-    note: Optional[str] = None
-    is_sent: Optional[bool] = None
-    is_completed: Optional[bool] = None
-
-
-class ReminderResponse(ReminderBase):
-    id: UUID
-    user_id: UUID
-    is_sent: bool
-    is_completed: bool
-    created_at: datetime
-
-    model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================
@@ -319,6 +293,16 @@ class JobAnalysisResponse(BaseModel):
     cover_letter: str
     interview_prep_result: InterviewPrepResult
     resume_edits_result: ResumeEditsResult
+
+
+class RewriteRequest(BaseModel):
+    selected_text: str = Field(..., description="The specific text the user highlighted")
+    full_context: str = Field(..., description="The entire cover letter for context")
+    instruction: str = Field(..., description="The AI instruction like 'shorten this'")
+
+
+class RewriteResponse(BaseModel):
+    rewritten_text: str = Field(..., description="The modified text")
 
 
 # ============================================
@@ -398,6 +382,7 @@ class UserConfigUpdate(BaseModel):
     auto_analyze_on_import: Optional[bool] = None
     generate_interview_prep: Optional[bool] = None
     auto_draft_cover_letters: Optional[bool] = None
+    auto_tailor_resume: Optional[bool] = None
 
 
 class UserConfigResponse(BaseModel):
@@ -405,9 +390,6 @@ class UserConfigResponse(BaseModel):
     user_id: UUID
     onboarding_completed: Optional[bool] = False
     onboarding_step: Optional[str] = None
-    daily_analysis_credits: int = 50
-    max_daily_credits: int = 50
-    last_credit_reset: Optional[datetime] = None
     active_llm_provider: Optional[str] = None
     # We shouldn't send raw encrypted keys to the frontend, just a boolean indicator if they exist
     llm_providers_configured: Dict[str, bool] = Field(
@@ -428,7 +410,8 @@ class UserConfigResponse(BaseModel):
     )
     auto_analyze_on_import: Optional[bool] = True
     generate_interview_prep: Optional[bool] = True
-    auto_draft_cover_letters: Optional[bool] = False
+    auto_draft_cover_letters: Optional[bool] = True
+    auto_tailor_resume: Optional[bool] = True
     updated_at: datetime
     model_config = ConfigDict(from_attributes=True)
 
@@ -515,4 +498,4 @@ class DashboardOverviewResponse(BaseModel):
     stats: DashboardStats
     recent_activity: List[RecentActivityItem]
     top_recommendations: List[ApplicationResponse]
-    upcoming_events: List[ReminderResponse]
+

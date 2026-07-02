@@ -55,6 +55,7 @@ class AnalysisState(TypedDict):
     task_models: dict
     auto_draft_cover_letters: bool
     generate_interview_prep: bool
+    auto_tailor_resume: bool
     error: Optional[str]
 
 
@@ -195,7 +196,9 @@ async def run_all_analyses(state: AnalysisState) -> dict:
             return {"resume_edits": {}}
 
     try:
-        tasks = [_fit(), _tailor()]
+        tasks = [_fit()]
+        if state.get("auto_tailor_resume"):
+            tasks.append(_tailor())
         if state.get("auto_draft_cover_letters"):
             tasks.append(_letter())
         if state.get("generate_interview_prep"):
@@ -227,23 +230,29 @@ async def save_results(state: AnalysisState) -> dict:
     raw_edits = state.get("resume_edits") or {}
 
     try:
-        # Validate payloads against Pydantic schemas
-        fit_validated = FitScoreResult(**raw_fit)
-        prep_validated = InterviewPrepResult(**raw_prep)
-        edits_validated = ResumeEditsResult(**raw_edits)
-
         app_uuid = uuid.UUID(app_id)
         update_data = {
-            "fit_score": fit_validated.fit_score,
-            "matched_skills": fit_validated.matched_skills,
-            "missing_skills": fit_validated.missing_skills,
-            "key_requirements": fit_validated.key_requirements,
-            "summary": fit_validated.summary,
             "cover_letter": state.get("cover_letter"),
-            "interview_prep": prep_validated.model_dump(),
-            "resume_edits": edits_validated.model_dump(),
             "analyzed_at": datetime.now(timezone.utc),
         }
+
+        if raw_fit:
+            fit_validated = FitScoreResult(**raw_fit)
+            update_data.update({
+                "fit_score": fit_validated.fit_score,
+                "matched_skills": fit_validated.matched_skills,
+                "missing_skills": fit_validated.missing_skills,
+                "key_requirements": fit_validated.key_requirements,
+                "summary": fit_validated.summary,
+            })
+            
+        if raw_prep:
+            prep_validated = InterviewPrepResult(**raw_prep)
+            update_data["interview_prep"] = prep_validated.model_dump()
+            
+        if raw_edits:
+            edits_validated = ResumeEditsResult(**raw_edits)
+            update_data["resume_edits"] = edits_validated.model_dump()
 
         async with async_session() as session:
             stmt = (
@@ -319,6 +328,7 @@ async def run_analysis(
     task_models: Optional[dict] = None,
     auto_draft_cover_letters: bool = False,
     generate_interview_prep: bool = False,
+    auto_tailor_resume: bool = True,
 ) -> dict:
     initial_state = {
         "application_id": application_id,
@@ -336,11 +346,12 @@ async def run_analysis(
         "task_models": task_models or {},
         "auto_draft_cover_letters": auto_draft_cover_letters,
         "generate_interview_prep": generate_interview_prep,
+        "auto_tailor_resume": auto_tailor_resume,
         "error": None,
     }
 
     try:
-        final_state = await graph.ainvoke(initial_state)
+        final_state = await graph.ainvoke(initial_state)  # type: ignore[call-overload]
         return final_state
     except Exception as e:
         logger.error("Error invoking analysis graph: %s", str(e))

@@ -1,5 +1,5 @@
 from langchain_anthropic import ChatAnthropic
-from .base import AIProvider
+from .base import AIProvider  # type: ignore[attr-defined]
 
 
 class AnthropicProvider(AIProvider):

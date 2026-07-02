@@ -1,5 +1,5 @@
 from langchain_openai import ChatOpenAI
-from .base import AIProvider
+from .base import AIProvider  # type: ignore[attr-defined]
 
 
 class OpenAIProvider(AIProvider):

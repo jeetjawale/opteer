@@ -1,5 +1,5 @@
 from langchain_google_genai import ChatGoogleGenerativeAI
-from .base import AIProvider
+from .base import AIProvider  # type: ignore[attr-defined]
 
 
 class GeminiProvider(AIProvider):
