@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useApiClient } from '@/lib/api-client';
+import { apiClient as api } from '@/lib/api-client';
 
 interface UserSettings {
   id: string;
@@ -20,10 +20,12 @@ interface UserSettings {
   auto_analyze_on_import?: boolean;
   generate_interview_prep?: boolean;
   auto_draft_cover_letters?: boolean;
+  auto_tailor_resume?: boolean;
+  llm_keys?: Record<string, { api_key_encrypted?: string; base_url?: string; model?: string }>;
 }
 
 export function useSettings() {
-  const api = useApiClient();
+
   
   return useQuery<UserSettings>({
     queryKey: ['settings'],
@@ -32,7 +34,7 @@ export function useSettings() {
 }
 
 export function useUpdateSettings() {
-  const api = useApiClient();
+
   const queryClient = useQueryClient();
   
   return useMutation({
@@ -45,7 +47,7 @@ export function useUpdateSettings() {
 }
 
 export function useValidateApiKey() {
-  const api = useApiClient();
+
   
   return useMutation({
     mutationFn: ({ provider, api_key, base_url }: { provider: string; api_key: string; base_url?: string }) => 
@@ -54,7 +56,7 @@ export function useValidateApiKey() {
 }
 
 export function useValidateIntegrationKey() {
-  const api = useApiClient();
+
   
   return useMutation({
     mutationFn: ({ provider, api_key }: { provider: string; api_key: string }) => 
@@ -63,7 +65,7 @@ export function useValidateIntegrationKey() {
 }
 
 export function useLlmModels(provider: string) {
-  const api = useApiClient();
+
   
   return useQuery<{ models: any[] }>({
     queryKey: ['settings', 'llm', 'models', provider],

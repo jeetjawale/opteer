@@ -1,11 +1,14 @@
 "use client";
 
 import { Brain } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useDashboardOverview } from "@/features/dashboard/hooks/useDashboard";
 import { Card } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/LoadingState";
+import { CompanyLogo } from "@/components/ui/CompanyLogo";
 
 export default function TopRecommendations() {
+  const router = useRouter();
   const { data, isLoading } = useDashboardOverview();
   const recommendations = data?.top_recommendations || [];
 
@@ -30,7 +33,12 @@ export default function TopRecommendations() {
           <span className="material-symbols-outlined text-tertiary">auto_awesome</span>
           <h3 className="font-headline-sm text-headline-sm text-on-surface">Top Recommended Roles</h3>
         </div>
-        <button className="text-primary hover:text-on-primary-fixed-variant font-label-md text-label-md transition-colors">View All</button>
+        <button 
+          onClick={() => router.push("/jobs")}
+          className="text-primary hover:text-on-primary-fixed-variant font-label-md text-label-md transition-colors"
+        >
+          View All
+        </button>
       </div>
       <div className="flex flex-col">
         {/* Header Row */}
@@ -49,8 +57,12 @@ export default function TopRecommendations() {
           recommendations.map((rec, idx) => (
             <div key={idx} className="grid grid-cols-12 gap-sm px-md py-sm border-b border-outline-variant items-center hover:bg-surface-container-low transition-colors group">
               <div className="col-span-5 flex items-center gap-sm">
-                <div className="w-10 h-10 rounded bg-surface-container border border-outline-variant flex items-center justify-center font-headline-sm text-on-surface-variant">
-                  {(rec.company || '?')[0].toUpperCase()}
+                <div className="w-10 h-10 rounded bg-surface-container border border-outline-variant flex items-center justify-center font-headline-sm text-on-surface-variant shrink-0 overflow-hidden">
+                  <CompanyLogo 
+                    company={rec.company || ""}
+                    jobUrl={rec.url}
+                    fallback={(rec.company || '?')[0].toUpperCase()}
+                  />
                 </div>
                 <div>
                   <div className="font-body-md text-body-md text-on-surface font-medium group-hover:text-primary transition-colors">{rec.role || rec.title || 'Unknown Role'}</div>
@@ -67,7 +79,12 @@ export default function TopRecommendations() {
                 </div>
               </div>
               <div className="col-span-2 text-right">
-                <button className="border border-outline-variant text-on-surface font-body-sm text-body-sm px-sm py-xs rounded hover:bg-surface-container transition-colors">Review</button>
+                <button 
+                  onClick={() => router.push(`/jobs/${rec.id}`)}
+                  className="border border-outline-variant text-on-surface font-body-sm text-body-sm px-sm py-xs rounded hover:bg-surface-container transition-colors"
+                >
+                  Review
+                </button>
               </div>
             </div>
           ))
@@ -76,3 +93,4 @@ export default function TopRecommendations() {
     </Card>
   );
 }
+

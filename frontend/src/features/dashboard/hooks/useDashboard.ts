@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useApiClient } from '@/lib/api-client';
+import { apiClient as api } from '@/lib/api-client';
 
 interface DashboardStats {
   total_applications: number;
@@ -25,7 +25,7 @@ interface DashboardOverviewResponse {
 }
 
 export function useDashboardOverview() {
-  const api = useApiClient();
+
   
   return useQuery<DashboardOverviewResponse>({
     queryKey: ['dashboard', 'overview'],

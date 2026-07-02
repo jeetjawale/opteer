@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Box, Lock, Key, Link as LinkIcon, GitBranch } from "lucide-react";
+import { Box, Lock, Key, Link as LinkIcon, GitBranch, Eye, EyeOff } from "lucide-react";
 import { useSettings, useUpdateSettings, useValidateApiKey, useValidateIntegrationKey, useLlmModels } from "@/features/settings/hooks/useSettings";
 
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -11,7 +11,6 @@ const PROVIDERS = [
   { id: "openai", label: "OpenAI (Recommended)", apiLink: "https://platform.openai.com/api-keys" },
   { id: "anthropic", label: "Anthropic Claude", apiLink: "https://console.anthropic.com/settings/keys" },
   { id: "gemini", label: "Google Gemini", apiLink: "https://aistudio.google.com/app/apikey" },
-  { id: "deepseek", label: "DeepSeek", apiLink: "https://platform.deepseek.com/api_keys" },
   { id: "openrouter", label: "OpenRouter", apiLink: "https://openrouter.ai/keys" },
   { id: "ollama", label: "Ollama (Local)", apiLink: "https://ollama.com" },
 ];
@@ -55,9 +54,14 @@ export default function SettingsPage() {
   const [firecrawlKeyInput, setFirecrawlKeyInput] = useState("");
   const [tavilyKeyInput, setTavilyKeyInput] = useState("");
 
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [showFirecrawlKey, setShowFirecrawlKey] = useState(false);
+  const [showTavilyKey, setShowTavilyKey] = useState(false);
+
   const [autoAnalyze, setAutoAnalyze] = useState(true);
-  const [autoDraftLetter, setAutoDraftLetter] = useState(false);
+  const [autoDraftLetter, setAutoDraftLetter] = useState(true);
   const [generatePrep, setGeneratePrep] = useState(true);
+  const [autoTailorResume, setAutoTailorResume] = useState(true);
 
   const { mutate: validateApiKey, isPending: isValidating } = useValidateApiKey();
   const { mutate: validateIntegrationKey, isPending: isValidatingIntegration } = useValidateIntegrationKey();
@@ -79,6 +83,9 @@ export default function SettingsPage() {
       }
       if (settings.auto_draft_cover_letters !== undefined) {
         setAutoDraftLetter(settings.auto_draft_cover_letters);
+      }
+      if (settings.auto_tailor_resume !== undefined) {
+        setAutoTailorResume(settings.auto_tailor_resume);
       }
     }
   }, [settings]);
@@ -119,8 +126,19 @@ export default function SettingsPage() {
     validateApiKey(
       { provider: activeProvider, api_key: apiKeyInput, base_url: baseUrlInput || undefined },
       {
-        onSuccess: () => {
-          window.location.reload();
+        onSuccess: (data) => {
+          if (!data.valid) {
+            alert(`Validation failed: ${data.error}`);
+            return;
+          }
+          updateSettings(
+            { llm_keys: { [activeProvider]: { api_key_encrypted: apiKeyInput, base_url: baseUrlInput || undefined } } },
+            {
+              onSuccess: () => {
+                window.location.reload();
+              }
+            }
+          );
         },
         onError: (err: any) => {
           alert(`Failed to save credentials: ${err.message || 'Unknown error'}`);
@@ -144,7 +162,14 @@ export default function SettingsPage() {
             return;
           }
           // If valid, save it via updateSettings
-          updateSettings({ integration_keys: { [provider]: apiKey } });
+          updateSettings(
+            { integration_keys: { [provider]: apiKey } },
+            {
+              onSuccess: () => {
+                window.location.reload();
+              }
+            }
+          );
         },
         onError: (err: any) => {
           alert(`Failed to validate key: ${err.message || 'Unknown error'}`);
@@ -160,12 +185,13 @@ export default function SettingsPage() {
   };
 
   return (
-    <main className="flex-1 p-lg w-full flex flex-col">
-      {/* Page Header */}
-      <PageHeader 
-        title="Configuration" 
-        subtitle="Manage your secure API keys, automation pipeline preferences, and core account details." 
-      />
+    <main className="flex-1 w-full flex flex-col h-[calc(100vh-69px)] overflow-hidden relative mesh-gradient grid-overlay">
+      <div className="p-lg flex flex-col w-full flex-1 overflow-y-auto">
+        {/* Page Header */}
+        <PageHeader 
+          title="Configuration" 
+          subtitle="Manage your secure API keys, automation pipeline preferences, and core account details." 
+        />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-xl">
         
@@ -228,8 +254,8 @@ export default function SettingsPage() {
                       API Key
                     </label>
                     {settings?.llm_providers_configured?.[activeProvider] ? (
-                      <span className="inline-flex items-center gap-1 text-secondary font-mono-data text-[11px] px-2 py-0.5 rounded-full bg-secondary-container/20">
-                        <span className="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                      <span className="inline-flex items-center gap-1 text-emerald-600 font-mono-data text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                         Connected
                       </span>
                     ) : (
@@ -244,12 +270,19 @@ export default function SettingsPage() {
                       <Key size={18} />
                     </div>
                     <input 
-                      type="password" 
+                      type={showApiKey ? "text" : "password"} 
                       value={apiKeyInput}
                       onChange={(e) => setApiKeyInput(e.target.value)}
                       className="flex-1 bg-surface border-none px-3 py-2 font-mono-data text-mono-data text-on-surface focus:ring-0 outline-none" 
                       placeholder={activeProvider === 'ollama' ? "Not required for Ollama" : "sk-..."}
                     />
+                    <button 
+                      type="button" 
+                      onClick={() => setShowApiKey(!showApiKey)}
+                      className="px-3 text-outline-variant hover:text-on-surface transition-colors"
+                    >
+                      {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
                   </div>
                 </div>
 
@@ -407,12 +440,19 @@ export default function SettingsPage() {
                       <Key size={18} />
                     </div>
                     <input 
-                      type="password" 
+                      type={showFirecrawlKey ? "text" : "password"} 
                       value={firecrawlKeyInput}
                       onChange={(e) => setFirecrawlKeyInput(e.target.value)}
                       className="flex-1 bg-surface border-none px-3 py-2 font-mono-data text-mono-data text-on-surface focus:ring-0 outline-none" 
                       placeholder="fc-..."
                     />
+                    <button 
+                      type="button" 
+                      onClick={() => setShowFirecrawlKey(!showFirecrawlKey)}
+                      className="px-3 text-outline-variant hover:text-on-surface transition-colors"
+                    >
+                      {showFirecrawlKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
                     <button
                       onClick={() => handleSaveIntegration("firecrawl", firecrawlKeyInput)}
                       disabled={isValidatingIntegration || (settings?.integration_providers_configured?.["firecrawl"] && firecrawlKeyInput === "••••••••••••••••••••••••••••••••••••")}
@@ -443,12 +483,19 @@ export default function SettingsPage() {
                       <Key size={18} />
                     </div>
                     <input 
-                      type="password" 
+                      type={showTavilyKey ? "text" : "password"} 
                       value={tavilyKeyInput}
                       onChange={(e) => setTavilyKeyInput(e.target.value)}
                       className="flex-1 bg-surface border-none px-3 py-2 font-mono-data text-mono-data text-on-surface focus:ring-0 outline-none" 
                       placeholder="tvly-..."
                     />
+                    <button 
+                      type="button" 
+                      onClick={() => setShowTavilyKey(!showTavilyKey)}
+                      className="px-3 text-outline-variant hover:text-on-surface transition-colors"
+                    >
+                      {showTavilyKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
                     <button
                       onClick={() => handleSaveIntegration("tavily", tavilyKeyInput)}
                       disabled={isValidatingIntegration || (settings?.integration_providers_configured?.["tavily"] && tavilyKeyInput === "••••••••••••••••••••••••••••••••••••")}
@@ -493,7 +540,7 @@ export default function SettingsPage() {
               </div>
 
               {/* Auto-Draft Cover Letters */}
-              <div className="p-lg flex items-center justify-between">
+              <div className="p-lg flex items-center justify-between border-b border-outline-variant/30">
                 <div className="pr-4">
                   <h4 className="font-body-md text-body-md font-semibold text-on-surface mb-1 flex items-center gap-2">
                     Auto-Draft Cover Letters
@@ -503,13 +550,25 @@ export default function SettingsPage() {
                 <Toggle checked={autoDraftLetter} onChange={(v) => { setAutoDraftLetter(v); updateSettings({ auto_draft_cover_letters: v }); }} />
               </div>
 
+              {/* Auto-Tailor Resume */}
+              <div className="p-lg flex items-center justify-between">
+                <div className="pr-4">
+                  <h4 className="font-body-md text-body-md font-semibold text-on-surface mb-1 flex items-center gap-2">
+                    Auto-Tailor Resume
+                  </h4>
+                  <p className="font-body-sm text-body-sm text-on-surface-variant">Generate customized resume edits based on the job requirements.</p>
+                </div>
+                <Toggle checked={autoTailorResume} onChange={(v) => { setAutoTailorResume(v); updateSettings({ auto_tailor_resume: v }); }} />
+              </div>
+
             </div>
           </Card>
         </div>
       </div>
+      </div>
       
       {/* Footer Version */}
-      <div className="mt-auto border-t border-outline-variant h-20 w-full flex items-center justify-center">
+      <div className="mt-auto border-t border-outline-variant h-20 w-full flex items-center justify-center shrink-0">
         <p className="font-mono-data text-mono-data text-outline-variant text-[11px]">Opteer Core v2.4.1 — All systems nominal.</p>
       </div>
     </main>

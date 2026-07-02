@@ -226,7 +226,7 @@ export default function ApplicationsPage() {
                   company={app.company || 'Unknown Company'}
                   role={app.role || 'Unknown Role'}
                   location={app.location || 'Remote'}
-                  logoInitial={(app.company || 'U')[0].toUpperCase()}
+                  jobUrl={app.url} logoInitial={(app.company || 'U')[0].toUpperCase()}
                   fitScore={app.fit_score || 0}
                   tags={[app.work_model, app.location].filter(Boolean) as string[]}
                   timeAgoText={app.updated_at ? `Added ${formatDistanceToNow(new Date(app.updated_at))} ago` : 'Recently updated'}
@@ -243,7 +243,7 @@ export default function ApplicationsPage() {
                   company={app.company || 'Unknown Company'}
                   role={app.role || 'Unknown Role'}
                   location={app.location || 'Remote'}
-                  logoInitial={(app.company || 'U')[0].toUpperCase()}
+                  jobUrl={app.url} logoInitial={(app.company || 'U')[0].toUpperCase()}
                   fitScore={app.fit_score || 0}
                   isQualityGated={app.is_quality_gated}
                   qualityGateReason={app.quality_gate_reason}
@@ -262,7 +262,7 @@ export default function ApplicationsPage() {
                   company={app.company || 'Unknown Company'}
                   role={app.role || 'Unknown Role'}
                   location={app.location || 'Remote'}
-                  logoInitial={(app.company || 'U')[0].toUpperCase()}
+                  jobUrl={app.url} logoInitial={(app.company || 'U')[0].toUpperCase()}
                   fitScore={app.fit_score || 0}
                   isQualityGated={app.is_quality_gated}
                   qualityGateReason={app.quality_gate_reason}
@@ -282,7 +282,7 @@ export default function ApplicationsPage() {
                   company={app.company || 'Unknown Company'}
                   role={app.role || 'Unknown Role'}
                   location={app.location || 'Remote'}
-                  logoInitial={(app.company || 'U')[0].toUpperCase()}
+                  jobUrl={app.url} logoInitial={(app.company || 'U')[0].toUpperCase()}
                   fitScore={app.fit_score || 0}
                   isQualityGated={app.is_quality_gated}
                   qualityGateReason={app.quality_gate_reason}
@@ -301,7 +301,7 @@ export default function ApplicationsPage() {
                   company={app.company || 'Unknown Company'}
                   role={app.role || 'Unknown Role'}
                   location={app.location || 'Remote'}
-                  logoInitial={(app.company || 'U')[0].toUpperCase()}
+                  jobUrl={app.url} logoInitial={(app.company || 'U')[0].toUpperCase()}
                   fitScore={app.fit_score || 0}
                   isQualityGated={app.is_quality_gated}
                   qualityGateReason={app.quality_gate_reason}
@@ -320,7 +320,7 @@ export default function ApplicationsPage() {
                   company={app.company || 'Unknown Company'}
                   role={app.role || 'Unknown Role'}
                   location={app.location || 'Remote'}
-                  logoInitial={(app.company || 'U')[0].toUpperCase()}
+                  jobUrl={app.url} logoInitial={(app.company || 'U')[0].toUpperCase()}
                   fitScore={app.fit_score || 0}
                   isQualityGated={app.is_quality_gated}
                   qualityGateReason={app.quality_gate_reason}
@@ -342,7 +342,7 @@ export default function ApplicationsPage() {
                   company={activeApp.company || 'Unknown Company'}
                   role={activeApp.role || 'Unknown Role'}
                   location={activeApp.location || 'Remote'}
-                  logoInitial={(activeApp.company || 'U')[0].toUpperCase()}
+                  jobUrl={activeApp.url} logoInitial={(activeApp.company || 'U')[0].toUpperCase()}
                   fitScore={activeApp.fit_score || 0}
                   isQualityGated={activeApp.is_quality_gated}
                   qualityGateReason={activeApp.quality_gate_reason}
