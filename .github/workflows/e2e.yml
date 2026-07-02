@@ -56,6 +56,7 @@ jobs:
     - name: Setup Database
       env:
         DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/opteer_test
+        API_KEY_ENCRYPTION_KEY: Z_ILOz5AOX7jBQ3cIveKBpeaAxB-pOlmixGsxuy-ii8=
       run: |
         source backend/.venv/bin/activate
         cd backend
