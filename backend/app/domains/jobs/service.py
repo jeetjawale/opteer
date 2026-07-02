@@ -501,6 +501,12 @@ class JobService:
             model_name = user_settings.get("model_default")
             base_url = None
 
+            import os
+
+            if os.getenv("AI_PROVIDER") == "mock":
+                provider_name = "mock"
+                effective_api_key = "mock-key"
+
             if not effective_api_key and user_configs and user_configs.llm_keys:
                 llm_keys = (
                     user_configs.llm_keys
