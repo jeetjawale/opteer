@@ -22,3 +22,7 @@ python-multipart>=0.0.18
 # Security
 cryptography>=42.0.0
 sentry-sdk[fastapi]
+
+# Additional Tools
+langchain-ollama
+python-jobspy>=1.1.82

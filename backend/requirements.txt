@@ -27,6 +27,10 @@ asyncpg==0.31.0
     # via -r requirements.in
 attrs==26.1.0
     # via aiohttp
+beautifulsoup4==4.15.0
+    # via
+    #   markdownify
+    #   python-jobspy
 certifi==2026.6.17
     # via
     #   httpcore
@@ -85,6 +89,7 @@ httpx==0.28.1
     #   google-genai
     #   langgraph-sdk
     #   langsmith
+    #   ollama
     #   openai
     #   tavily-python
 idna==3.18
@@ -111,12 +116,15 @@ langchain-core==1.4.8
     #   langchain
     #   langchain-anthropic
     #   langchain-google-genai
+    #   langchain-ollama
     #   langchain-openai
     #   langgraph
     #   langgraph-checkpoint
     #   langgraph-prebuilt
     #   langgraph-sdk
 langchain-google-genai==4.2.6
+    # via -r requirements.in
+langchain-ollama==1.1.0
     # via -r requirements.in
 langchain-openai==1.3.3
     # via -r requirements.in
@@ -142,6 +150,8 @@ lxml==6.1.1
     # via python-docx
 mako==1.3.12
     # via alembic
+markdownify==0.13.1
+    # via python-jobspy
 markupsafe==3.0.3
     # via mako
 multidict==6.7.1
@@ -150,6 +160,12 @@ multidict==6.7.1
     #   yarl
 nest-asyncio==1.6.0
     # via firecrawl-py
+numpy==1.26.3
+    # via
+    #   pandas
+    #   python-jobspy
+ollama==0.6.2
+    # via langchain-ollama
 openai==2.44.0
     # via langchain-openai
 orjson==3.11.9
@@ -162,6 +178,8 @@ packaging==26.2
     # via
     #   langchain-core
     #   langsmith
+pandas==2.3.3
+    # via python-jobspy
 propcache==0.5.2
     # via
     #   aiohttp
@@ -184,14 +202,18 @@ pydantic==2.13.4
     #   langchain-google-genai
     #   langgraph
     #   langsmith
+    #   ollama
     #   openai
     #   pydantic-settings
+    #   python-jobspy
 pydantic-core==2.46.4
     # via pydantic
 pydantic-settings==2.14.2
     # via -r requirements.in
 pypdf==6.14.2
     # via -r requirements.in
+python-dateutil==2.9.0.post0
+    # via pandas
 python-docx==1.2.0
     # via -r requirements.in
 python-dotenv==1.2.2
@@ -200,20 +222,27 @@ python-dotenv==1.2.2
     #   firecrawl-py
     #   pydantic-settings
     #   uvicorn
+python-jobspy==1.1.82
+    # via -r requirements.in
 python-multipart==0.0.32
     # via -r requirements.in
+pytz==2026.2
+    # via pandas
 pyyaml==6.0.3
     # via
     #   langchain-core
     #   uvicorn
-regex==2026.6.28
-    # via tiktoken
+regex==2024.11.6
+    # via
+    #   python-jobspy
+    #   tiktoken
 requests==2.34.2
     # via
     #   firecrawl-py
     #   google-auth
     #   google-genai
     #   langsmith
+    #   python-jobspy
     #   requests-toolbelt
     #   tavily-python
     #   tiktoken
@@ -221,12 +250,18 @@ requests-toolbelt==1.0.0
     # via langsmith
 sentry-sdk==2.64.0
     # via -r requirements.in
+six==1.17.0
+    # via
+    #   markdownify
+    #   python-dateutil
 sniffio==1.3.1
     # via
     #   anthropic
     #   google-genai
     #   langsmith
     #   openai
+soupsieve==2.8.4
+    # via beautifulsoup4
 sqlalchemy==2.0.51
     # via
     #   -r requirements.in
@@ -243,12 +278,15 @@ tiktoken==0.13.0
     # via
     #   langchain-openai
     #   tavily-python
+tls-client==1.0.1
+    # via python-jobspy
 tqdm==4.68.3
     # via openai
 typing-extensions==4.16.0
     # via
     #   alembic
     #   anthropic
+    #   beautifulsoup4
     #   fastapi
     #   google-genai
     #   langchain-core
@@ -265,6 +303,8 @@ typing-inspection==0.4.2
     #   fastapi
     #   pydantic
     #   pydantic-settings
+tzdata==2026.2
+    # via pandas
 urllib3==2.7.0
     # via
     #   requests
