@@ -115,6 +115,10 @@ async def process_one() -> bool:
 
                     api_key = decrypt_api_key(encrypted_key)
 
+            if os.getenv("AI_PROVIDER") == "mock":
+                provider_name = "mock"
+                api_key = "mock-key"
+
         # 4. Run the analysis pipeline (outside session block)
         try:
             final_state = await run_analysis(

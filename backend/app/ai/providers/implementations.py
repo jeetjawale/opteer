@@ -165,7 +165,21 @@ class MockProvider(LLMProvider):
             "matched_skills": ["Mock"],
             "missing_skills": [],
             "key_requirements": ["Mock"],
-            "summary": "Mock Summary"
+            "summary": "Mock Summary",
+            "questions": [
+                {
+                    "question": "Mock Question?",
+                    "suggested_answer": "Mock Answer"
+                }
+            ],
+            "edits": [
+                {
+                    "section": "Experience",
+                    "suggestion": "Mock Suggestion",
+                    "reasoning": "Mock Reasoning",
+                    "type": "add"
+                }
+            ]
         }"""
 
         class DummyMockModel(Runnable):
