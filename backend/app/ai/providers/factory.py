@@ -6,10 +6,10 @@ from app.ai.providers.implementations import (
     CustomProvider,
     DeepSeekProvider,
     GeminiProvider,
+    MockProvider,
     OllamaProvider,
     OpenAIProvider,
     OpenRouterProvider,
-    MockProvider,
 )
 
 

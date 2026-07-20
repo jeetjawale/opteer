@@ -148,9 +148,10 @@ class CustomProvider(OpenAIProvider):
 
 class MockProvider(LLMProvider):
     def get_client(self, api_key: str, model: str, base_url: str | None = None) -> Any:
-        from langchain_core.runnables import Runnable, RunnableConfig
-        from langchain_core.messages import AIMessage
         from typing import Optional
+
+        from langchain_core.messages import AIMessage
+        from langchain_core.runnables import Runnable, RunnableConfig
 
         response_json = """{
             "company_name": "Mock Company",
@@ -168,12 +169,14 @@ class MockProvider(LLMProvider):
         }"""
 
         class DummyMockModel(Runnable):
-            def invoke(self, input: Any, config: Optional[RunnableConfig] = None, **kwargs: Any) -> Any:
+            def invoke(
+                self, input: Any, config: Optional[RunnableConfig] = None, **kwargs: Any
+            ) -> Any:
                 return AIMessage(content=response_json)
-                
+
             def with_retry(self, **kwargs):
                 return self
-                
+
             # Allow arbitrary attribute setting (like temperature/max_tokens in get_llm)
             def __setattr__(self, name, value):
                 self.__dict__[name] = value
