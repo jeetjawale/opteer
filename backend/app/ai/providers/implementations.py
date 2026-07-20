@@ -144,3 +144,43 @@ class OllamaProvider(LLMProvider):
 class CustomProvider(OpenAIProvider):
     # Custom provider uses standard OpenAI compatibility but relies on the base_url passed in  # noqa: E501
     pass
+
+
+class MockProvider(LLMProvider):
+    def get_client(self, api_key: str, model: str, base_url: str | None = None) -> Any:
+        from langchain_core.runnables import Runnable, RunnableConfig
+        from langchain_core.messages import AIMessage
+        from typing import Optional
+
+        response_json = """{
+            "company_name": "Mock Company",
+            "role_name": "Mock Role",
+            "location": "Remote",
+            "work_model": "Remote",
+            "cleaned_jd": "Mock Cleaned JD",
+            "passes_gate": "true",
+            "reason": "Passed",
+            "fit_score": 95,
+            "matched_skills": ["Mock"],
+            "missing_skills": [],
+            "key_requirements": ["Mock"],
+            "summary": "Mock Summary"
+        }"""
+
+        class DummyMockModel(Runnable):
+            def invoke(self, input: Any, config: Optional[RunnableConfig] = None, **kwargs: Any) -> Any:
+                return AIMessage(content=response_json)
+                
+            def with_retry(self, **kwargs):
+                return self
+                
+            # Allow arbitrary attribute setting (like temperature/max_tokens in get_llm)
+            def __setattr__(self, name, value):
+                self.__dict__[name] = value
+
+        return DummyMockModel()
+
+    async def fetch_available_models(
+        self, api_key: str, base_url: str | None = None
+    ) -> List[Dict[str, str]]:
+        return [{"id": "mock-model", "name": "Mock Model"}]

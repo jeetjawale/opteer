@@ -9,6 +9,7 @@ from app.ai.providers.implementations import (
     OllamaProvider,
     OpenAIProvider,
     OpenRouterProvider,
+    MockProvider,
 )
 
 
@@ -21,6 +22,7 @@ class ProviderFactory:
         "openrouter": OpenRouterProvider,
         "ollama": OllamaProvider,
         "custom": CustomProvider,
+        "mock": MockProvider,
     }
 
     @classmethod
