@@ -5,63 +5,16 @@ import { useReactToPrint } from 'react-to-print';
 import { Loader2, FileDown, Sparkles, RefreshCw } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface ContactInfo {
-  name: string;
-  email?: string;
-  phone?: string;
-  location?: string;
-  links?: string[];
-}
-
-interface ExperienceEntry {
-  role: string;
-  company: string;
-  location?: string;
-  start_date?: string;
-  end_date?: string;
-  bullets: string[];
-}
-
-interface EducationEntry {
-  degree: string;
-  institution: string;
-  location?: string;
-  start_date?: string;
-  end_date?: string;
-  notes?: string;
-}
-
-interface ProjectEntry {
-  name: string;
-  tech_stack?: string;
-  start_date?: string;
-  end_date?: string;
-  bullets: string[];
-}
-
-interface SkillCategory {
-  category: string;
-  items: string[];
-}
-
-interface CertificationEntry {
-  name: string;
-  issuer?: string;
-  date?: string;
-  notes?: string;
-}
-
-interface ResumeStructured {
-  contact: ContactInfo;
-  summary?: string;
-  experience: ExperienceEntry[];
-  education: EducationEntry[];
-  projects: ProjectEntry[];
-  skills: SkillCategory[];
-  certifications: CertificationEntry[];
-}
+import {
+  ContactInfo,
+  ExperienceEntry,
+  EducationEntry,
+  ProjectEntry,
+  SkillCategory,
+  CertificationEntry,
+  ResumeStructured,
+  ResumeEdit,
+} from '../types';
 
 // ─── LaTeX-style Resume Renderer ─────────────────────────────────────────────
 
@@ -110,7 +63,7 @@ function BulletList({ bullets }: { bullets: string[] }) {
   );
 }
 
-function ResumeDocument({ data, edits }: { data: ResumeStructured; edits: any[] }) {
+function ResumeDocument({ data, edits }: { data: ResumeStructured; edits: ResumeEdit[] }) {
   const { contact, summary, experience, education, projects, skills, certifications } = data;
 
   const contactParts = [
@@ -282,7 +235,7 @@ export function ResumeTailor({
 }: {
   applicationId: string;
   initialContent: string;
-  resumeEdits: any[];
+  resumeEdits: ResumeEdit[];
   initialStructuredResume?: ResumeStructured;
 }) {
   const [structured, setStructured] = useState<ResumeStructured | null>(initialStructuredResume || null);

@@ -133,7 +133,7 @@ async def run_all_analyses(state: AnalysisState) -> dict:
             return {"fit_result": result}
         except Exception as e:
             logger.error("fit_scoring failed: %s", str(e))
-            return {"fit_result": {}}
+            raise e
 
     async def _letter():
         try:
@@ -157,7 +157,7 @@ async def run_all_analyses(state: AnalysisState) -> dict:
             }
         except Exception as e:
             logger.error("cover_letter failed: %s", str(e))
-            return {"cover_letter": ""}
+            raise e
 
     async def _prep():
         try:
@@ -175,7 +175,7 @@ async def run_all_analyses(state: AnalysisState) -> dict:
             return {"interview_prep": result}
         except Exception as e:
             logger.error("interview_prep failed: %s", str(e))
-            return {"interview_prep": {}}
+            raise e
 
     async def _tailor():
         try:
@@ -192,7 +192,7 @@ async def run_all_analyses(state: AnalysisState) -> dict:
             return {"resume_edits": result}
         except Exception as e:
             logger.error("resume_tailor failed: %s", str(e))
-            return {"resume_edits": {}}
+            raise e
 
     try:
         tasks = [_fit()]

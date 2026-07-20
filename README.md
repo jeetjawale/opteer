@@ -6,8 +6,6 @@
 ![Tests](https://img.shields.io/badge/tests-100%25_passing-success.svg)
 ![Coverage](https://img.shields.io/badge/coverage-71%25-success.svg)
 
-*(Placeholder: UI Screenshot or Demo GIF)*
-
 ## What is Opteer?
 
 Opteer is an **AI-powered Job Search & Application Management Platform**.
@@ -18,204 +16,141 @@ This project is built for developers and job seekers who want a highly customiza
 
 What makes Opteer different from standard wrappers is its stateful AI orchestration. By leveraging LangGraph, it runs multi-step pipelines that fetch context, score fit, draft cover letters, and build interview prep guides in isolated, reliable steps. Furthermore, it strictly prioritizes security—user API keys are stored fully encrypted in the database and only decrypted in-memory during execution.
 
+## Getting Started
+
+**Prerequisites:** [Docker](https://docs.docker.com/get-docker/) (with Docker Compose). That's it — no Python, Node.js, or PostgreSQL needed.
+
+```bash
+git clone https://github.com/jeetjawale/opteer.git
+cd opteer
+docker compose up --build
+```
+
+Open **http://localhost:3000** — that's it.
+
+Database, migrations, backend, worker, and frontend are all handled automatically inside Docker.
+
+> **Note:** The first build takes a few minutes. Subsequent starts are near-instant.
+
+| Service   | URL                    | Description                |
+|-----------|------------------------|----------------------------|
+| Frontend  | http://localhost:3000   | Next.js Dashboard          |
+| Backend   | http://localhost:8080   | FastAPI + Swagger Docs     |
+| Database  | localhost:5433          | PostgreSQL 15              |
+
+To stop everything: `docker compose down` (add `-v` to also wipe the database).
+
+## Usage
+
+1. **Open the dashboard** at `http://localhost:3000`. A local user is provisioned automatically.
+2. **Configure Settings:** Navigate to the Settings page to input your preferred LLM API key (OpenAI, Anthropic, or Gemini). This key will be encrypted and saved securely.
+3. **Upload a Resume:** Go to the Resumes tab and upload a PDF of your base resume.
+4. **Import a Job:** Paste a job posting URL. The backend will use Firecrawl to scrape the description and Tavily to research the company.
+5. **Run Analysis:** Click "Analyze". The background worker will pick up the task, score your resume against the job description, draft a custom cover letter, and generate a tailored interview prep guide.
+
 ## Features
 
 - **Stepped Job Importing**: Scrapes raw job postings via Firecrawl and conducts automated search queries using Tavily.
 - **Stateful Analysis Pipelines**: Employs LangGraph to run sequential LLM chains for fit scoring, cover letter generation, and interview prep.
 - **Secure API Key Management**: User API keys are mathematically encrypted at rest and dynamically decrypted in-memory during pipeline execution.
 - **Quota & Rate Limiting**: Dedicated application-layer usage limits and worker-enforced analysis quotas prevent runaway LLM costs.
-- **Background Task Processing**: Heavy AI tasks are offloaded to a resilient, asynchronous polling worker (`worker.py`).
-- **Local-First Architecture**: Dedicated single-tenant structure with automatic user provisioning.
+- **Event-Driven Worker**: Heavy AI tasks are processed by an asynchronous worker triggered via PostgreSQL `LISTEN/NOTIFY`.
+- **Local-First Architecture**: Single-tenant structure with automatic user provisioning — no sign-up required.
 - **Dynamic File Storage**: Handles PDF resume uploads via Local Storage Provider.
 
 ## Tech Stack
 
-Opteer is built on a modern, robust stack optimized for providing real AI value out-of-the-box.
-
 ### Frontend
-- **Next.js 15** (App Router)
-- **TypeScript**
-- **Tailwind CSS**
-- **TanStack Query**
-### User Management
-- **Local First** (Automatic profile provisioning without authentication hurdles)
+- **Next.js 15** (App Router), **React 19**, **TypeScript**
+- **Tailwind CSS 4**, **TanStack Query 5**, **shadcn/ui**
 
 ### Backend
-- **FastAPI**
-- **Pydantic**
-- **LangGraph**
+- **FastAPI**, **Pydantic**, **LangGraph**
+- **SQLAlchemy Async**, **Alembic** (Migrations)
 
-### Database & Storage
-- **PostgreSQL**
-- **SQLAlchemy Async**
+### Database & Infrastructure
+- **PostgreSQL 15** (containerized)
+- **Docker Compose** (single-command orchestration)
 
-### External Data Sources
+### External Services
 - **Firecrawl API** (Job scraping, Website extraction)
-- **Tavily API** (Company research, Web search, Job intelligence)
+- **Tavily API** (Company research, Web search)
 
-### Infrastructure
-- **GitHub Actions CI**
-- **Pytest**
-- **Ruff** & **Black**
-- **MyPy**
-
-## Architecture Workflow
+## Architecture
 
 ```text
-Frontend
-  Next.js
-      │
-      ▼
-   FastAPI
-      │
-      ├── PostgreSQL
-      │
-      ├── OpenAI
-      ├── Anthropic
-      ├── Gemini
-      │
-      ├── Firecrawl
-      └── Tavily
+Frontend (Next.js)
+       │
+       ▼
+    FastAPI
+       │
+       ├── PostgreSQL ──LISTEN/NOTIFY──▶ Worker
+       │
+       ├── OpenAI / Anthropic / Gemini
+       │
+       ├── Firecrawl
+       └── Tavily
 ```
-
-## Prerequisites
-
-- Node.js >= 20.0.0
-- Python >= 3.11
-- Alembic
-- Docker & Docker Compose (optional, for self-hosted container deployment)
-
-## Installation & Setup
-
-1. **Clone the repository:**
-   ```bash
-   git clone <your-repo-url>
-   cd opteer
-   ```
-
-2. **Install Backend Dependencies:**
-   ```bash
-   cd backend
-   python3 -m venv .venv
-   source .venv/bin/activate
-   pip install -r requirements.txt
-   ```
-
-3. **Install Frontend Dependencies:**
-   ```bash
-   cd ../frontend
-   npm ci
-   ```
-
-4. **Environment Setup:**
-   Create a `.env` file at the root of the project by copying `.env.example`:
-   ```bash
-   cp .env.example .env
-   ```
-   *Required Variables:*
-   - `AI_PROVIDER`: The active LLM provider (e.g., `gemini`, `openai`, `anthropic`).
-   - `AI_MODEL`: The default model string (e.g., `gemini-3.1-flash-lite`).
-   - `API_KEY_ENCRYPTION_KEY`: A 32 url-safe base64-encoded byte string for securing user API keys. Generate via: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`.
-   - `DATABASE_URL`: Your PostgreSQL connection string.
-   - `NEXT_PUBLIC_API_URL`: Backend URL (defaults to `http://localhost:8080`).
-
-   *Optional Variables:*
-   - `FIRECRAWL_API_KEY`: For scraping job links (Get from firecrawl.dev).
-   - `TAVILY_API_KEY`: For company research (Get from tavily.com).
-   - `GOOGLE_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, etc.: Platform-level LLM fallbacks.
-
-5. **Database Setup:**
-   Apply the migrations to your PostgreSQL database to generate the schema:
-   ```bash
-   cd backend
-   alembic upgrade head
-   ```
-
-6. **Start the Application (Manual Method):**
-   You will need three terminal tabs:
-   
-   *Tab 1 (API Server):*
-   ```bash
-   cd backend
-   source .venv/bin/activate
-   uvicorn app.main:app --port 8080 --reload
-   ```
-   *Tab 2 (Background Worker):*
-   ```bash
-   cd backend
-   source .venv/bin/activate
-   python worker.py
-   ```
-   *Tab 3 (Frontend):*
-   ```bash
-   cd frontend
-   npm run dev
-   ```
-
-   **Alternatively, start via Docker:**
-   ```bash
-   docker-compose up -d --build
-   ```
-
-## Usage
-
-1. **Sign Up / Login:** Open `http://localhost:3000` and create a user account.
-2. **Configure Settings:** Navigate to the Settings page to input your preferred LLM API key. This key will be encrypted and saved securely.
-3. **Upload a Resume:** Go to the Resumes tab and upload a PDF of your base resume.
-4. **Import a Job:** Paste a job posting URL. The backend will use Firecrawl to scrape the description and Tavily to research the company.
-5. **Run Analysis:** Click "Analyze". The background worker will pick up the task, score your resume against the job description, draft a custom cover letter, and generate a tailored interview prep guide.
 
 ## Project Structure
 
 ```text
 opteer/
 ├── backend/                  # FastAPI Application & Background Worker
-│   ├── app/                  # API routers, chains, graph orchestration, and schemas
-│   └── tests/                # Pytest suites for unit and integration testing
+│   ├── app/                  # API routers, AI graphs, schemas, models
+│   ├── alembic/              # Database migrations
+│   ├── tests/                # Pytest suites
+│   ├── Dockerfile            # Backend container image
+│   ├── entrypoint.sh         # Runs migrations then starts uvicorn
+│   └── worker.py             # Event-driven analysis worker
 ├── frontend/                 # Next.js App Router Application
-│   ├── public/               # Static assets
-│   └── src/                  # React components, pages, and client API lib
-├── backend/alembic/          # Alembic database migrations
-├── docker-compose.yml        # Multi-container orchestration config
+│   ├── src/                  # React components, pages, and client API lib
+│   ├── tests/                # Playwright E2E & Vitest unit tests
+│   └── Dockerfile            # Frontend container image
+├── scripts/
+│   └── backup_db.sh          # Database backup utility
+├── docker-compose.yml        # Multi-container orchestration
 ├── LICENSE                   # MIT License
-└── README.md                 # Project documentation
+└── README.md
 ```
-
-## API Reference
-
-The backend exposes several modular routers. Here are the core health and validation endpoints defined in `main.py`:
-
-**`GET /health`**
-- **Description:** Verifies service uptime and returns basic project metadata.
-- **Response:** `{"status": "healthy", "project": "Opteer"}`
-
-**`POST /health/llm`**
-- **Description:** Validates user-provided LLM credentials by invoking a minimal test prompt. Protected by a rate limiter (5 requests / 60 seconds).
-- **Headers:** `X-User-Api-Key` (Optional string).
-- **Response (Success):** `{"status": "ok", "provider": "gemini"}`
-- **Response (Error):** `{"status": "error", "detail": "Invalid authentication credentials"}`
-
-*(Note: `jobs`, `applications`, `reminders`, `resumes`, and `settings` routers are fully implemented and interact directly with PostgreSQL and the LangGraph worker.)*
 
 ## Configuration
 
-Behavior is controlled via the `.env` file at the root. 
-- **AI Targeting:** `AI_MODEL_FIT`, `AI_MODEL_LETTER`, and `AI_MODEL_PREP` allow you to map specific models to distinct phases of the LangGraph pipeline (e.g., routing cheap models to scoring, and powerful models to cover letter drafting).
-- **Local Fallbacks:** By setting `AI_PROVIDER=local` and configuring `LOCAL_LLM_BASE_URL`, you can completely bypass cloud providers and run analysis against a local Ollama or vLLM instance.
+All runtime configuration is set via environment variables in `docker-compose.yml`. The defaults work out of the box for local development.
+
+| Variable | Default | Description |
+|---|---|---|
+| `DATABASE_URL` | (set in compose) | PostgreSQL connection string |
+| `API_KEY_ENCRYPTION_KEY` | (set in compose) | 32-byte base64 key for encrypting user API keys |
+| `FRONTEND_URL` | `http://localhost:3000` | Frontend origin (for CORS) |
+| `NEXT_PUBLIC_API_URL` | `http://localhost:8080` | Backend URL (frontend browser calls) |
+| `LOG_LEVEL` | `INFO` | Backend log verbosity |
+
+**AI model routing** can be configured via `AI_MODEL_FIT`, `AI_MODEL_LETTER`, and `AI_MODEL_PREP` to map specific models to distinct phases of the LangGraph pipeline.
+
+**Local LLM support**: Set `AI_PROVIDER=local` and configure `LOCAL_LLM_BASE_URL` to use a local Ollama or vLLM instance.
+
+## Database Backup
+
+```bash
+./scripts/backup_db.sh
+```
+
+Creates a compressed SQL dump from the running database container. Old backups (>7 days) are auto-cleaned.
 
 ## Contributing
 
-**Running Tests:**
-The backend uses Pytest for unit and integration testing.
-```bash
-cd backend
-source .venv/bin/activate
-python -m pytest
-```
+1. Fork the repository and create a descriptive branch (e.g., `feature/add-new-provider`).
+2. Make your changes and verify:
+   ```bash
+   # Backend (inside Docker)
+   docker compose exec backend pytest tests/
 
-**Branch Naming & PRs:**
-- Please use descriptive branch names (e.g., `feature/add-new-provider` or `fix/rate-limiter-race-condition`).
-- Ensure all tests pass and that your dependencies are pinned securely before submitting a Pull Request.
+   # Frontend (inside Docker)
+   docker compose exec frontend npm run type-check
+   docker compose exec frontend npm run lint
+   ```
+3. Ensure all tests pass and submit a Pull Request.
 
 ## License
 

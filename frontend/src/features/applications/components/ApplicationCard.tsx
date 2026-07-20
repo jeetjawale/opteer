@@ -122,7 +122,12 @@ export default function ApplicationCard({
         <span>{timeAgoText}</span>
         <div className="flex items-center gap-2">
           {isActive && (
-             <button className="text-primary hover:text-on-primary hover:bg-primary transition-colors font-label-lg font-semibold border border-primary-container bg-primary-container/20 px-4 py-1.5 rounded-lg shadow-sm">Prep</button>
+             <button 
+               aria-label="Prepare for interview"
+               className="text-primary hover:text-on-primary hover:bg-primary transition-colors font-label-lg font-semibold border border-primary-container bg-primary-container/20 px-4 py-1.5 rounded-lg shadow-sm"
+             >
+               Prep
+             </button>
           )}
           <button
             onClick={(e) => {
@@ -134,6 +139,7 @@ export default function ApplicationCard({
             disabled={isDeleting}
             className="text-on-surface-variant hover:text-error hover:bg-error/10 p-1.5 rounded-md transition-colors z-10 opacity-0 group-hover:opacity-100 focus:opacity-100"
             title="Delete Job"
+            aria-label="Delete job application"
           >
             <Trash2 size={16} />
           </button>

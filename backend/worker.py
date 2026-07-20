@@ -1,10 +1,11 @@
-#!/usr/bin/env python3
+# !/usr/bin/env python3
 import asyncio
 import sys
 import os
 import logging
 import json
 from datetime import datetime, timedelta, timezone
+import asyncpg
 
 sys.path.insert(0, os.path.dirname(__file__))
 
@@ -21,11 +22,11 @@ from app.db.models.user_configs import UserConfig
 from app.ai.graphs.analysis_graph import run_analysis
 from app.utils.timing import log_duration
 
-POLL_INTERVAL = 2  # seconds between polls
 MAX_STALE_MINUTES = 30  # reset stuck 'processing' records after this long
+wakeup_event = asyncio.Event()
 
 
-async def process_one() -> None:
+async def process_one() -> bool:
     """Claim and process one queued application, if any."""
     async with log_duration("WORKER_PROCESS_ONE"):
         async with async_session() as session:
@@ -40,8 +41,7 @@ async def process_one() -> None:
             app = result.scalar_one_or_none()
 
             if not app:
-                return
-
+                return False
             app_id = app.id
             user_id = app.user_id
 
@@ -66,7 +66,7 @@ async def process_one() -> None:
             await session.commit()
 
             if not claim_result.scalar_one_or_none():
-                return  # lost the race
+                return False  # lost the race
 
             logger.info(f"Claimed application {app_id}")
 
@@ -146,6 +146,7 @@ async def process_one() -> None:
                     )
                     logger.info(f"Completed {app_id}")
                 await session.commit()
+                return True
 
         except Exception as exc:
             error_msg = f"Analysis pipeline exception: {exc}"
@@ -160,6 +161,7 @@ async def process_one() -> None:
             except Exception:
                 pass
             logger.exception(f"Exception {app_id}: {exc}")
+            return False
 
 
 async def recover_stale() -> None:
@@ -190,23 +192,62 @@ async def recover_stale() -> None:
             logger.warning(f"Warning: stale recovery failed: {exc}")
 
 
+async def listen_for_jobs() -> None:
+    """Listens for PostgreSQL NOTIFY events on 'analysis_queued' channel."""
+    db_url = settings.DATABASE_URL
+    # Coerce postgresql+asyncpg:// to postgresql:// as expected by asyncpg
+    pg_url = db_url.replace("postgresql+asyncpg://", "postgresql://")
+    
+    while True:
+        try:
+            logger.info("Connecting listener to PostgreSQL...")
+            conn = await asyncpg.connect(pg_url)
+            
+            async def on_notification(connection, pid, channel, payload):
+                logger.info(f"Database notification received on '{channel}': {payload}")
+                wakeup_event.set()
+                
+            await conn.add_listener("analysis_queued", on_notification)
+            logger.info("Listening for 'analysis_queued' notifications...")
+            
+            # Keep listener alive
+            while True:
+                await asyncio.sleep(3600)
+        except Exception as e:
+            logger.error(f"Listener connection error: {e}. Retrying in 10s...")
+            await asyncio.sleep(10)
+
+
 async def main() -> None:
     logger.info(
-        f"Started. Poll interval={POLL_INTERVAL}s, stale timeout={MAX_STALE_MINUTES}min"
+        f"Started. Event-driven mode, stale timeout={MAX_STALE_MINUTES}min"
     )
+    
+    # Start the listener background task
+    asyncio.create_task(listen_for_jobs())
+    
+    # Run stale recovery on startup to catch anything left over
+    await recover_stale()
+    
     recovery_tick = 0
     while True:
         try:
-            recovery_tick += 1
-            if recovery_tick >= 150:
-                await recover_stale()
-                recovery_tick = 0
-
-            await process_one()
+            # Drain queue completely before going to sleep
+            while await process_one():
+                pass
         except Exception as exc:
             logger.exception(f"Unhandled error in main loop: {exc}")
 
-        await asyncio.sleep(POLL_INTERVAL)
+        # Sleep/wait for wakeup event or fallback poll (for recovery safety)
+        try:
+            await asyncio.wait_for(wakeup_event.wait(), timeout=60.0)
+            wakeup_event.clear()
+        except asyncio.TimeoutError:
+            # Fallback/heartbeat check
+            recovery_tick += 1
+            if recovery_tick >= 10:  # ~10 minutes
+                await recover_stale()
+                recovery_tick = 0
 
 
 if __name__ == "__main__":

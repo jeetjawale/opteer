@@ -6,7 +6,8 @@ This document outlines the actual standard engineering practices, conventions, a
 
 - **Frontend**: Next.js (App Router), React 19, Tailwind CSS v4, TypeScript
 - **Backend**: FastAPI (Python), SQLAlchemy, Alembic (Migrations), PostgreSQL
-- **Testing**: Playwright (Frontend E2E), Pytest (Backend)
+- **Infrastructure**: Docker Compose (all services containerized)
+- **Testing**: Playwright (Frontend E2E), Vitest (Frontend Unit), Pytest (Backend)
 
 ## API Contract & Routes
 
@@ -33,16 +34,17 @@ Opteer endpoints return data structures directly using Pydantic response models.
 
 ## Code Quality & Validation
 
-Before marking work complete, verify changes using the project's native tools:
+Before marking work complete, verify changes using Docker:
 
-- **Frontend Types**: `npm --prefix frontend run type-check`
-- **Frontend Linting**: `npm --prefix frontend run lint`
-- **E2E Tests**: `npm --prefix frontend run test:e2e`
-- **Backend**: Run Python scripts/tests in a virtual environment (`.venv`).
+- **Frontend Types**: `docker compose exec frontend npm run type-check`
+- **Frontend Linting**: `docker compose exec frontend npm run lint`
+- **E2E Tests**: `docker compose exec frontend npm run test:e2e`
+- **Backend Tests**: `docker compose exec backend pytest tests/`
 
 ## Environment & Configuration
 
 - Never commit `.env` files or secrets.
-- Use `.env.example` as a template for adding new environment variables.
+- All environment variables are configured in `docker-compose.yml` for local development.
 - Do NOT link (symlink) `backend/.env` and `frontend/.env.local` to a single shared file. They must remain separate files. This enforces the principle of least privilege (preventing the Next.js server from accessing backend-only secrets like `DATABASE_URL` and `API_KEY_ENCRYPTION_KEY`) and provides clarity on exactly what variables each environment requires.
-- During development, start the backend using `uvicorn app.main:app --reload` to ensure API schema changes apply immediately.
+- The backend starts via `entrypoint.sh`, which runs Alembic migrations and then launches uvicorn.
+- The worker starts via `worker.py` and uses PostgreSQL `LISTEN/NOTIFY` for event-driven task processing.

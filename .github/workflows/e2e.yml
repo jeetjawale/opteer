@@ -10,29 +10,9 @@ jobs:
   e2e:
     name: E2E Tests
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: opteer_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
     steps:
     - uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-        cache: 'pip'
 
     - name: Set up Node.js
       uses: actions/setup-node@v4
@@ -41,63 +21,32 @@ jobs:
         cache: 'npm'
         cache-dependency-path: ./frontend/package-lock.json
 
-    - name: Install OS Dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y lsof
-
-    - name: Install Backend Dependencies
-      run: |
-        python -m venv backend/.venv
-        source backend/.venv/bin/activate
-        python -m pip install --upgrade pip
-        pip install -r backend/requirements.txt -r backend/requirements-test.txt
-
-    - name: Setup Database
-      env:
-        DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/opteer_test
-        API_KEY_ENCRYPTION_KEY: Z_ILOz5AOX7jBQ3cIveKBpeaAxB-pOlmixGsxuy-ii8=
-      run: |
-        source backend/.venv/bin/activate
-        cd backend
-        alembic upgrade head
-
     - name: Install Frontend Dependencies
       run: |
         cd frontend
         npm ci
         npx playwright install --with-deps
 
-    - name: Run E2E Tests
+    - name: Run Docker Compose Stack
       env:
-        DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/opteer_test
-        AI_PROVIDER: mock
+        # Mock API Key for tests
         API_KEY_ENCRYPTION_KEY: Z_ILOz5AOX7jBQ3cIveKBpeaAxB-pOlmixGsxuy-ii8=
+        AI_PROVIDER: mock
       run: |
-        export PYTHONPATH=$(pwd)/backend
-        export NEXT_PUBLIC_API_URL=http://localhost:8080
-        
-        echo "Starting Backend..."
-        cd backend
-        .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8080 > backend.log 2>&1 &
-        BACKEND_PID=$!
-        sleep 5
-        
-        echo "Starting Worker..."
-        .venv/bin/python worker.py > worker.log 2>&1 &
-        WORKER_PID=$!
-        sleep 5
-        
-        echo "Starting Frontend..."
-        cd ../frontend
-        npm run dev > frontend.log 2>&1 &
-        FRONTEND_PID=$!
-        sleep 20
-        
-        echo "Running Playwright Tests..."
-        npx playwright test tests/e2e/fullstack/ || (echo "E2E Tests Failed!" && cat playwright.log && cat ../backend/backend.log && kill -9 $BACKEND_PID $WORKER_PID $FRONTEND_PID 2>/dev/null || true && exit 1)
-        
-        kill -9 $BACKEND_PID $WORKER_PID $FRONTEND_PID 2>/dev/null || true
+        docker compose up -d --build
+        # Wait for the backend health check to pass
+        echo "Waiting for backend to be healthy..."
+        timeout 60s bash -c 'until curl -s http://localhost:8080/health; do sleep 2; done'
+        echo "Backend is up!"
+
+    - name: Run Playwright Tests
+      run: |
+        cd frontend
+        npx playwright test tests/e2e/fullstack/
+
+    - name: Docker Logs on Failure
+      if: failure()
+      run: docker compose logs
 
     - name: Upload Playwright Report
       if: always()

@@ -15,6 +15,8 @@ class Settings(BaseSettings):
 
     # Database (PostgreSQL)
     DATABASE_URL: str
+    DB_POOL_SIZE: int = 20
+    DB_MAX_OVERFLOW: int = 10
 
     SENTRY_DSN: str | None = None
 

@@ -1,8 +1,9 @@
-version: '3.8'
-
-volumes:
-  postgres_data:
-  local_storage:
+# =============================================================================
+# Opteer - Docker Compose Configuration
+# =============================================================================
+# Single-command setup: docker compose up --build
+# No local Python, Node.js, or PostgreSQL required.
+# =============================================================================
 
 services:
   db:
@@ -17,9 +18,49 @@ services:
       - "5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/opteer
+      - API_KEY_ENCRYPTION_KEY=EI-hCh7RMRnfAQWb0TFpHgEvPEqUJPQp0cv_pnDVCuE=
+      - ENVIRONMENT=development
+      - FRONTEND_URL=http://localhost:3000
+      - CORS_ORIGINS=["http://localhost:3000"]
+      - LOG_LEVEL=INFO
+    volumes:
+      - local_storage:/app/local_storage
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: ["python", "worker.py"]
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/opteer
+      - API_KEY_ENCRYPTION_KEY=EI-hCh7RMRnfAQWb0TFpHgEvPEqUJPQp0cv_pnDVCuE=
+      - ENVIRONMENT=development
+      - LOG_LEVEL=INFO
+    volumes:
+      - local_storage:/app/local_storage
+    depends_on:
+      backend:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+    restart: unless-stopped
 
   frontend:
     build:
@@ -30,43 +71,11 @@ services:
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:8080
       - INTERNAL_API_URL=http://backend:8080
-    env_file:
-      - frontend/.env.local
     depends_on:
       backend:
         condition: service_healthy
+    restart: unless-stopped
 
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    ports:
-      - "8080:8080"
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/opteer
-    env_file:
-      - backend/.env
-    volumes:
-      - local_storage:/app/local_storage
-    depends_on:
-      db:
-        condition: service_healthy
-
-  worker:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    command: ["python", "worker.py"]
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/opteer
-    env_file:
-      - backend/.env
-    volumes:
-      - local_storage:/app/local_storage
-    depends_on:
-      backend:
-        condition: service_healthy
-      db:
-        condition: service_healthy
-    healthcheck:
-      disable: true
+volumes:
+  postgres_data:
+  local_storage:

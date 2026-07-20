@@ -1,5 +1,6 @@
 "use client";
 import { useState } from 'react';
+import Image from 'next/image';
 
 interface CompanyLogoProps {
   company: string;
@@ -49,9 +50,12 @@ export function CompanyLogo({ company, logoUrl, jobUrl, fallback }: CompanyLogoP
   }
 
   return (
-    <img
+    <Image
       src={src}
       alt={`${company} logo`}
+      width={44}
+      height={44}
+      unoptimized
       className="w-full h-full object-contain"
       style={{ padding: '4px', borderRadius: 'inherit' }}
       onError={() => setError(true)}

@@ -15,6 +15,7 @@ The Next.js frontend for the [Opteer](../README.md) AI-powered job search and ap
 | **dnd-kit** | latest | Drag-and-drop |
 | **Lucide React** | latest | Icons |
 | **Playwright** | latest | End-to-end tests |
+| **Vitest** | latest | Unit tests |
 
 ## Project Structure
 
@@ -53,55 +54,50 @@ frontend/
 │   ├── e2e/                        # Playwright end-to-end test suites
 │   └── fixtures/                   # Shared test fixtures
 ├── public/                         # Static assets
+├── Dockerfile                      # Frontend container image
 ├── next.config.ts
 ├── tailwind.config.js
 ├── playwright.config.ts
+├── vitest.config.ts
 ├── tsconfig.json
 └── package.json
 ```
 
-## Getting Started
+## Development
 
-### Prerequisites
-
-- **Node.js** >= 20
-- The backend API running on `http://localhost:8080` (see the [backend README](../backend/README.md) or root [README](../README.md))
-- A `.env` file at the **project root** with `NEXT_PUBLIC_API_URL` set (see [Environment Variables](#environment-variables))
-
-### Install dependencies
+The frontend runs inside Docker as part of the full stack. See the [root README](../README.md) for setup.
 
 ```bash
-npm ci
+# Start everything
+docker compose up --build
+
+# Frontend available at http://localhost:3000
 ```
 
-### Run the development server
+### Running commands inside the container
 
 ```bash
-npm run dev
+# Type checking
+docker compose exec frontend npm run type-check
+
+# Linting
+docker compose exec frontend npm run lint
+
+# Unit tests
+docker compose exec frontend npx vitest run
+
+# E2E tests
+docker compose exec frontend npm run test:e2e
 ```
-
-The app loads the root `.env` file automatically via `dotenv-cli`. Open [http://localhost:3000](http://localhost:3000) in your browser.
-
-### Other scripts
-
-| Script | Description |
-|---|---|
-| `npm run dev` | Start dev server with hot-reload |
-| `npm run build` | Production build |
-| `npm run start` | Start production server |
-| `npm run lint` | Run ESLint |
-| `npm run type-check` | Run TypeScript compiler check |
-| `npm run test:e2e` | Run Playwright end-to-end tests |
 
 ## Environment Variables
 
-The frontend reads from the `.env` file at the **project root** (one level up). The only required frontend variable is:
+Environment variables are set in `docker-compose.yml`. The frontend uses:
 
 | Variable | Default | Description |
 |---|---|---|
-| `NEXT_PUBLIC_API_URL` | `http://localhost:8000` | Base URL for the backend API |
-
-All other variables (AI keys, database URL, etc.) are used by the backend. See the root [`.env.example`](../.env.example) for the full reference.
+| `NEXT_PUBLIC_API_URL` | `http://localhost:8080` | Backend URL (browser calls) |
+| `INTERNAL_API_URL` | `http://backend:8080` | Backend URL (server-side/SSR calls via Docker network) |
 
 ## API Client
 
@@ -124,20 +120,17 @@ await api.delete('/jobs/123');
 
 ## End-to-End Tests
 
-Tests live in `tests/e2e/` and run against a live local stack (`http://localhost:3000`).
+Tests live in `tests/e2e/` and run against the full Docker stack.
 
 ```bash
 # Run all e2e tests
-npm run test:e2e
+docker compose exec frontend npm run test:e2e
 
 # Run in headed mode (useful for debugging)
-npx playwright test --headed
-
-# View the HTML report
-npx playwright show-report
+docker compose exec frontend npx playwright test --headed
 ```
 
-Playwright is configured in [`playwright.config.ts`](playwright.config.ts). Tests run against Chromium by default and load environment variables from the root `.env` file.
+Playwright is configured in [`playwright.config.ts`](playwright.config.ts). Tests run against Chromium by default.
 
 ## Architecture Notes
 

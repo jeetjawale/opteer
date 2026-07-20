@@ -36,14 +36,19 @@ const fetchWithAuth = async (endpoint: string, options: RequestInit = {}) => {
 };
 
 export const apiClient = {
-  get: (endpoint: string) => fetchWithAuth(endpoint),
-  post: (endpoint: string, body: any) => fetchWithAuth(endpoint, { method: 'POST', body: JSON.stringify(body) }),
-  postFormData: (endpoint: string, formData: FormData) => fetchWithAuth(endpoint, { 
-    method: 'POST', 
-    body: formData,
-    headers: { 'Content-Type': 'multipart/form-data' } // Sentinel value to be stripped
-  }),
-  patch: (endpoint: string, body: any) => fetchWithAuth(endpoint, { method: 'PATCH', body: JSON.stringify(body) }),
-  put: (endpoint: string, body: any) => fetchWithAuth(endpoint, { method: 'PUT', body: JSON.stringify(body) }),
-  delete: (endpoint: string) => fetchWithAuth(endpoint, { method: 'DELETE' }),
+  get: <T = any>(endpoint: string): Promise<T> => fetchWithAuth(endpoint),
+  post: <T = any, U = any>(endpoint: string, body: U): Promise<T> => 
+    fetchWithAuth(endpoint, { method: 'POST', body: JSON.stringify(body) }),
+  postFormData: <T = any>(endpoint: string, formData: FormData): Promise<T> => 
+    fetchWithAuth(endpoint, { 
+      method: 'POST', 
+      body: formData,
+      headers: { 'Content-Type': 'multipart/form-data' } // Sentinel value to be stripped
+    }),
+  patch: <T = any, U = any>(endpoint: string, body: U): Promise<T> => 
+    fetchWithAuth(endpoint, { method: 'PATCH', body: JSON.stringify(body) }),
+  put: <T = any, U = any>(endpoint: string, body: U): Promise<T> => 
+    fetchWithAuth(endpoint, { method: 'PUT', body: JSON.stringify(body) }),
+  delete: <T = any>(endpoint: string): Promise<T> => 
+    fetchWithAuth(endpoint, { method: 'DELETE' }),
 };
