@@ -36,7 +36,7 @@ jobs:
         docker compose up -d --build
         # Wait for the backend health check to pass
         echo "Waiting for backend to be healthy..."
-        timeout 60s bash -c 'until curl -s http://localhost:8080/health; do sleep 2; done'
+        timeout 180s bash -c 'until curl -s http://localhost:8080/health; do sleep 2; done'
         echo "Backend is up!"
 
     - name: Run Playwright Tests
