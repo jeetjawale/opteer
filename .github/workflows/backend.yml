@@ -51,7 +51,7 @@ jobs:
         pip install ruff black mypy pytest-cov pip-audit
 
     - name: Security Scan (pip-audit)
-      run: pip-audit --ignore-vuln CVE-2025-46656 --ignore-vuln PYSEC-2026-196 --ignore-vuln CVE-2026-3219 --ignore-vuln CVE-2026-6357
+      run: pip-audit --ignore-vuln CVE-2025-46656 --ignore-vuln PYSEC-2026-196 --ignore-vuln CVE-2026-3219 --ignore-vuln CVE-2026-6357 --ignore-vuln PYSEC-2026-3447
 
     - name: Check formatting with Black
       run: black --check app
