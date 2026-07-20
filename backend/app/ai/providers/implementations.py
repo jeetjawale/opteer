@@ -177,10 +177,6 @@ class MockProvider(LLMProvider):
             def with_retry(self, **kwargs):
                 return self
 
-            # Allow arbitrary attribute setting (like temperature/max_tokens in get_llm)
-            def __setattr__(self, name, value):
-                self.__dict__[name] = value
-
         return DummyMockModel()
 
     async def fetch_available_models(
