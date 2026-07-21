@@ -1,28 +1,59 @@
+import asyncio
+import logging
+import os
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.core.config import settings
+from app.core.logging_config import setup_logging
 from app.domains.applications.router import router as applications_router
 from app.domains.dashboard.router import router as dashboard_router
 from app.domains.jobs.router import router as jobs_router
 from app.domains.resumes.router import router as resumes_router
 from app.domains.settings.router import router as settings_router
 
-# Initialize the FastAPI app
+setup_logging(settings.LOG_LEVEL)
+logger = logging.getLogger(__name__)
+
+
+# ── Worker background task ──────────────────────────────────────────────────
+async def _run_worker():
+    """Run the analysis worker loop inside the API process."""
+    from worker import main as worker_main
+
+    try:
+        await worker_main()
+    except asyncio.CancelledError:
+        logger.info("Worker background task cancelled.")
+    except Exception:
+        logger.exception("Worker background task crashed.")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Start the worker as a background task on startup, cancel on shutdown."""
+    worker_task = asyncio.create_task(_run_worker())
+    logger.info("Worker started as background task inside API process.")
+    yield
+    worker_task.cancel()
+    try:
+        await worker_task
+    except asyncio.CancelledError:
+        pass
+    logger.info("Worker background task stopped.")
+
+
+# ── FastAPI app ─────────────────────────────────────────────────────────────
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description="Opteer Backend",
     version="1.0.0",
+    lifespan=lifespan,
 )
-
-from app.core.logging_config import setup_logging  # noqa: E402
-
-setup_logging(settings.LOG_LEVEL)
-
-
-from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware  # noqa: E402
-
-# import ProxyHeadersMiddleware
 
 # Setup Proxy Headers Middleware (resolves real IP behind reverse proxies)
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=settings.TRUSTED_PROXIES)
@@ -70,10 +101,7 @@ app.add_middleware(
 )
 
 # S-04: Warning for missing authentication outside development
-import logging  # noqa: E402
-
 if settings.ENVIRONMENT != "development":
-    logger = logging.getLogger(__name__)
     logger.warning("=" * 60)
     logger.warning("CRITICAL SECURITY WARNING (S-04)")
     logger.warning("Opteer is running with NO AUTHENTICATION in non-dev mode!")
@@ -81,10 +109,6 @@ if settings.ENVIRONMENT != "development":
     logger.warning("Do NOT deploy this to a public network without adding auth.")
     logger.warning("=" * 60)
 
-
-import os  # noqa: E402
-
-from fastapi.staticfiles import StaticFiles  # noqa: E402
 
 # Create local_storage directory if it doesn't exist
 os.makedirs("local_storage", exist_ok=True)
@@ -117,3 +141,4 @@ async def health_check():
         "status": "healthy",
         "project": settings.PROJECT_NAME,
     }
+

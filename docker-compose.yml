@@ -44,26 +44,6 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  worker:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    command: ["python", "worker.py"]
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/opteer
-      - API_KEY_ENCRYPTION_KEY=EI-hCh7RMRnfAQWb0TFpHgEvPEqUJPQp0cv_pnDVCuE=
-      - ENVIRONMENT=development
-      - AI_PROVIDER=${AI_PROVIDER:-}
-      - LOG_LEVEL=INFO
-    volumes:
-      - local_storage:/app/local_storage
-    depends_on:
-      backend:
-        condition: service_healthy
-      db:
-        condition: service_healthy
-    restart: unless-stopped
-
   frontend:
     build:
       context: ./frontend

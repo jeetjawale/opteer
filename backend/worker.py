@@ -9,18 +9,16 @@ import asyncpg
 
 sys.path.insert(0, os.path.dirname(__file__))
 
-from app.core.config import settings
-from app.core.logging_config import setup_logging
+from app.core.config import settings  # noqa: E402
 
-setup_logging(settings.LOG_LEVEL)
 logger = logging.getLogger("worker")
 
-from app.db.session import async_session
-from sqlalchemy import select, update, and_, or_
-from app.db.models.application import Application
-from app.db.models.user_configs import UserConfig
-from app.ai.graphs.analysis_graph import run_analysis
-from app.utils.timing import log_duration
+from app.db.session import async_session  # noqa: E402
+from sqlalchemy import select, update, and_, or_  # noqa: E402
+from app.db.models.application import Application  # noqa: E402
+from app.db.models.user_configs import UserConfig  # noqa: E402
+from app.ai.graphs.analysis_graph import run_analysis  # noqa: E402
+from app.utils.timing import log_duration  # noqa: E402
 
 MAX_STALE_MINUTES = 30  # reset stuck 'processing' records after this long
 wakeup_event = asyncio.Event()
@@ -253,6 +251,8 @@ async def main() -> None:
                 await recover_stale()
                 recovery_tick = 0
 
-
 if __name__ == "__main__":
+    from app.core.logging_config import setup_logging
+
+    setup_logging(settings.LOG_LEVEL)
     asyncio.run(main())
