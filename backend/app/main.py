@@ -148,4 +148,3 @@ async def health_check():
         "status": "healthy",
         "project": settings.PROJECT_NAME,
     }
-
