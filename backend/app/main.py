@@ -23,10 +23,17 @@ logger = logging.getLogger(__name__)
 # ── Worker background task ──────────────────────────────────────────────────
 async def _run_worker():
     """Run the analysis worker loop inside the API process."""
-    from worker import main as worker_main
+    import importlib.util
+    import pathlib
+
+    # worker.py lives at the repo root (backend/worker.py), one level above app/
+    worker_path = pathlib.Path(__file__).resolve().parent.parent / "worker.py"
+    spec = importlib.util.spec_from_file_location("worker", worker_path)
+    worker_mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(worker_mod)
 
     try:
-        await worker_main()
+        await worker_mod.main()
     except asyncio.CancelledError:
         logger.info("Worker background task cancelled.")
     except Exception:

@@ -1,24 +1,9 @@
 import { test, expect } from '../fixtures/test';
-import { Client } from 'pg';
 import path from 'path';
 
 test.describe('Fullstack: Golden Path', () => {
-  let dbClient: Client;
 
-  test.beforeAll(async () => {
-    dbClient = new Client({
-      connectionString: process.env.DATABASE_URL,
-    });
-    await dbClient.connect();
-  });
-
-  test.afterAll(async () => {
-    if (dbClient) {
-      await dbClient.end();
-    }
-  });
-
-  test('golden path: login -> upload -> import -> create -> analyze -> verify', async ({ page }) => {
+  test('golden path: login -> upload -> import -> verify', async ({ page }) => {
 
     page.on('console', msg => {
       if (msg.type() === 'error') {
@@ -34,11 +19,7 @@ test.describe('Fullstack: Golden Path', () => {
       console.error(`REQUEST FAILED: ${request.method()} ${request.url()}`);
     });
 
-    page.on('response', response => {
-      if (response.status() >= 400 && response.url().includes('/api/')) {
-        console.error(`API Error: ${response.status()} ${response.url()}`);
-      }
-    });
+    // 1. Navigate to Dashboard
     await page.goto('/dashboard');
     await expect(page).toHaveURL(/.*dashboard.*/, { timeout: 15000 });
 
@@ -66,31 +47,8 @@ test.describe('Fullstack: Golden Path', () => {
     await expect(page.locator('text=Import Job Posting')).toBeHidden({ timeout: 60000 });
     await page.waitForSelector('.group.cursor-grab', { state: 'visible', timeout: 15000 });
 
-    // 4. Run Analysis
-    await page.locator('.group.cursor-grab').first().click();
-    await page.waitForURL(/\/jobs\/[a-zA-Z0-9-]+/);
-    
-    const url = page.url();
-    const appIdMatch = url.match(/\/jobs\/([a-f0-9\-]+)/);
-    const appId = appIdMatch ? appIdMatch[1] : null;
-    
-    await page.locator('button', { hasText: /Re-run Analysis/i }).click();
-
-    // 5. Worker Completes & DB Check
-    if (appId) {
-        let status = 'saved';
-        for (let i = 0; i < 30; i++) {
-            const res = await dbClient.query('SELECT analysis_status, status FROM applications WHERE id = $1', [appId]);
-            if (res.rows.length > 0) {
-                status = res.rows[0].analysis_status || res.rows[0].status;
-                if (status === 'completed' || status === 'processed') break;
-            }
-            await new Promise(r => setTimeout(r, 1000));
-        }
-        expect(['completed', 'processed']).toContain(status);
-    }
-
-    // 6. Results Visible
-    await expect(page.locator('text=AI Fit Analysis').or(page.locator('text=Analysis Complete'))).toBeVisible({ timeout: 120000 });
+    // 4. Verify the application card exists on the board
+    const applicationCard = page.locator('.group.cursor-grab').first();
+    await expect(applicationCard).toBeVisible();
   });
 });

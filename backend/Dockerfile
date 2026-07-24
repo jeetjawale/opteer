@@ -26,4 +26,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
 
 # Entrypoint handles DB wait + migrations, then runs CMD
 ENTRYPOINT ["./entrypoint.sh"]
-CMD uvicorn app.main:app --host 0.0.0.0 --port 8080 --workers ${UVICORN_WORKERS:-4}
+CMD uvicorn app.main:app --host 0.0.0.0 --port 8080 --workers ${UVICORN_WORKERS:-1}
